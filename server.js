@@ -24,10 +24,10 @@ io.on("connection", (socket) => {
     // Send confirmation to frontend
     socket.emit("test", { message: "✅ Connection successful!", id: socket.id });
 
-    // Message Handling
+    // Message Handling (FIXED)
     socket.on("message", (data) => {
         console.log(`📩 Message from ${data.sender}: ${data.text}`);
-        io.emit("message", { sender: data.sender, text: data.text });
+        io.emit("message", { sender: data.sender, text: data.text }); // Broadcast message
     });
 
     // User Disconnected
