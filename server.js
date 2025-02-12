@@ -12,7 +12,7 @@ const io = new Server(server, {
     }
 });
 
-// ✅ Server Test Route
+// ✅ Server Running Test
 app.get("/", (req, res) => {
     res.send("✅ Server is running...");
 });
@@ -21,16 +21,16 @@ app.get("/", (req, res) => {
 io.on("connection", (socket) => {
     console.log(`✅ User connected: ${socket.id}`);
     
-    // Notify frontend that user is connected
-    socket.emit("connected", { message: "You are connected!", id: socket.id });
+    // Send confirmation to frontend
+    socket.emit("test", { message: "✅ Connection successful!", id: socket.id });
 
-    // Message handling
+    // Message Handling
     socket.on("message", (data) => {
         console.log(`📩 Message from ${data.sender}: ${data.text}`);
-        io.emit("message", { sender: data.sender, text: data.text }); // Broadcast message
+        io.emit("message", { sender: data.sender, text: data.text });
     });
 
-    // User disconnected
+    // User Disconnected
     socket.on("disconnect", () => {
         console.log(`❌ User disconnected: ${socket.id}`);
     });
