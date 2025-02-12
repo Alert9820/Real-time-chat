@@ -12,6 +12,9 @@ const io = new Server(server, {
     }
 });
 
+// ✅ Store users with their names
+const users = {};
+
 // ✅ Server Running Test
 app.get("/", (req, res) => {
     res.send("✅ Server is running...");
@@ -20,19 +23,28 @@ app.get("/", (req, res) => {
 // ✅ Real-Time Chat System
 io.on("connection", (socket) => {
     console.log(`✅ User connected: ${socket.id}`);
-    
-    // Confirm frontend connection
-    socket.emit("test", { message: "✅ Connection successful!", id: socket.id });
 
-    // ✅ Proper Message Logging (Fixed for Render)
+    // Ask for username
+    socket.emit("request_name", { message: "Please enter your name:" });
+
+    // Store username
+    socket.on("set_name", (name) => {
+        users[socket.id] = name;
+        console.log(`👤 User set name: ${name}`);
+        socket.emit("name_confirmed", { message: `✅ Name set as ${name}` });
+    });
+
+    // ✅ Proper Message Logging with Name
     socket.on("message", (msg) => {
-        console.log(`📩 Message received from ${socket.id}: ${msg}`);
-        io.emit("message", { sender: `User-${socket.id}`, text: msg });
+        const senderName = users[socket.id] || `User-${socket.id}`;
+        console.log(`📩 Message from ${senderName}: ${msg}`);
+        io.emit("message", { sender: senderName, text: msg });
     });
 
     // ✅ Notify when a user disconnects
     socket.on("disconnect", () => {
         console.log(`❌ User disconnected: ${socket.id}`);
+        delete users[socket.id]; // Remove user from list
     });
 });
 
