@@ -12,28 +12,23 @@ const io = new Server(server, {
     }
 });
 
-// ✅ Test Route
 app.get("/", (req, res) => {
     res.send("✅ Server is running...");
 });
 
-// ✅ Connection Handling
 io.on("connection", (socket) => {
     console.log(`✅ User connected: ${socket.id}`);
 
-    // ✅ Message Handling (Sirf dusre users ko bhejega)
     socket.on("message", (data) => {
-        console.log(`📩 Message from ${socket.id}: ${data}`);
-        socket.broadcast.emit("message", { text: data, sender: socket.id });
+        console.log(`📩 Message from ${data.sender}: ${data.text}`);
+        io.emit("message", { sender: data.sender, text: data.text }); // Proper emit
     });
 
-    // ✅ Disconnection Handling
     socket.on("disconnect", () => {
         console.log(`❌ User disconnected: ${socket.id}`);
     });
 });
 
-// ✅ Server Accessible from Any Device
 server.listen(5000, "0.0.0.0", () => {
     console.log("🚀 Server running on port 5000");
 });
