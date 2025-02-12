@@ -21,13 +21,13 @@ app.get("/", (req, res) => {
 io.on("connection", (socket) => {
     console.log(`✅ User connected: ${socket.id}`);
     
-    // Send confirmation to frontend
+    // Confirm frontend connection
     socket.emit("test", { message: "✅ Connection successful!", id: socket.id });
 
-    // Message Handling (FIXED)
-    socket.on("message", (data) => {
-        console.log(`📩 Message from ${data.sender}: ${data.text}`);
-        io.emit("message", { sender: data.sender, text: data.text }); // Broadcast message
+    // ✅ Message Handling (FIXED: No Username Issue!)
+    socket.on("message", (msg) => {
+        console.log(`📩 Received message from frontend:`, msg);
+        io.emit("message", msg); // Directly broadcast message
     });
 
     // User Disconnected
