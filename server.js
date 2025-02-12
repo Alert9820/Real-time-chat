@@ -24,13 +24,13 @@ io.on("connection", (socket) => {
     // Confirm frontend connection
     socket.emit("test", { message: "✅ Connection successful!", id: socket.id });
 
-    // ✅ Message Handling (FIXED: No Username Issue!)
+    // ✅ Proper Message Logging (Fixed for Render)
     socket.on("message", (msg) => {
-        console.log(`📩 Received message from frontend:`, msg);
-        io.emit("message", msg); // Directly broadcast message
+        console.log(`📩 Message received from ${socket.id}: ${msg}`);
+        io.emit("message", { sender: `User-${socket.id}`, text: msg });
     });
 
-    // User Disconnected
+    // ✅ Notify when a user disconnects
     socket.on("disconnect", () => {
         console.log(`❌ User disconnected: ${socket.id}`);
     });
