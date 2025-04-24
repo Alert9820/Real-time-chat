@@ -2,7 +2,7 @@ const express = require("express");
 const http = require("http");
 const { Server } = require("socket.io");
 const cors = require("cors");
-const fetch = require("node-fetch"); // Gemini ke liye
+const { GoogleGenerativeAI } = require("@google/genai"); // ✅ Gemini SDK
 
 const app = express();
 const server = http.createServer(app);
@@ -15,21 +15,20 @@ const io = new Server(server, {
 
 const users = {};
 
-// Gemini AI logic
-async function getGeminiReply(prompt) {
+// ✅ Gemini AI Setup
+const ai = new GoogleGenerativeAI({
+    apiKey: "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA"
+});
+
+async function getGeminiResponse(prompt) {
     try {
-        const res = await fetch("https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                contents: [{ parts: [{ text: prompt }] }]
-            })
-        });
-        const data = await res.json();
-        return data?.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't respond.";
+        const model = ai.getGenerativeModel({ model: "gemini-pro" });
+        const result = await model.generateContent(prompt);
+        const response = result.response;
+        return response.text() || "I'm not sure how to respond.";
     } catch (err) {
-        console.error("Gemini error:", err);
-        return "Oops! Something went wrong with AI.";
+        console.error("Gemini SDK error:", err);
+        return "Oops! Gemini AI failed to respond.";
     }
 }
 
@@ -54,10 +53,10 @@ io.on("connection", (socket) => {
 
         io.emit("message", { sender: senderName, text: msg });
 
-        // Check for @bot mention
+        // ✅ If @bot is mentioned
         if (msg.toLowerCase().includes("@bot")) {
-            const prompt = msg.replace("@bot", "").trim();
-            const botReply = await getGeminiReply(prompt || "Say hello!");
+            const prompt = msg.replace("@bot", "").trim() || "Say hello!";
+            const botReply = await getGeminiResponse(prompt);
             io.emit("message", { sender: "Shizune-Bot 🤖", text: botReply });
         }
     });
