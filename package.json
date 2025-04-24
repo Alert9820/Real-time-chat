@@ -10,8 +10,11 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "cors": "^2.8.5",
-    "express": "^4.21.2",
-    "socket.io": "^4.8.1"
-  }
+  "cors": "^2.8.5",
+  "express": "^4.21.2",
+  "socket.io": "^4.8.1",
+  "node-fetch": "^3.3.2"
 }
+
+  }
+
