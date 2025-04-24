@@ -2,7 +2,7 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
-import { GoogleGenerativeAI } from "genai"; // using alias in package.json
+import { GoogleGenerativeAI } from "@google/genai"; // original package
 
 const app = express();
 const server = http.createServer(app);
@@ -16,7 +16,6 @@ const io = new Server(server, {
 
 const users = {};
 
-// Gemini setup with aliased import
 const ai = new GoogleGenerativeAI({
   apiKey: "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA"
 });
@@ -50,7 +49,6 @@ io.on("connection", (socket) => {
     const sender = users[socket.id] || `User-${socket.id}`;
     io.emit("message", { sender, text: msg });
 
-    // 👇 Custom trigger: >>bot
     if (msg.toLowerCase().includes(">>bot")) {
       const prompt = msg.replace(">>bot", "").trim() || "Say hello!";
       const botReply = await getGeminiResponse(prompt);
