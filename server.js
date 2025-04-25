@@ -1,40 +1,69 @@
-<script>
-  function sendMessage() {
-    const input = document.getElementById("user-input").value.trim();
-    if (!input) return;
+import express from "express";
+import http from "http";
+import { Server } from "socket.io";
+import cors from "cors";
+import fetch from "node-fetch";
 
-    // Show user message
-    const chatBox = document.getElementById("chat-box");
-    const userMsg = document.createElement("div");
-    userMsg.className = "message user";
-    userMsg.textContent = "You: " + input;
-    chatBox.appendChild(userMsg);
+const app = express();
+const server = http.createServer(app);
+const io = new Server(server, {
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  }
+});
+const users = {};
 
-    // Clear input
-    document.getElementById("user-input").value = "";
+const GEMINI_API_KEY = "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA";
 
-    // Send prompt to your own server
-    fetch("https://your-render-app.onrender.com/gemini", {
+app.use(cors());
+app.use(express.json());
+
+app.get("/", (req, res) => {
+  res.send("✅ Real-Time Chat Server is live");
+});
+
+// ✅ Gemini API proxy endpoint
+app.post("/gemini", async (req, res) => {
+  const prompt = req.body.prompt;
+  try {
+    const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ prompt: input })
-    })
-    .then(res => res.json())
-    .then(data => {
-      const botText = data.text || "No response.";
-      const botMsg = document.createElement("div");
-      botMsg.className = "message bot";
-      botMsg.textContent = "Bot: " + botText;
-      chatBox.appendChild(botMsg);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    })
-    .catch(err => {
-      const errorMsg = document.createElement("div");
-      errorMsg.className = "message bot";
-      errorMsg.textContent = "Bot: Error occurred!";
-      chatBox.appendChild(errorMsg);
-      chatBox.scrollTop = chatBox.scrollHeight;
-      console.error(err);
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: prompt }] }]
+      })
     });
+
+    const data = await geminiRes.json();
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "No response.";
+    res.json({ text });
+  } catch (err) {
+    console.error("Gemini API Error:", err);
+    res.status(500).json({ text: "Error from Gemini API." });
   }
-</script>
+});
+
+// ✅ Real-time socket code
+io.on("connection", (socket) => {
+  console.log(`✅ Connected: ${socket.id}`);
+  socket.emit("request_name", { message: "Please enter your name:" });
+
+  socket.on("set_name", (name) => {
+    users[socket.id] = name;
+    socket.emit("name_confirmed", { message: `✅ Name set as ${name}` });
+  });
+
+  socket.on("message", (msg) => {
+    const sender = users[socket.id] || `User-${socket.id}`;
+    io.emit("message", { sender, text: msg });
+  });
+
+  socket.on("disconnect", () => {
+    delete users[socket.id];
+  });
+});
+
+server.listen(5000, "0.0.0.0", () => {
+  console.log("🚀 Server running on port 5000");
+});
