@@ -12,8 +12,8 @@ const io = new Server(server, {
     methods: ["GET", "POST"]
   }
 });
-const users = {};
 
+const users = {};
 const GEMINI_API_KEY = "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA";
 
 app.use(cors());
@@ -23,9 +23,10 @@ app.get("/", (req, res) => {
   res.send("✅ Real-Time Chat Server is live");
 });
 
-// ✅ Gemini API proxy endpoint
 app.post("/gemini", async (req, res) => {
   const prompt = req.body.prompt;
+  console.log("🔹 Gemini Prompt Received:", prompt);
+
   try {
     const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
       method: "POST",
@@ -36,15 +37,16 @@ app.post("/gemini", async (req, res) => {
     });
 
     const data = await geminiRes.json();
+    console.log("🔸 Gemini Full Response:", JSON.stringify(data, null, 2));
+
     const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "No response.";
     res.json({ text });
   } catch (err) {
-    console.error("Gemini API Error:", err);
+    console.error("❌ Gemini API Error:", err);
     res.status(500).json({ text: "Error from Gemini API." });
   }
 });
 
-// ✅ Real-time socket code
 io.on("connection", (socket) => {
   console.log(`✅ Connected: ${socket.id}`);
   socket.emit("request_name", { message: "Please enter your name:" });
