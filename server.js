@@ -6,6 +6,7 @@ import fetch from "node-fetch";
 
 const app = express();
 const server = http.createServer(app);
+
 const io = new Server(server, {
   cors: {
     origin: "*",
@@ -20,26 +21,30 @@ app.use(cors());
 app.use(express.json());
 
 app.get("/", (req, res) => {
-  res.send("✅ Real-Time Chat Server is live");
+  res.send("✅ Real-Time Chat Server is Live!");
 });
 
+// ✅ Gemini API Route (fixed URL and logging)
 app.post("/gemini", async (req, res) => {
   const prompt = req.body.prompt;
   console.log("🔹 Gemini Prompt Received:", prompt);
 
   try {
-    const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: prompt }] }]
-      })
-    });
+    const geminiRes = await fetch(
+      `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      }
+    );
 
     const data = await geminiRes.json();
     console.log("🔸 Gemini Full Response:", JSON.stringify(data, null, 2));
 
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "No response.";
+    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "⚠️ Gemini did not reply.";
     res.json({ text });
   } catch (err) {
     console.error("❌ Gemini API Error:", err);
@@ -47,8 +52,9 @@ app.post("/gemini", async (req, res) => {
   }
 });
 
+// ✅ Real-time Chat (Socket.io)
 io.on("connection", (socket) => {
-  console.log(`✅ Connected: ${socket.id}`);
+  console.log(`✅ User connected: ${socket.id}`);
   socket.emit("request_name", { message: "Please enter your name:" });
 
   socket.on("set_name", (name) => {
@@ -66,6 +72,7 @@ io.on("connection", (socket) => {
   });
 });
 
+// ✅ Start Server
 server.listen(5000, "0.0.0.0", () => {
   console.log("🚀 Server running on port 5000");
 });
