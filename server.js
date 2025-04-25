@@ -24,14 +24,14 @@ app.get("/", (req, res) => {
   res.send("✅ Real-Time Chat Server is Live!");
 });
 
-// ✅ Gemini API Route (fixed URL and logging)
+// ✅ Gemini API Route (FIXED MODEL NAME)
 app.post("/gemini", async (req, res) => {
   const prompt = req.body.prompt;
   console.log("🔹 Gemini Prompt Received:", prompt);
 
   try {
     const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
+      `https://generativelanguage.googleapis.com/v1/models/gemini-1.5-pro-latest:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -72,7 +72,6 @@ io.on("connection", (socket) => {
   });
 });
 
-// ✅ Start Server
 server.listen(5000, "0.0.0.0", () => {
   console.log("🚀 Server running on port 5000");
 });
