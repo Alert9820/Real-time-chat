@@ -2,7 +2,7 @@ import express from "express";
 import http from "http";
 import { Server } from "socket.io";
 import cors from "cors";
-import { GoogleGenerativeAI } from "@google/genai"; // original package
+import fetch from "node-fetch"; // use v2 for compatibility
 
 const app = express();
 const server = http.createServer(app);
@@ -16,18 +16,28 @@ const io = new Server(server, {
 
 const users = {};
 
-const ai = new GoogleGenerativeAI({
-  apiKey: "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA"
-});
+const GEMINI_API_KEY = "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA";
 
 async function getGeminiResponse(prompt) {
   try {
-    const model = ai.getGenerativeModel({ model: "gemini-pro" });
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    return await response.text();
-  } catch (err) {
-    console.error("Gemini error:", err);
+    const response = await fetch(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-pro:generateContent?key=${GEMINI_API_KEY}`,
+      {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: prompt }] }]
+        })
+      }
+    );
+
+    const data = await response.json();
+    return (
+      data?.candidates?.[0]?.content?.parts?.[0]?.text ||
+      "⚠️ Gemini AI didn't reply."
+    );
+  } catch (error) {
+    console.error("Gemini Error:", error);
     return "⚠️ Gemini AI failed to respond.";
   }
 }
