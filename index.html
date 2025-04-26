@@ -9,7 +9,7 @@
     body {
       margin: 0;
       font-family: 'Poppins', sans-serif;
-      background: #0f0f0f;
+      background: #0e0e0e;
       color: #fff;
       display: flex;
       flex-direction: column;
@@ -43,29 +43,32 @@
       color: #0f0;
     }
     #chat-box {
-      height: 400px;
+      height: 500px;
       overflow-y: auto;
       padding: 20px;
       background: #121212;
     }
     .message {
-      margin-bottom: 10px;
-      max-width: 70%;
-      padding: 10px 15px;
-      border-radius: 12px;
+      margin-bottom: 15px;
+      max-width: 75%;
+      padding: 12px 18px;
+      border-radius: 20px;
       word-wrap: break-word;
+      position: relative;
       animation: fadeIn 0.3s;
     }
     .me {
-      background: #6cf;
+      background: linear-gradient(145deg, #6cf, #3cf);
       color: #000;
       margin-left: auto;
       text-align: right;
+      border-bottom-right-radius: 0;
     }
     .other {
       background: #2c2c2c;
       color: #fff;
       margin-right: auto;
+      border-bottom-left-radius: 0;
     }
     .typing {
       font-style: italic;
@@ -88,25 +91,13 @@
       color: white;
     }
     button {
-      padding: 12px 20px;
+      padding: 12px 16px;
       background: #6cf;
       border: none;
       border-radius: 10px;
       cursor: pointer;
       color: #000;
       font-weight: bold;
-    }
-    #file-input {
-      display: none;
-    }
-    .image-msg {
-      max-width: 150px;
-      border-radius: 10px;
-      margin-top: 5px;
-    }
-    .footer-tools {
-      display: flex;
-      gap: 10px;
     }
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(5px); }
@@ -124,12 +115,8 @@
     <div id="typing-indicator" class="typing" style="padding-left: 20px;"></div>
     <div class="input-area">
       <input type="text" id="message" placeholder="Type a message..." />
-      <div class="footer-tools">
-        <button onclick="sendMessage()">Send</button>
-        <button onclick="startVoice()">🎤</button>
-        <button onclick="document.getElementById('file-input').click()">📷</button>
-        <input type="file" id="file-input" accept="image/*" onchange="sendImage(event)" />
-      </div>
+      <button onclick="sendMessage()">Send</button>
+      <button onclick="startVoice()">🎤</button>
     </div>
   </div>  <script>
     const socket = io("https://real-time-chat-ekyl.onrender.com");
@@ -142,19 +129,26 @@
     const botStatus = document.getElementById("bot-status");
     let botActive = false;
 
-    function appendMessage(sender, text, type = 'text') {
+    function appendMessage(sender, text) {
       const div = document.createElement("div");
       div.className = `message ${sender === name ? 'me' : 'other'}`;
-      if (type === 'image') {
-        const img = document.createElement("img");
-        img.src = text;
-        img.className = "image-msg";
-        div.appendChild(img);
-      } else {
-        div.innerHTML = `<b>${sender}:</b> ${text}`;
-      }
+      div.innerHTML = `<b>${sender}:</b> ${text}`;
       chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function showBotTyping() {
+      const typingDiv = document.createElement("div");
+      typingDiv.className = "message other typing";
+      typingDiv.id = "bot-typing";
+      typingDiv.innerHTML = `<b>BotX 🤖:</b> <i>typing...</i>`;
+      chatBox.appendChild(typingDiv);
+      chatBox.scrollTop = chatBox.scrollHeight;
+    }
+
+    function removeBotTyping() {
+      const typingDiv = document.getElementById("bot-typing");
+      if (typingDiv) typingDiv.remove();
     }
 
     function sendMessage() {
@@ -178,23 +172,13 @@
       }
 
       socket.emit("message", msg);
+      appendMessage(name, msg);
       messageInput.value = "";
-    }
-
-    function sendImage(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const imgData = reader.result;
-        socket.emit("message", `[img]${imgData}`);
-      };
-      reader.readAsDataURL(file);
     }
 
     function startVoice() {
       const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-      recognition.lang = "en-US";
+      recognition.lang = "en-IN";
       recognition.start();
       recognition.onresult = function (event) {
         const transcript = event.results[0][0].transcript;
@@ -204,16 +188,8 @@
     }
 
     socket.on("message", (data) => {
-      if (data.text.startsWith("[img]")) {
-        const imgUrl = data.text.replace("[img]", "");
-        appendMessage(data.sender, imgUrl, 'image');
-      } else {
-        appendMessage(data.sender, data.text);
-      }
-    });
-
-    messageInput.addEventListener("input", () => {
-      socket.emit("typing", name);
+      removeBotTyping();
+      appendMessage(data.sender, data.text);
     });
 
     socket.on("typing", (user) => {
@@ -223,6 +199,10 @@
           typingIndicator.textContent = "";
         }, 1500);
       }
+    });
+
+    messageInput.addEventListener("input", () => {
+      socket.emit("typing", name);
     });
   </script></body>
 </html>
