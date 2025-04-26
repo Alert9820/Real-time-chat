@@ -15,35 +15,11 @@ app.use(express.json());
 
 const users = {};
 let botActive = false;
-const GEMINI_API_KEY = "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA"; // Replace with your Gemini key
+let conversationMemory = []; // Bot memory
+const GEMINI_API_KEY = "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA"; // <<== Replace your key here!
 
 app.get("/", (req, res) => {
-  res.send("✅ BotX Real-Time Chat Server is Live!");
-});
-
-app.post("/gemini", async (req, res) => {
-  const userMsg = req.body.prompt;
-  const prompt = `You are BotX, a friendly assistant. Reply in short, simple Hinglish if the user uses Hindi. Be casual, avoid long explanations. Here's the message: ${userMsg}`;
-
-  try {
-    const geminiRes = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
-      {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }]
-        })
-      }
-    );
-
-    const data = await geminiRes.json();
-    const text = data?.candidates?.[0]?.content?.parts?.[0]?.text || "🤖 No reply.";
-    res.json({ text });
-  } catch (err) {
-    console.error("Gemini API error:", err);
-    res.status(500).json({ text: "Error from Gemini API." });
-  }
+  res.send("✅ BotX Pro Server Running Successfully!");
 });
 
 io.on("connection", (socket) => {
@@ -64,13 +40,21 @@ io.on("connection", (socket) => {
       io.emit("message", { sender: "BotX 🤖", text: "Bot is now active." });
       return;
     }
-
     if (msg === "<<bot") {
       botActive = false;
       io.emit("message", { sender: "BotX 🤖", text: "Bot is now inactive." });
       return;
     }
 
+    // Store conversation memory
+    if (botActive && sender !== "BotX 🤖") {
+      conversationMemory.push(`${sender}: ${msg}`);
+      if (conversationMemory.length > 10) {
+        conversationMemory.shift(); // Keep memory short
+      }
+    }
+
+    // Bot reply if active and bot mentioned
     if (
       botActive &&
       !msg.startsWith("[img]") &&
@@ -78,7 +62,7 @@ io.on("connection", (socket) => {
       msg.toLowerCase().includes("bot")
     ) {
       try {
-        const prompt = `You are BotX, a friendly assistant. Reply in short, simple Hinglish if the user uses Hindi. Be casual, avoid long explanations. Here's the message: ${msg}`;
+        const prompt = `You are BotX, a friendly assistant. Reply in short, simple Hinglish if the user uses Hindi. Be casual and friendly.\nConversation history:\n${conversationMemory.join("\n")}\nNew message: ${msg}`;
 
         const geminiRes = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -100,6 +84,20 @@ io.on("connection", (socket) => {
     }
   });
 
+  socket.on("reaction", (data) => {
+    io.emit("reaction", data);
+  });
+
+  socket.on("forward", (data) => {
+    const { from, text } = data;
+    io.emit("message", { sender: `${from} (forwarded)`, text });
+  });
+
+  socket.on("delete", (data) => {
+    const { messageId } = data;
+    io.emit("delete", { messageId });
+  });
+
   socket.on("typing", (username) => {
     socket.broadcast.emit("typing", username);
   });
@@ -110,5 +108,5 @@ io.on("connection", (socket) => {
 });
 
 server.listen(5000, "0.0.0.0", () => {
-  console.log("🚀 BotX Server running on port 5000");
+  console.log("🚀 BotX Pro Server running on port 5000");
 });
