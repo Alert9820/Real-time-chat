@@ -60,6 +60,7 @@
       word-wrap: break-word;
       position: relative;
       animation: fadeIn 0.3s ease-in-out;
+      cursor: pointer;
     }
     .me {
       background: linear-gradient(145deg, #6cf, #3cf);
@@ -73,13 +74,6 @@
       color: #fff;
       margin-right: auto;
       border-bottom-left-radius: 0;
-    }
-    .reaction-bar {
-      margin-top: 5px;
-      font-size: 18px;
-      display: flex;
-      gap: 8px;
-      justify-content: center;
     }
     .typing {
       font-style: italic;
@@ -119,6 +113,24 @@
       border-radius: 12px;
       margin-top: 8px;
     }
+    .reaction-popup {
+      position: absolute;
+      bottom: 100%;
+      left: 50%;
+      transform: translateX(-50%);
+      display: flex;
+      gap: 8px;
+      background: #222;
+      padding: 5px 10px;
+      border-radius: 10px;
+      display: none;
+    }
+    .reaction-popup button {
+      background: transparent;
+      border: none;
+      font-size: 20px;
+      cursor: pointer;
+    }
     @keyframes fadeIn {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
@@ -136,16 +148,16 @@
     <div class="input-area">
       <input type="text" id="message" placeholder="Type a message..." />
       <label for="file-input">
-        <button>📷</button>
+        <button>📎</button>
       </label>
-      <input type="file" id="file-input" accept="image/*" />
+      <input type="file" id="file-input" accept="image/*,application/pdf,application/msword" />
       <button onclick="startVoice()">🎤</button>
       <button onclick="sendMessage()">Send</button>
     </div>
   </div>
 
   <script>
-    const socket = io("https://real-time-chat-ekyl.onrender.com"); // change your server link here
+    const socket = io("https://real-time-chat-ekyl.onrender.com"); // your server link here
     let name = prompt("Enter your name:") || "Anonymous";
     socket.emit("set_name", name);
 
@@ -155,33 +167,71 @@
     const botStatus = document.getElementById("bot-status");
     const fileInput = document.getElementById("file-input");
     let botActive = false;
+    let replyTo = null;
 
-    function appendMessage(sender, text, type = 'text') {
+    function createReactionPopup(div) {
+      const popup = document.createElement("div");
+      popup.className = "reaction-popup";
+      ["👍", "❤️", "😂", "😮", "😢", "🙏"].forEach(emoji => {
+        const btn = document.createElement("button");
+        btn.textContent = emoji;
+        btn.onclick = () => {
+          socket.emit("reaction", { to: div.dataset.sender, emoji });
+          popup.style.display = "none";
+        };
+        popup.appendChild(btn);
+      });
+      div.appendChild(popup);
+      return popup;
+    }
+
+    function appendMessage(sender, text, type = 'text', replyText = null) {
       const div = document.createElement("div");
       div.className = `message ${sender === name ? 'me' : 'other'}`;
+      div.dataset.sender = sender;
+
+      if (replyText) {
+        const reply = document.createElement("div");
+        reply.style.fontSize = "12px";
+        reply.style.opacity = "0.7";
+        reply.style.marginBottom = "4px";
+        reply.innerText = "Reply: " + replyText;
+        div.appendChild(reply);
+      }
 
       if (type === 'image') {
         const img = document.createElement("img");
         img.src = text;
         img.className = "image-msg";
         div.appendChild(img);
+      } else if (type === 'file') {
+        const link = document.createElement("a");
+        link.href = text;
+        link.download = "Document";
+        link.innerText = "Download file";
+        link.style.color = "#6cf";
+        div.appendChild(link);
+      } else if (type === 'audio') {
+        const audio = document.createElement("audio");
+        audio.controls = true;
+        audio.src = text;
+        div.appendChild(audio);
       } else {
-        div.innerHTML = `<b>${sender}:</b> ${text}`;
-        const reactionBar = document.createElement("div");
-        reactionBar.className = "reaction-bar";
-        ["👍", "❤️", "😂", "🔥", "😢"].forEach(emoji => {
-          const btn = document.createElement("button");
-          btn.style.background = "transparent";
-          btn.style.border = "none";
-          btn.style.cursor = "pointer";
-          btn.innerHTML = emoji;
-          btn.onclick = () => {
-            socket.emit("reaction", { to: sender, emoji });
-          };
-          reactionBar.appendChild(btn);
-        });
-        div.appendChild(reactionBar);
+        div.innerHTML += `<b>${sender}:</b> ${text}`;
       }
+
+      const popup = createReactionPopup(div);
+
+      div.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        popup.style.display = "flex";
+      });
+
+      div.addEventListener("dblclick", () => {
+        replyTo = text;
+        alert(`Now replying to: ${text}`);
+      });
+
       chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
     }
@@ -204,8 +254,10 @@
         return;
       }
 
-      socket.emit("message", msg);
+      const finalMsg = replyTo ? `Reply to [${replyTo}]: ${msg}` : msg;
+      socket.emit("message", finalMsg);
       messageInput.value = "";
+      replyTo = null;
     }
 
     function startVoice() {
@@ -224,16 +276,24 @@
       if (!file) return;
       const reader = new FileReader();
       reader.onload = () => {
-        const base64 = reader.result;
-        socket.emit("message", `[img]${base64}`);
+        if (file.type.startsWith("image/")) {
+          socket.emit("message", `[img]${reader.result}`);
+        } else if (file.type.startsWith("audio/")) {
+          socket.emit("message", `[audio]${reader.result}`);
+        } else {
+          socket.emit("message", `[file]${reader.result}`);
+        }
       };
       reader.readAsDataURL(file);
     });
 
     socket.on("message", (data) => {
       if (data.text.startsWith("[img]")) {
-        const image = data.text.replace("[img]", "");
-        appendMessage(data.sender, image, 'image');
+        appendMessage(data.sender, data.text.replace("[img]", ""), 'image');
+      } else if (data.text.startsWith("[file]")) {
+        appendMessage(data.sender, data.text.replace("[file]", ""), 'file');
+      } else if (data.text.startsWith("[audio]")) {
+        appendMessage(data.sender, data.text.replace("[audio]", ""), 'audio');
       } else {
         appendMessage(data.sender, data.text);
       }
