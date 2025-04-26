@@ -32,6 +32,15 @@
       font-size: 24px;
       font-weight: bold;
       color: #6cf;
+      position: relative;
+    }
+    .bot-status {
+      position: absolute;
+      top: 50%;
+      right: 20px;
+      transform: translateY(-50%);
+      font-size: 14px;
+      color: #0f0;
     }
     #chat-box {
       height: 400px;
@@ -107,7 +116,10 @@
 </head>
 <body>
   <div class="container">
-    <div class="header">BotX Chat Room</div>
+    <div class="header">
+      BotX Chat Room
+      <span class="bot-status" id="bot-status">Bot is inactive</span>
+    </div>
     <div id="chat-box"></div>
     <div id="typing-indicator" class="typing" style="padding-left: 20px;"></div>
     <div class="input-area">
@@ -127,6 +139,8 @@
     const chatBox = document.getElementById("chat-box");
     const messageInput = document.getElementById("message");
     const typingIndicator = document.getElementById("typing-indicator");
+    const botStatus = document.getElementById("bot-status");
+    let botActive = false;
 
     function appendMessage(sender, text, type = 'text') {
       const div = document.createElement("div");
@@ -146,6 +160,23 @@
     function sendMessage() {
       const msg = messageInput.value.trim();
       if (!msg) return;
+
+      if (msg === '>>bot') {
+        botActive = true;
+        botStatus.textContent = 'Bot is active';
+        appendMessage(name, msg);
+        socket.emit("message", msg);
+        messageInput.value = "";
+        return;
+      } else if (msg === '<<bot') {
+        botActive = false;
+        botStatus.textContent = 'Bot is inactive';
+        appendMessage(name, msg);
+        socket.emit("message", msg);
+        messageInput.value = "";
+        return;
+      }
+
       socket.emit("message", msg);
       messageInput.value = "";
     }
