@@ -15,8 +15,8 @@ app.use(express.json());
 
 const users = {};
 let botActive = false;
-let conversationMemory = []; // Bot memory
-const GEMINI_API_KEY = "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA"; // <<== Replace your key!
+let conversationMemory = [];
+const GEMINI_API_KEY = "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA"; // <<== Apna Gemini API key daalna mat bhoolna!
 
 app.get("/", (req, res) => {
   res.send("✅ BotX Pro Server Running Successfully!");
@@ -46,25 +46,17 @@ io.on("connection", (socket) => {
       return;
     }
 
-    // Store conversation memory
-    if (botActive && sender !== "BotX 🤖") {
-      conversationMemory.push(`${sender}: ${msg}`);
-      if (conversationMemory.length > 10) {
-        conversationMemory.shift();
-      }
-    }
-
-    // Bot reply if active and bot mentioned
-    if (
-      botActive &&
+    if (botActive && sender !== "BotX 🤖" &&
       !msg.startsWith("[img]") &&
       !msg.startsWith("[file]") &&
       !msg.startsWith("[audio]") &&
-      sender !== "BotX 🤖" &&
-      msg.toLowerCase().includes("bot")
-    ) {
+      msg.toLowerCase().includes("bot")) {
+
+      conversationMemory.push(`${sender}: ${msg}`);
+      if (conversationMemory.length > 10) conversationMemory.shift();
+
       try {
-        const prompt = `You are BotX, a friendly assistant. Reply in short, simple Hinglish if the user uses Hindi. Be casual and friendly.\nConversation history:\n${conversationMemory.join("\n")}\nNew message: ${msg}`;
+        const prompt = `You are BotX, a friendly assistant. Reply short, simple Hinglish if Hindi used.\nConversation history:\n${conversationMemory.join("\n")}\nNew message: ${msg}`;
 
         const geminiRes = await fetch(
           `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
@@ -86,12 +78,8 @@ io.on("connection", (socket) => {
     }
   });
 
-  socket.on("reaction", (data) => {
-    io.emit("reaction", data);
-  });
-
-  socket.on("typing", (username) => {
-    socket.broadcast.emit("typing", username);
+  socket.on("typing", (user) => {
+    socket.broadcast.emit("typing", user);
   });
 
   socket.on("disconnect", () => {
