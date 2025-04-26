@@ -10,31 +10,32 @@
     body {
       margin: 0;
       font-family: 'Poppins', sans-serif;
-      background: rgba(0, 0, 0, 0.85);
-      background-image: linear-gradient(145deg, #1a1a1a, #0f0f0f);
+      background: linear-gradient(145deg, #101010, #1a1a1a);
       color: #fff;
       display: flex;
       flex-direction: column;
       align-items: center;
+      height: 100vh;
       padding: 10px;
+      overflow: hidden;
     }
     .container {
       max-width: 900px;
       width: 100%;
-      background: rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(12px);
-      border-radius: 16px;
-      box-shadow: 0 0 25px rgba(0,0,0,0.3);
-      overflow: hidden;
+      background: rgba(255, 255, 255, 0.06);
+      backdrop-filter: blur(10px);
+      border-radius: 18px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.3);
       display: flex;
       flex-direction: column;
+      height: 100%;
     }
     .header {
-      background: rgba(0,0,0,0.3);
-      padding: 16px;
+      background: rgba(0,0,0,0.4);
+      padding: 15px;
       text-align: center;
       font-size: 24px;
-      font-weight: 600;
+      font-weight: bold;
       color: #6cf;
       position: relative;
     }
@@ -47,20 +48,22 @@
       color: #0f0;
     }
     #chat-box {
-      height: 500px;
+      flex: 1;
       overflow-y: auto;
       padding: 20px;
       background: transparent;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
     }
     .message {
-      margin-bottom: 15px;
-      max-width: 75%;
-      padding: 12px 18px;
-      border-radius: 20px;
-      word-wrap: break-word;
       position: relative;
-      animation: fadeIn 0.3s ease-in-out;
-      cursor: pointer;
+      max-width: 70%;
+      padding: 12px 16px;
+      border-radius: 20px;
+      font-size: 15px;
+      animation: slideUp 0.3s ease;
+      word-wrap: break-word;
     }
     .me {
       background: linear-gradient(145deg, #6cf, #3cf);
@@ -70,70 +73,77 @@
       border-bottom-right-radius: 0;
     }
     .other {
-      background: #2e2e2e;
+      background: #2d2d2d;
       color: #fff;
       margin-right: auto;
+      text-align: left;
       border-bottom-left-radius: 0;
+    }
+    .reaction {
+      font-size: 18px;
+      margin-top: 4px;
+      text-align: center;
+      animation: popIn 0.3s ease;
     }
     .typing {
       font-style: italic;
-      opacity: 0.6;
-      font-size: 14px;
+      opacity: 0.7;
+      padding: 5px 20px;
     }
     .input-area {
       display: flex;
       gap: 10px;
-      padding: 16px;
-      background: rgba(0, 0, 0, 0.4);
+      padding: 10px;
+      background: rgba(0,0,0,0.5);
       align-items: center;
     }
     input[type=text] {
       flex: 1;
       padding: 12px;
+      background: #333;
       border: none;
       border-radius: 10px;
+      color: #fff;
       font-size: 16px;
-      background: #2b2b2b;
-      color: white;
     }
     button {
       padding: 12px 16px;
       background: #6cf;
       border: none;
       border-radius: 10px;
+      font-weight: bold;
       cursor: pointer;
       color: #000;
-      font-weight: 600;
     }
     input[type=file] {
       display: none;
     }
-    .image-msg {
-      max-width: 180px;
-      border-radius: 12px;
-      margin-top: 8px;
-    }
     .reaction-popup {
       position: absolute;
-      bottom: 100%;
+      top: -40px;
       left: 50%;
       transform: translateX(-50%);
-      display: flex;
-      gap: 8px;
-      background: #222;
+      background: #333;
       padding: 5px 10px;
       border-radius: 10px;
       display: none;
+      flex-direction: row;
+      gap: 8px;
     }
     .reaction-popup button {
       background: transparent;
       border: none;
-      font-size: 20px;
+      font-size: 18px;
       cursor: pointer;
+      color: #fff;
     }
-    @keyframes fadeIn {
+    @keyframes slideUp {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes popIn {
+      from { opacity: 0; transform: scale(0.5); }
+      to { opacity: 1; transform: scale(1); }
     }
   </style>
 </head>
@@ -144,9 +154,9 @@
       <span class="bot-status" id="bot-status">Bot is inactive</span>
     </div>
     <div id="chat-box"></div>
-    <div id="typing-indicator" class="typing" style="padding-left: 20px;"></div>
+    <div id="typing-indicator" class="typing"></div>
     <div class="input-area">
-      <input type="text" id="message" placeholder="Type a message..." />
+      <input type="text" id="message" placeholder="Type your message..." />
       <label for="file-input">
         <button>📎</button>
       </label>
@@ -157,14 +167,14 @@
   </div>
 
   <script>
-    const socket = io("https://real-time-chat-ekyl.onrender.com"); // your server link here
+    const socket = io("https://real-time-chat-ekyl.onrender.com"); // your server link
     let name = prompt("Enter your name:") || "Anonymous";
     socket.emit("set_name", name);
 
     const chatBox = document.getElementById("chat-box");
     const messageInput = document.getElementById("message");
-    const typingIndicator = document.getElementById("typing-indicator");
     const botStatus = document.getElementById("bot-status");
+    const typingIndicator = document.getElementById("typing-indicator");
     const fileInput = document.getElementById("file-input");
     let botActive = false;
     let replyTo = null;
@@ -176,7 +186,7 @@
         const btn = document.createElement("button");
         btn.textContent = emoji;
         btn.onclick = () => {
-          socket.emit("reaction", { to: div.dataset.sender, emoji });
+          addReaction(div, emoji);
           popup.style.display = "none";
         };
         popup.appendChild(btn);
@@ -185,16 +195,25 @@
       return popup;
     }
 
+    function addReaction(div, emoji) {
+      let reactionDiv = div.querySelector(".reaction");
+      if (!reactionDiv) {
+        reactionDiv = document.createElement("div");
+        reactionDiv.className = "reaction";
+        div.appendChild(reactionDiv);
+      }
+      reactionDiv.textContent = emoji;
+    }
+
     function appendMessage(sender, text, type = 'text', replyText = null) {
       const div = document.createElement("div");
       div.className = `message ${sender === name ? 'me' : 'other'}`;
-      div.dataset.sender = sender;
 
       if (replyText) {
         const reply = document.createElement("div");
         reply.style.fontSize = "12px";
         reply.style.opacity = "0.7";
-        reply.style.marginBottom = "4px";
+        reply.style.marginBottom = "5px";
         reply.innerText = "Reply: " + replyText;
         div.appendChild(reply);
       }
@@ -202,20 +221,16 @@
       if (type === 'image') {
         const img = document.createElement("img");
         img.src = text;
-        img.className = "image-msg";
+        img.style.width = "180px";
+        img.style.borderRadius = "10px";
         div.appendChild(img);
       } else if (type === 'file') {
         const link = document.createElement("a");
         link.href = text;
         link.download = "Document";
-        link.innerText = "Download file";
+        link.innerText = "Download File";
         link.style.color = "#6cf";
         div.appendChild(link);
-      } else if (type === 'audio') {
-        const audio = document.createElement("audio");
-        audio.controls = true;
-        audio.src = text;
-        div.appendChild(audio);
       } else {
         div.innerHTML += `<b>${sender}:</b> ${text}`;
       }
@@ -278,8 +293,6 @@
       reader.onload = () => {
         if (file.type.startsWith("image/")) {
           socket.emit("message", `[img]${reader.result}`);
-        } else if (file.type.startsWith("audio/")) {
-          socket.emit("message", `[audio]${reader.result}`);
         } else {
           socket.emit("message", `[file]${reader.result}`);
         }
@@ -292,15 +305,9 @@
         appendMessage(data.sender, data.text.replace("[img]", ""), 'image');
       } else if (data.text.startsWith("[file]")) {
         appendMessage(data.sender, data.text.replace("[file]", ""), 'file');
-      } else if (data.text.startsWith("[audio]")) {
-        appendMessage(data.sender, data.text.replace("[audio]", ""), 'audio');
       } else {
         appendMessage(data.sender, data.text);
       }
-    });
-
-    socket.on("reaction", (data) => {
-      alert(`${data.to} reacted: ${data.emoji}`);
     });
 
     socket.on("typing", (user) => {
