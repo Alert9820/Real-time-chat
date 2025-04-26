@@ -1,36 +1,40 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BotX Chat Room</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+  <title>BotX Pro Chat</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
   <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
   <style>
     body {
       margin: 0;
       font-family: 'Poppins', sans-serif;
-      background: #0e0e0e;
+      background: rgba(0, 0, 0, 0.85);
+      background-image: linear-gradient(145deg, #1a1a1a, #0f0f0f);
       color: #fff;
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 20px;
+      padding: 10px;
     }
     .container {
-      max-width: 800px;
+      max-width: 900px;
       width: 100%;
       background: rgba(255, 255, 255, 0.05);
-      backdrop-filter: blur(20px);
-      border-radius: 15px;
-      overflow: hidden;
+      backdrop-filter: blur(12px);
+      border-radius: 16px;
       box-shadow: 0 0 25px rgba(0,0,0,0.3);
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
     }
     .header {
-      background: #1f1f1f;
-      padding: 15px;
+      background: rgba(0,0,0,0.3);
+      padding: 16px;
       text-align: center;
       font-size: 24px;
-      font-weight: bold;
+      font-weight: 600;
       color: #6cf;
       position: relative;
     }
@@ -46,7 +50,7 @@
       height: 500px;
       overflow-y: auto;
       padding: 20px;
-      background: #121212;
+      background: transparent;
     }
     .message {
       margin-bottom: 15px;
@@ -55,7 +59,7 @@
       border-radius: 20px;
       word-wrap: break-word;
       position: relative;
-      animation: fadeIn 0.3s;
+      animation: fadeIn 0.3s ease-in-out;
     }
     .me {
       background: linear-gradient(145deg, #6cf, #3cf);
@@ -65,10 +69,17 @@
       border-bottom-right-radius: 0;
     }
     .other {
-      background: #2c2c2c;
+      background: #2e2e2e;
       color: #fff;
       margin-right: auto;
       border-bottom-left-radius: 0;
+    }
+    .reaction-bar {
+      margin-top: 5px;
+      font-size: 18px;
+      display: flex;
+      gap: 8px;
+      justify-content: center;
     }
     .typing {
       font-style: italic;
@@ -78,8 +89,9 @@
     .input-area {
       display: flex;
       gap: 10px;
-      padding: 15px;
-      background: #1a1a1a;
+      padding: 16px;
+      background: rgba(0, 0, 0, 0.4);
+      align-items: center;
     }
     input[type=text] {
       flex: 1;
@@ -97,10 +109,18 @@
       border-radius: 10px;
       cursor: pointer;
       color: #000;
-      font-weight: bold;
+      font-weight: 600;
+    }
+    input[type=file] {
+      display: none;
+    }
+    .image-msg {
+      max-width: 180px;
+      border-radius: 12px;
+      margin-top: 8px;
     }
     @keyframes fadeIn {
-      from { opacity: 0; transform: translateY(5px); }
+      from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
     }
   </style>
@@ -108,18 +128,24 @@
 <body>
   <div class="container">
     <div class="header">
-      BotX Chat Room
+      BotX Pro Chat
       <span class="bot-status" id="bot-status">Bot is inactive</span>
     </div>
     <div id="chat-box"></div>
     <div id="typing-indicator" class="typing" style="padding-left: 20px;"></div>
     <div class="input-area">
       <input type="text" id="message" placeholder="Type a message..." />
-      <button onclick="sendMessage()">Send</button>
+      <label for="file-input">
+        <button>📷</button>
+      </label>
+      <input type="file" id="file-input" accept="image/*" />
       <button onclick="startVoice()">🎤</button>
+      <button onclick="sendMessage()">Send</button>
     </div>
-  </div>  <script>
-    const socket = io("https://real-time-chat-ekyl.onrender.com");
+  </div>
+
+  <script>
+    const socket = io("https://real-time-chat-ekyl.onrender.com"); // change your server link here
     let name = prompt("Enter your name:") || "Anonymous";
     socket.emit("set_name", name);
 
@@ -127,28 +153,37 @@
     const messageInput = document.getElementById("message");
     const typingIndicator = document.getElementById("typing-indicator");
     const botStatus = document.getElementById("bot-status");
+    const fileInput = document.getElementById("file-input");
     let botActive = false;
 
-    function appendMessage(sender, text) {
+    function appendMessage(sender, text, type = 'text') {
       const div = document.createElement("div");
       div.className = `message ${sender === name ? 'me' : 'other'}`;
-      div.innerHTML = `<b>${sender}:</b> ${text}`;
+
+      if (type === 'image') {
+        const img = document.createElement("img");
+        img.src = text;
+        img.className = "image-msg";
+        div.appendChild(img);
+      } else {
+        div.innerHTML = `<b>${sender}:</b> ${text}`;
+        const reactionBar = document.createElement("div");
+        reactionBar.className = "reaction-bar";
+        ["👍", "❤️", "😂", "🔥", "😢"].forEach(emoji => {
+          const btn = document.createElement("button");
+          btn.style.background = "transparent";
+          btn.style.border = "none";
+          btn.style.cursor = "pointer";
+          btn.innerHTML = emoji;
+          btn.onclick = () => {
+            socket.emit("reaction", { to: sender, emoji });
+          };
+          reactionBar.appendChild(btn);
+        });
+        div.appendChild(reactionBar);
+      }
       chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    function showBotTyping() {
-      const typingDiv = document.createElement("div");
-      typingDiv.className = "message other typing";
-      typingDiv.id = "bot-typing";
-      typingDiv.innerHTML = `<b>BotX 🤖:</b> <i>typing...</i>`;
-      chatBox.appendChild(typingDiv);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    function removeBotTyping() {
-      const typingDiv = document.getElementById("bot-typing");
-      if (typingDiv) typingDiv.remove();
     }
 
     function sendMessage() {
@@ -158,21 +193,18 @@
       if (msg === '>>bot') {
         botActive = true;
         botStatus.textContent = 'Bot is active';
-        appendMessage(name, msg);
         socket.emit("message", msg);
         messageInput.value = "";
         return;
       } else if (msg === '<<bot') {
         botActive = false;
         botStatus.textContent = 'Bot is inactive';
-        appendMessage(name, msg);
         socket.emit("message", msg);
         messageInput.value = "";
         return;
       }
 
       socket.emit("message", msg);
-      appendMessage(name, msg);
       messageInput.value = "";
     }
 
@@ -187,9 +219,28 @@
       };
     }
 
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const base64 = reader.result;
+        socket.emit("message", `[img]${base64}`);
+      };
+      reader.readAsDataURL(file);
+    });
+
     socket.on("message", (data) => {
-      removeBotTyping();
-      appendMessage(data.sender, data.text);
+      if (data.text.startsWith("[img]")) {
+        const image = data.text.replace("[img]", "");
+        appendMessage(data.sender, image, 'image');
+      } else {
+        appendMessage(data.sender, data.text);
+      }
+    });
+
+    socket.on("reaction", (data) => {
+      alert(`${data.to} reacted: ${data.emoji}`);
     });
 
     socket.on("typing", (user) => {
@@ -204,5 +255,6 @@
     messageInput.addEventListener("input", () => {
       socket.emit("typing", name);
     });
-  </script></body>
+  </script>
+</body>
 </html>
