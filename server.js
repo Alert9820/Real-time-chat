@@ -16,7 +16,7 @@ app.use(express.json());
 const users = {};
 let botActive = false;
 let conversationMemory = []; // Bot memory
-const GEMINI_API_KEY = "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA"; // <<== Replace your key here!
+const GEMINI_API_KEY = "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA"; // <<== Replace your key!
 
 app.get("/", (req, res) => {
   res.send("✅ BotX Pro Server Running Successfully!");
@@ -24,7 +24,7 @@ app.get("/", (req, res) => {
 
 io.on("connection", (socket) => {
   console.log(`✅ Connected: ${socket.id}`);
-  socket.emit("request_name", { message: "Please enter your name:" });
+  socket.emit("request_name", { message: "Enter your name:" });
 
   socket.on("set_name", (name) => {
     users[socket.id] = name;
@@ -50,7 +50,7 @@ io.on("connection", (socket) => {
     if (botActive && sender !== "BotX 🤖") {
       conversationMemory.push(`${sender}: ${msg}`);
       if (conversationMemory.length > 10) {
-        conversationMemory.shift(); // Keep memory short
+        conversationMemory.shift();
       }
     }
 
@@ -58,6 +58,8 @@ io.on("connection", (socket) => {
     if (
       botActive &&
       !msg.startsWith("[img]") &&
+      !msg.startsWith("[file]") &&
+      !msg.startsWith("[audio]") &&
       sender !== "BotX 🤖" &&
       msg.toLowerCase().includes("bot")
     ) {
@@ -86,16 +88,6 @@ io.on("connection", (socket) => {
 
   socket.on("reaction", (data) => {
     io.emit("reaction", data);
-  });
-
-  socket.on("forward", (data) => {
-    const { from, text } = data;
-    io.emit("message", { sender: `${from} (forwarded)`, text });
-  });
-
-  socket.on("delete", (data) => {
-    const { messageId } = data;
-    io.emit("delete", { messageId });
   });
 
   socket.on("typing", (username) => {
