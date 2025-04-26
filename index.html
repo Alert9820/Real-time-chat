@@ -1,182 +1,197 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Real-Time Chat + Gemini AI</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>BotX Chat Room</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
   <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
   <style>
-    /* [Your original CSS – unchanged, already looks great] */
     body {
-      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-      background-color: #121212;
-      color: #f1f1f1;
-      display: flex;
-      justify-content: center;
-      align-items: center;
-      height: 100vh;
       margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: #0f0f0f;
+      color: #fff;
+      display: flex;
       flex-direction: column;
-    }
-
-    .chat-container {
-      width: 100%;
-      max-width: 450px;
-      background: #1e1e1e;
-      border-radius: 10px;
-      box-shadow: 0px 10px 30px rgba(0, 0, 0, 0.2);
+      align-items: center;
       padding: 20px;
-      display: flex;
-      flex-direction: column;
-      height: 70vh;
     }
-
-    .chat-header {
-      background: #6200ea;
-      color: white;
-      font-size: 24px;
+    .container {
+      max-width: 800px;
+      width: 100%;
+      background: rgba(255, 255, 255, 0.05);
+      backdrop-filter: blur(20px);
+      border-radius: 15px;
+      overflow: hidden;
+      box-shadow: 0 0 25px rgba(0,0,0,0.3);
+    }
+    .header {
+      background: #1f1f1f;
+      padding: 15px;
       text-align: center;
-      padding: 10px;
-      border-radius: 8px;
-      margin-bottom: 10px;
+      font-size: 24px;
+      font-weight: bold;
+      color: #6cf;
     }
-
-    .chat-box {
-      flex-grow: 1;
+    #chat-box {
+      height: 400px;
       overflow-y: auto;
-      padding: 10px;
-      border-radius: 8px;
-      background-color: #232323;
-      display: flex;
-      flex-direction: column;
+      padding: 20px;
+      background: #121212;
     }
-
-    .chat-message {
-      background-color: #333;
-      padding: 10px;
-      border-radius: 8px;
-      margin-bottom: 8px;
-      max-width: 80%;
-      font-size: 16px;
+    .message {
+      margin-bottom: 10px;
+      max-width: 70%;
+      padding: 10px 15px;
+      border-radius: 12px;
       word-wrap: break-word;
+      animation: fadeIn 0.3s;
     }
-
-    .chat-message.user {
-      background-color: #03dac5;
-      color: black;
-      align-self: flex-end;
+    .me {
+      background: #6cf;
+      color: #000;
+      margin-left: auto;
+      text-align: right;
     }
-
-    .chat-message.other {
-      background-color: #444;
-      color: white;
+    .other {
+      background: #2c2c2c;
+      color: #fff;
+      margin-right: auto;
     }
-
-    .chat-input {
+    .typing {
+      font-style: italic;
+      opacity: 0.6;
+      font-size: 14px;
+    }
+    .input-area {
       display: flex;
       gap: 10px;
-      align-items: center;
+      padding: 15px;
+      background: #1a1a1a;
     }
-
-    .chat-input input {
-      flex-grow: 1;
+    input[type=text] {
+      flex: 1;
       padding: 12px;
       border: none;
-      background: #333;
-      color: white;
-      border-radius: 8px;
+      border-radius: 10px;
       font-size: 16px;
+      background: #2b2b2b;
+      color: white;
     }
-
-    .chat-input button {
-      background-color: #6200ea;
-      padding: 12px;
+    button {
+      padding: 12px 20px;
+      background: #6cf;
       border: none;
-      border-radius: 8px;
-      color: white;
-      font-size: 16px;
+      border-radius: 10px;
       cursor: pointer;
+      color: #000;
+      font-weight: bold;
+    }
+    #file-input {
+      display: none;
+    }
+    .image-msg {
+      max-width: 150px;
+      border-radius: 10px;
+      margin-top: 5px;
+    }
+    .footer-tools {
+      display: flex;
+      gap: 10px;
+    }
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
 <body>
-  <div class="chat-container">
-    <div class="chat-header">🤖 Real-Time Chat + Gemini AI</div>
-    <div class="chat-box" id="chat-box"></div>
-
-    <div class="chat-input">
-      <input type="text" id="username" placeholder="Enter your name..." />
-      <button onclick="setUsername()">Set Name</button>
-    </div>
-    <div class="chat-input">
+  <div class="container">
+    <div class="header">BotX Chat Room</div>
+    <div id="chat-box"></div>
+    <div id="typing-indicator" class="typing" style="padding-left: 20px;"></div>
+    <div class="input-area">
       <input type="text" id="message" placeholder="Type a message..." />
-      <button onclick="sendMessage()">Send</button>
+      <div class="footer-tools">
+        <button onclick="sendMessage()">Send</button>
+        <button onclick="startVoice()">🎤</button>
+        <button onclick="document.getElementById('file-input').click()">📷</button>
+        <input type="file" id="file-input" accept="image/*" onchange="sendImage(event)" />
+      </div>
     </div>
-  </div>
+  </div>  <script>
+    const socket = io("https://real-time-chat-ekyl.onrender.com");
+    let name = prompt("Enter your name:") || "Anonymous";
+    socket.emit("set_name", name);
 
-  <script>
-    const socket = io("https://real-time-chat-ekyl.onrender.com"); // 🔁 your Render server
-    let username = "";
+    const chatBox = document.getElementById("chat-box");
+    const messageInput = document.getElementById("message");
+    const typingIndicator = document.getElementById("typing-indicator");
 
-    socket.on("connect", () => {
-      console.log("✅ Connected to server");
-    });
-
-    socket.on("request_name", (data) => {
-      console.log(data.message);
-    });
-
-    socket.on("name_confirmed", (data) => {
-      console.log(data.message);
-    });
-
-    function setUsername() {
-      const nameInput = document.getElementById("username").value.trim();
-      if (nameInput !== "") {
-        username = nameInput;
-        socket.emit("set_name", username);
-        document.getElementById("username").disabled = true;
+    function appendMessage(sender, text, type = 'text') {
+      const div = document.createElement("div");
+      div.className = `message ${sender === name ? 'me' : 'other'}`;
+      if (type === 'image') {
+        const img = document.createElement("img");
+        img.src = text;
+        img.className = "image-msg";
+        div.appendChild(img);
+      } else {
+        div.innerHTML = `<b>${sender}:</b> ${text}`;
       }
+      chatBox.appendChild(div);
+      chatBox.scrollTop = chatBox.scrollHeight;
     }
 
     function sendMessage() {
-      const msg = document.getElementById("message").value;
-      if (msg.trim() !== "" && username !== "") {
-        appendMessage(username, msg, "user");
-        socket.emit("message", msg);
+      const msg = messageInput.value.trim();
+      if (!msg) return;
+      socket.emit("message", msg);
+      messageInput.value = "";
+    }
 
-        // If bot is mentioned (>>bot), also send to Gemini API
-        if (msg.toLowerCase().includes(">>bot")) {
-          fetch("https://real-time-chat-ekyl.onrender.com/gemini", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ prompt: msg.replace(">>bot", "").trim() })
-          })
-          .then(res => res.json())
-          .then(data => {
-            appendMessage("Shizune-Bot 🤖", data.text, "other");
-          })
-          .catch(() => {
-            appendMessage("Shizune-Bot 🤖", "⚠️ Gemini AI failed to reply.", "other");
-          });
-        }
+    function sendImage(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const imgData = reader.result;
+        socket.emit("message", `[img]${imgData}`);
+      };
+      reader.readAsDataURL(file);
+    }
 
-        document.getElementById("message").value = "";
-      }
+    function startVoice() {
+      const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      recognition.lang = "en-US";
+      recognition.start();
+      recognition.onresult = function (event) {
+        const transcript = event.results[0][0].transcript;
+        messageInput.value = transcript;
+        sendMessage();
+      };
     }
 
     socket.on("message", (data) => {
-      appendMessage(data.sender, data.text, "other");
+      if (data.text.startsWith("[img]")) {
+        const imgUrl = data.text.replace("[img]", "");
+        appendMessage(data.sender, imgUrl, 'image');
+      } else {
+        appendMessage(data.sender, data.text);
+      }
     });
 
-    function appendMessage(sender, text, type) {
-      const chatBox = document.getElementById("chat-box");
-      const messageElement = document.createElement("div");
-      messageElement.classList.add("chat-message", type);
-      messageElement.innerHTML = `<b>${sender}:</b> ${text}`;
-      chatBox.appendChild(messageElement);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-  </script>
-</body>
+    messageInput.addEventListener("input", () => {
+      socket.emit("typing", name);
+    });
+
+    socket.on("typing", (user) => {
+      if (user !== name) {
+        typingIndicator.textContent = `${user} is typing...`;
+        setTimeout(() => {
+          typingIndicator.textContent = "";
+        }, 1500);
+      }
+    });
+  </script></body>
 </html>
