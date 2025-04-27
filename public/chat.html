@@ -1,0 +1,228 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BotX Chat Room</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(145deg, #0d0d0d, #1a1a1a);
+      color: #fff;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+    }
+    .header {
+      text-align: center;
+      padding: 15px;
+      font-size: 24px;
+      font-weight: bold;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(8px);
+      color: #6cf;
+      position: relative;
+    }
+    #chat-box {
+      flex: 1;
+      padding: 15px;
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+      background: transparent;
+    }
+    .message {
+      max-width: 70%;
+      padding: 12px;
+      border-radius: 16px;
+      background: rgba(255,255,255,0.1);
+      position: relative;
+      word-break: break-word;
+      animation: slideup 0.3s ease;
+    }
+    .me {
+      margin-left: auto;
+      background: linear-gradient(145deg, #6cf, #3cf);
+      color: #000;
+      border-bottom-right-radius: 0;
+    }
+    .other {
+      margin-right: auto;
+      background: #2d2d2d;
+      color: #fff;
+      border-bottom-left-radius: 0;
+    }
+    .reaction {
+      font-size: 20px;
+      margin-top: 5px;
+      text-align: center;
+    }
+    #typing {
+      font-style: italic;
+      text-align: center;
+      margin: 5px;
+      color: #ccc;
+    }
+    .input-area {
+      padding: 10px;
+      display: flex;
+      gap: 8px;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(8px);
+      align-items: center;
+    }
+    input[type="text"] {
+      flex: 1;
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background: #222;
+      color: #fff;
+      font-size: 16px;
+    }
+    button {
+      padding: 12px;
+      border: none;
+      border-radius: 10px;
+      background: #6cf;
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    label {
+      cursor: pointer;
+    }
+    @keyframes slideup {
+      from { transform: translateY(10px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">BotX Group Chat</div>
+  <div id="chat-box"></div>
+  <div id="typing"></div>
+  <div class="input-area">
+    <input type="text" id="message" placeholder="Type a message...">
+    <label for="file">
+      <button>📎</button>
+    </label>
+    <input type="file" id="file" accept="image/*,application/pdf,application/msword">
+    <button onclick="startVoice()">🎤</button>
+    <button onclick="sendMessage()">Send</button>
+  </div>
+
+<script>
+const socket = io();
+const name = localStorage.getItem('name') || prompt('Enter your name:');
+socket.emit('set_name', name);
+
+const chatBox = document.getElementById('chat-box');
+const messageInput = document.getElementById('message');
+const typingDiv = document.getElementById('typing');
+const fileInput = document.getElementById('file');
+let botActive = false;
+
+function appendMessage(sender, text, type = 'text') {
+  const div = document.createElement('div');
+  div.className = `message ${sender === name ? 'me' : 'other'}`;
+
+  if (type === 'image') {
+    const img = document.createElement('img');
+    img.src = text;
+    img.style.maxWidth = '100%';
+    img.style.borderRadius = '10px';
+    div.appendChild(img);
+  } else if (type === 'file') {
+    const a = document.createElement('a');
+    a.href = text;
+    a.download = 'Document';
+    a.innerText = 'Download File';
+    a.style.color = '#6cf';
+    div.appendChild(a);
+  } else {
+    div.innerHTML = `<b>${sender}:</b> ${text}`;
+  }
+
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function sendMessage() {
+  const text = messageInput.value.trim();
+  if (!text) return;
+
+  if (text === '>>bot') {
+    botActive = true;
+    socket.emit('message', text);
+    messageInput.value = '';
+    return;
+  } else if (text === '<<bot') {
+    botActive = false;
+    socket.emit('message', text);
+    messageInput.value = '';
+    return;
+  }
+
+  socket.emit('message', text);
+  messageInput.value = '';
+}
+
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (file.type.startsWith('image/')) {
+      socket.emit('message', `[img]${reader.result}`);
+    } else {
+      socket.emit('message', `[file]${reader.result}`);
+    }
+  };
+  reader.readAsDataURL(file);
+});
+
+function startVoice() {
+  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.lang = 'en-IN';
+  recognition.start();
+  recognition.onresult = (event) => {
+    const transcript = event.results[0][0].transcript;
+    messageInput.value = transcript;
+    sendMessage();
+  };
+}
+
+socket.on('message', (data) => {
+  if (data.text.startsWith('[img]')) {
+    appendMessage(data.sender, data.text.replace('[img]', ''), 'image');
+  } else if (data.text.startsWith('[file]')) {
+    appendMessage(data.sender, data.text.replace('[file]', ''), 'file');
+  } else {
+    appendMessage(data.sender, data.text);
+  }
+});
+
+socket.on('typing', (user) => {
+  if (user !== name) {
+    typingDiv.innerText = `${user} is typing...`;
+    setTimeout(() => {
+      typingDiv.innerText = '';
+    }, 1000);
+  }
+});
+
+messageInput.addEventListener('input', () => {
+  socket.emit('typing', name);
+});
+</script>
+</body>
+</html>
