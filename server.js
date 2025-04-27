@@ -1,3 +1,5 @@
+// Server.js - Final Full Updated BotX Pro v5.0
+
 import express from 'express';
 import cors from 'cors';
 import { Server } from 'socket.io';
@@ -5,10 +7,9 @@ import { createServer } from 'http';
 import mysql from 'mysql2';
 import bodyParser from 'body-parser';
 import path from 'path';
+import fetch from 'node-fetch';
 import { fileURLToPath } from 'url';
-import fetch from 'node-fetch'; // Gemini API ke liye fetch
 
-// ES module setup ke liye
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -28,14 +29,16 @@ app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// MySQL Connection
+// Database Connection using Environment Variables
 const db = mysql.createConnection({
-  host: 'localhost',      
-  user: 'root',             
-  password: '',            
-  database: 'botx_db'      
+  host: process.env.DB_HOST,
+  port: process.env.DB_PORT,
+  user: process.env.DB_USER,
+  password: process.env.DB_PASS,
+  database: process.env.DB_NAME
 });
 
+// Database Connect
 db.connect((err) => {
   if (err) {
     console.error('❌ Database connection failed:', err);
@@ -44,38 +47,18 @@ db.connect((err) => {
   }
 });
 
-// In-memory object to store users
+// Gemini API
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // Gemini API key from env
+
+// Users
 const users = {};
 let botActive = false;
 
-// Gemini API Details
-const GEMINI_API_KEY = "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA"; // tumhara key
-
-async function askGemini(prompt) {
-  try {
-    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro:generateContent?key=${GEMINI_API_KEY}`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        contents: [{ parts: [{ text: `Reply short, simple and friendly in Hinglish:\n${prompt}` }] }]
-      })
-    });
-
-    const data = await response.json();
-    const botReply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Kuch samajh nahi aaya!";
-    return botReply;
-  } catch (error) {
-    console.error("Gemini API error:", error);
-    return "Sorry, kuch error aa gaya!";
-  }
-}
-
 // Routes
 
-// Register
+// Registration
 app.post('/register', (req, res) => {
   const { name, email, password } = req.body;
-
   if (!name || !email || !password) {
     return res.status(400).send('Please fill all fields.');
   }
@@ -85,7 +68,7 @@ app.post('/register', (req, res) => {
     if (results.length > 0) return res.status(400).send('Email or Username already exists.');
 
     db.query('INSERT INTO users (name, email, password) VALUES (?, ?, ?)', [name, email, password], (err, result) => {
-      if (err) return res.status(500).send('Registration Error');
+      if (err) return res.status(500).send('Server Error on Registration');
       res.send('Registration successful!');
     });
   });
@@ -94,7 +77,6 @@ app.post('/register', (req, res) => {
 // Login
 app.post('/login', (req, res) => {
   const { email, password } = req.body;
-
   if (!email || !password) {
     return res.status(400).send('Please fill all fields.');
   }
@@ -107,38 +89,44 @@ app.post('/login', (req, res) => {
   });
 });
 
-// Serve login.html as default page
+// Serve login page as default
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// Socket.IO realtime chat
+// Socket.io Realtime Chat
 io.on('connection', (socket) => {
-  console.log('🔵 User connected:', socket.id);
+  console.log('🟢 User connected:', socket.id);
 
   socket.on('set_name', (name) => {
     users[socket.id] = name;
   });
 
   socket.on('message', async (text) => {
-    const senderName = users[socket.id] || "Unknown";
+    const sender = users[socket.id] || 'Unknown';
 
+    // Bot Activation
     if (text === '>>bot') {
       botActive = true;
-      io.emit('message', { sender: "BotX", text: "Bot activated! Ask me anything!" });
+      io.emit('message', { sender: 'BotX', text: 'Bot is now active!' });
       return;
     }
+
+    // Bot Deactivation
     if (text === '<<bot') {
       botActive = false;
-      io.emit('message', { sender: "BotX", text: "Bot deactivated!" });
+      io.emit('message', { sender: 'BotX', text: 'Bot is now inactive!' });
       return;
     }
 
-    io.emit('message', { sender: senderName, text });
+    // Normal User message
+    io.emit('message', { sender, text });
 
-    if (botActive && (text.toLowerCase().includes('bot') || senderName === 'BotX')) {
-      const botReply = await askGemini(text);
-      io.emit('message', { sender: "BotX", text: botReply });
+    // If bot active and message contains "@bot" word
+    if (botActive && text.includes('bot')) {
+      const cleanedText = text.replace('bot', '').trim();
+      const geminiResponse = await askGemini(cleanedText);
+      io.emit('message', { sender: 'BotX', text: geminiResponse });
     }
   });
 
@@ -152,8 +140,28 @@ io.on('connection', (socket) => {
   });
 });
 
-// Start Server
+// Gemini API Call Function
+async function askGemini(question) {
+  try {
+    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        contents: [{ parts: [{ text: `Reply short, easy and friendly. If user speaks Hindi, reply in Hinglish. If someone asks who made you, say "Sunny Chaurasiya made me." Now answer: ${question}` }] }]
+      })
+    });
+
+    const data = await res.json();
+    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    return reply || "Sorry, I couldn't understand!";
+  } catch (error) {
+    console.error('❌ Gemini API Error:', error);
+    return "Error in Gemini AI.";
+  }
+}
+
+// Server Start
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`🚀 BotX Pro Server running on port ${PORT}`);
 });
