@@ -1,0 +1,101 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Register | BotX</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: linear-gradient(145deg, #0d0d0d, #1a1a1a);
+      color: #fff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100vh;
+    }
+    .box {
+      background: rgba(255,255,255,0.05);
+      backdrop-filter: blur(10px);
+      border-radius: 20px;
+      padding: 30px;
+      width: 350px;
+      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    }
+    h2 {
+      text-align: center;
+      margin-bottom: 20px;
+      color: #6cf;
+    }
+    input {
+      width: 100%;
+      padding: 12px;
+      margin: 10px 0;
+      border: none;
+      border-radius: 10px;
+      background: #222;
+      color: #fff;
+      font-size: 16px;
+    }
+    button {
+      width: 100%;
+      padding: 12px;
+      background: #6cf;
+      color: #000;
+      border: none;
+      border-radius: 10px;
+      font-weight: bold;
+      cursor: pointer;
+      margin-top: 10px;
+    }
+    p {
+      text-align: center;
+      margin-top: 10px;
+      font-size: 14px;
+    }
+    a {
+      color: #6cf;
+      text-decoration: none;
+    }
+  </style>
+</head>
+<body>
+  <div class="box">
+    <h2>Register on BotX</h2>
+    <input type="text" id="name" placeholder="Full Name">
+    <input type="email" id="email" placeholder="Email">
+    <input type="password" id="password" placeholder="Password">
+    <button onclick="register()">Register</button>
+    <p>Already have an account? <a href="login.html">Login</a></p>
+  </div>
+
+  <script>
+    async function register() {
+      const name = document.getElementById('name').value.trim();
+      const email = document.getElementById('email').value.trim();
+      const password = document.getElementById('password').value.trim();
+
+      if (!name || !email || !password) {
+        alert('Please fill all fields!');
+        return;
+      }
+
+      const res = await fetch('/register', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ name, email, password })
+      });
+
+      if (res.ok) {
+        alert('Registration successful! Please login.');
+        window.location.href = 'login.html';
+      } else {
+        const errorText = await res.text();
+        alert(errorText);
+      }
+    }
+  </script>
+</body>
+</html>
