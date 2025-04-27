@@ -1,4 +1,4 @@
-// Server.js - Final Full Updated BotX Pro v5.0
+// Server.js - BotX Pro Final Debugged Version (No node-fetch needed)
 
 import express from 'express';
 import cors from 'cors';
@@ -7,9 +7,9 @@ import { createServer } from 'http';
 import mysql from 'mysql2';
 import bodyParser from 'body-parser';
 import path from 'path';
-import fetch from 'node-fetch';
 import { fileURLToPath } from 'url';
 
+// For ES Modules Path
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -23,13 +23,13 @@ const io = new Server(server, {
   }
 });
 
-// Middlewares
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// Database Connection using Environment Variables
+// MySQL Connection using Environment Variables
 const db = mysql.createConnection({
   host: process.env.DB_HOST,
   port: process.env.DB_PORT,
@@ -47,16 +47,16 @@ db.connect((err) => {
   }
 });
 
-// Gemini API
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY; // Gemini API key from env
+// Gemini API Key from Environment
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-// Users
+// In-memory Users
 const users = {};
 let botActive = false;
 
 // Routes
 
-// Registration
+// Register
 app.post('/register', (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) {
@@ -67,7 +67,7 @@ app.post('/register', (req, res) => {
     if (err) return res.status(500).send('Server Error');
     if (results.length > 0) return res.status(400).send('Email or Username already exists.');
 
-    db.query('INSERT INTO users (name, email, password) VALUES (?, ?, ?)', [name, email, password], (err, result) => {
+    db.query('INSERT INTO users (name, email, password) VALUES (?, ?, ?)', [name, email, password], (err) => {
       if (err) return res.status(500).send('Server Error on Registration');
       res.send('Registration successful!');
     });
@@ -89,12 +89,12 @@ app.post('/login', (req, res) => {
   });
 });
 
-// Serve login page as default
+// Serve Home Page
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// Socket.io Realtime Chat
+// Socket.IO Realtime Chat
 io.on('connection', (socket) => {
   console.log('🟢 User connected:', socket.id);
 
@@ -105,28 +105,28 @@ io.on('connection', (socket) => {
   socket.on('message', async (text) => {
     const sender = users[socket.id] || 'Unknown';
 
-    // Bot Activation
+    // Activate Bot
     if (text === '>>bot') {
       botActive = true;
       io.emit('message', { sender: 'BotX', text: 'Bot is now active!' });
       return;
     }
 
-    // Bot Deactivation
+    // Deactivate Bot
     if (text === '<<bot') {
       botActive = false;
       io.emit('message', { sender: 'BotX', text: 'Bot is now inactive!' });
       return;
     }
 
-    // Normal User message
+    // Broadcast normal message
     io.emit('message', { sender, text });
 
-    // If bot active and message contains "@bot" word
-    if (botActive && text.includes('bot')) {
-      const cleanedText = text.replace('bot', '').trim();
-      const geminiResponse = await askGemini(cleanedText);
-      io.emit('message', { sender: 'BotX', text: geminiResponse });
+    // If bot active and 'bot' keyword found
+    if (botActive && text.toLowerCase().includes('bot')) {
+      const cleanedText = text.replace(/bot/gi, '').trim();
+      const reply = await askGemini(cleanedText);
+      io.emit('message', { sender: 'BotX', text: reply });
     }
   });
 
@@ -140,27 +140,29 @@ io.on('connection', (socket) => {
   });
 });
 
-// Gemini API Call Function
-async function askGemini(question) {
+// Function to Ask Gemini API
+async function askGemini(prompt) {
   try {
-    const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
+    const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json'
+      },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: `Reply short, easy and friendly. If user speaks Hindi, reply in Hinglish. If someone asks who made you, say "Sunny Chaurasiya made me." Now answer: ${question}` }] }]
+        contents: [{ parts: [{ text: `Reply in short, easy, friendly Hinglish style. If user asks who made you, say "Sunny Chaurasiya made me." Question: ${prompt}` }] }]
       })
     });
 
-    const data = await res.json();
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text;
-    return reply || "Sorry, I couldn't understand!";
-  } catch (error) {
-    console.error('❌ Gemini API Error:', error);
-    return "Error in Gemini AI.";
+    const data = await response.json();
+    const botReply = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    return botReply || "Sorry, I couldn't understand!";
+  } catch (err) {
+    console.error('Gemini API Error:', err);
+    return "Bot Error occurred.";
   }
 }
 
-// Server Start
+// Start Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 BotX Pro Server running on port ${PORT}`);
