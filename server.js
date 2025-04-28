@@ -1,4 +1,4 @@
-// BotX Pro Final Server.js (Sunny Chaurasiya Official Version)
+// BotX Pro Server.js (Sunny Chaurasiya Official Version Without ID Column)
 
 import express from 'express';
 import cors from 'cors';
@@ -70,7 +70,7 @@ app.post('/register', (req, res) => {
     return res.status(400).send('Please fill all fields.');
   }
 
-  const checkQuery = 'SELECT * FROM users WHERE email = ? OR name = ?';
+  const checkQuery = 'SELECT * FROM person WHERE email = ? OR name = ?';
   db.query(checkQuery, [email, name], (err, results) => {
     if (err) {
       console.error('❌ Error while checking user:', err);
@@ -80,7 +80,7 @@ app.post('/register', (req, res) => {
       return res.status(400).send('Email or Username already exists.');
     }
 
-    const insertQuery = 'INSERT INTO users (name, email, password) VALUES (?, ?, ?)';
+    const insertQuery = 'INSERT INTO person (name, email, password) VALUES (?, ?, ?)';
     db.query(insertQuery, [name, email, password], (err) => {
       if (err) {
         console.error('❌ Error while inserting user:', err);
@@ -98,7 +98,7 @@ app.post('/login', (req, res) => {
     return res.status(400).send('Please fill all fields.');
   }
 
-  db.query('SELECT * FROM users WHERE email = ? AND password = ?', [email, password], (err, results) => {
+  db.query('SELECT * FROM person WHERE email = ? AND password = ?', [email, password], (err, results) => {
     if (err) {
       console.error('❌ Error while logging in:', err);
       return res.status(500).send('Server Error while logging in.');
