@@ -1,4 +1,5 @@
 // BotX Pro Server.js (Sunny Chaurasiya Official Version Without ID Column)
+// BotX Pro Server.js (Sunny Chaurasiya Official Version)
 
 import express from 'express';
 import cors from 'cors';
@@ -108,6 +109,28 @@ app.post('/login', (req, res) => {
     }
     
     res.json({ message: 'Login Successful', name: results[0].name });
+  });
+});
+
+// Fetch all registered users
+app.get('/users', (req, res) => {
+  db.query('SELECT name, email FROM person', (err, results) => {
+    if (err) {
+      console.error('❌ Error while fetching users:', err);
+      return res.status(500).send('Server Error while fetching users.');
+    }
+    res.json(results);
+  });
+});
+
+// Fetch total registered users count
+app.get('/users/count', (req, res) => {
+  db.query('SELECT COUNT(*) AS total FROM person', (err, results) => {
+    if (err) {
+      console.error('❌ Error while counting users:', err);
+      return res.status(500).send('Server Error while counting users.');
+    }
+    res.json({ totalUsers: results[0].total });
   });
 });
 
