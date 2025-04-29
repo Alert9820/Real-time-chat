@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en"> 
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -10,11 +10,12 @@
     body {
       margin: 0;
       font-family: 'Poppins', sans-serif;
-      background: linear-gradient(145deg, #101010, #1a1a1a);
+      background: linear-gradient(145deg, #0d0d0d, #1a1a1a);
       color: #fff;
       display: flex;
       flex-direction: column;
       height: 100vh;
+      overflow: hidden;
     }
     .topbar {
       background: #111;
@@ -22,6 +23,7 @@
       text-align: center;
       font-size: 22px;
       font-weight: bold;
+      position: relative;
     }
     #chat-box {
       flex: 1;
@@ -30,6 +32,7 @@
       display: flex;
       flex-direction: column;
       gap: 10px;
+      background: transparent;
     }
     .message {
       max-width: 70%;
@@ -37,6 +40,7 @@
       border-radius: 15px;
       word-wrap: break-word;
       animation: slideUp 0.3s ease;
+      position: relative;
     }
     .me {
       background: #6cf;
@@ -91,6 +95,14 @@
     label {
       cursor: pointer;
     }
+    .bot-status {
+      position: absolute;
+      right: 20px;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 14px;
+      color: #0f0;
+    }
     @keyframes slideUp {
       from { opacity: 0; transform: translateY(20px); }
       to { opacity: 1; transform: translateY(0); }
@@ -99,7 +111,11 @@
 </head>
 <body>
 
-<div class="topbar">Chat Room</div>
+<div class="topbar">
+  Chat Room
+  <span id="bot-status" class="bot-status">Bot Inactive</span>
+</div>
+
 <div id="chat-box"></div>
 <div id="typing" class="typing"></div>
 
@@ -112,7 +128,7 @@
 </div>
 
 <script>
-const socket = io('https://real-time-chat-1-pa6c.onrender.com');
+const socket = io('https://real-time-chat-1-pa6c.onrender.com'); // Replace with your Render link
 let name = localStorage.getItem('user') || prompt('Enter your name:');
 socket.emit('set_name', name);
 
@@ -120,10 +136,30 @@ const chatBox = document.getElementById('chat-box');
 const messageInput = document.getElementById('message');
 const fileInput = document.getElementById('file-input');
 const typing = document.getElementById('typing');
+const botStatus = document.getElementById('bot-status');
+let botActive = false;
 
 function sendMessage() {
   const msg = messageInput.value.trim();
   if (!msg) return;
+
+  // Bot activation
+  if (msg === '>>bot') {
+    botActive = true;
+    botStatus.textContent = 'Bot Active';
+    socket.emit('message', msg);
+    messageInput.value = '';
+    return;
+  }
+
+  // Bot deactivation
+  if (msg === '<<bot') {
+    botActive = false;
+    botStatus.textContent = 'Bot Inactive';
+    socket.emit('message', msg);
+    messageInput.value = '';
+    return;
+  }
 
   socket.emit('message', msg);
   messageInput.value = '';
