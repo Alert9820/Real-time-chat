@@ -8,7 +8,6 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fetch from 'node-fetch';
 
-// Path setup for ES Modules
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -37,15 +36,15 @@ db.connect((err) => {
   if (err) {
     console.error('❌ Database connection failed:', err);
   } else {
-    console.log('✅ MySQL connected successfully');
+    console.log('✅ Connected to MySQL Database');
   }
 });
 
 const users = {};
 let botActive = false;
-
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
+// Generate Bot Reply from Gemini
 async function generateBotReply(prompt) {
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
@@ -54,7 +53,7 @@ async function generateBotReply(prompt) {
       body: JSON.stringify({
         contents: [{
           parts: [{
-            text: `Give a short friendly Hinglish reply. Don't say Gemini. If asked who made you, say: Mujhe Sunny Chaurasiya ne banaya hai. Question: ${prompt}`
+            text: `Reply in short, friendly Hinglish. Avoid long answers and never mention Gemini. If asked who created you, say "Mujhe Sunny Chaurasiya ne banaya hai." Question: ${prompt}`
           }]
         }]
       })
@@ -77,7 +76,7 @@ app.post('/register', (req, res) => {
   if (!name || !email || !password) return res.status(400).send("Please fill all fields.");
 
   db.query('SELECT * FROM person WHERE email = ? OR name = ?', [email, name], (err, results) => {
-    if (err) return res.status(500).send("Server error checking user.");
+    if (err) return res.status(500).send("Error checking user.");
     if (results.length > 0) return res.status(400).send("Username or email already exists.");
 
     db.query('INSERT INTO person (name, email, password) VALUES (?, ?, ?)', [name, email, password], (err) => {
@@ -99,9 +98,18 @@ app.post('/login', (req, res) => {
   });
 });
 
-// Realtime Communication
+// Bot History API
+app.get("/bot-history", (req, res) => {
+  const name = req.query.name;
+  db.query("SELECT * FROM bot_history WHERE name = ?", [name], (err, results) => {
+    if (err) return res.status(500).send("Error fetching history.");
+    res.json(results);
+  });
+});
+
+// Real-Time Messaging
 io.on("connection", (socket) => {
-  console.log("🟢 Connected:", socket.id);
+  console.log("🟢 User connected:", socket.id);
 
   socket.on("set_name", (name) => {
     users[socket.id] = name;
@@ -110,7 +118,7 @@ io.on("connection", (socket) => {
 
   socket.on("message", async (text) => {
     const sender = users[socket.id] || "Unknown";
-    console.log("📤 Message from", sender, ":", text);
+    console.log("📤 Message:", sender, text);
 
     io.emit("message", { sender, text });
 
@@ -129,7 +137,12 @@ io.on("connection", (socket) => {
     if (botActive && (text.toLowerCase().includes("bot") || text.toLowerCase().includes("sunny"))) {
       const cleanPrompt = text.replace(/Reply to .*?:/, "").replace(/bot/gi, "").replace(/sunny/gi, "").trim();
       const botReply = await generateBotReply(cleanPrompt || "Hello");
+
       io.emit("message", { sender: "BotX", text: botReply });
+
+      // Save to bot history
+      db.query("INSERT INTO bot_history (name, prompt, reply) VALUES (?, ?, ?)",
+        [sender, cleanPrompt, botReply]);
     }
   });
 
@@ -143,7 +156,7 @@ io.on("connection", (socket) => {
   });
 });
 
-// Server Start
+// Start Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
