@@ -1,148 +1,205 @@
+<!-- Save as home.html in public folder -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>BotX Pro - Home</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>BotX - Home</title>
+  <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
   <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      margin: 0;
       font-family: 'Poppins', sans-serif;
-      background: #0d0d0d;
+      background: linear-gradient(to right, #0f0f0f, #1c1c1c);
       color: #fff;
+      height: 100vh;
+      overflow: hidden;
     }
-    .topbar {
-      background: #111;
-      padding: 15px;
+
+    .container {
       display: flex;
-      align-items: center;
-      justify-content: space-between;
+      height: 100vh;
     }
-    .hamburger {
-      font-size: 24px;
-      cursor: pointer;
-    }
+
     .sidebar {
-      position: fixed;
-      top: 0;
-      left: -250px;
-      width: 250px;
-      height: 100%;
-      background: #1a1a1a;
-      transition: left 0.3s;
-      padding-top: 60px;
+      width: 230px;
+      background: #121212;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+      transition: transform 0.3s ease;
     }
+
     .sidebar a {
-      display: block;
-      padding: 15px;
       color: #6cf;
       text-decoration: none;
-      font-size: 18px;
+      font-size: 16px;
+      font-weight: bold;
     }
-    .chat-box {
+
+    .main {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
       padding: 20px;
     }
-    .message {
-      background: #2d2d2d;
-      margin-bottom: 10px;
-      padding: 10px;
-      border-radius: 10px;
-      max-width: 70%;
-    }
-    .me {
-      background: #6cf;
-      color: #000;
-      margin-left: auto;
-    }
-    .input-area {
-      position: fixed;
-      bottom: 0;
-      left: 0;
-      right: 0;
+
+    .topbar {
       display: flex;
-      padding: 10px;
-      background: #111;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 10px;
     }
-    input {
+
+    .burger {
+      font-size: 24px;
+      cursor: pointer;
+      color: #6cf;
+    }
+
+    #chat-box {
+      flex: 1;
+      overflow-y: auto;
+      background: #1a1a1a;
+      padding: 15px;
+      border-radius: 10px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 10px;
+    }
+
+    .msg {
+      max-width: 70%;
+      padding: 10px 15px;
+      border-radius: 15px;
+      font-size: 14px;
+      animation: fadeIn 0.3s ease;
+    }
+
+    .me {
+      align-self: flex-end;
+      background: linear-gradient(to right, #6cf, #3cf);
+      color: #000;
+      border-bottom-right-radius: 0;
+    }
+
+    .bot {
+      align-self: flex-start;
+      background: #333;
+      color: #fff;
+      border-bottom-left-radius: 0;
+    }
+
+    .input-area {
+      display: flex;
+      gap: 10px;
+    }
+
+    input[type="text"] {
       flex: 1;
       padding: 12px;
-      background: #222;
-      border: none;
       border-radius: 10px;
+      border: none;
+      font-size: 14px;
+      background: #222;
       color: #fff;
     }
+
     button {
-      background: #6cf;
+      padding: 12px 16px;
       border: none;
       border-radius: 10px;
-      margin-left: 10px;
-      padding: 12px;
       font-weight: bold;
+      background: #6cf;
+      color: #000;
       cursor: pointer;
+    }
+
+    .hide {
+      transform: translateX(-100%);
+      position: absolute;
+      left: 0;
+      top: 0;
+      height: 100%;
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    @media(max-width: 768px) {
+      .sidebar {
+        position: absolute;
+        z-index: 10;
+        height: 100%;
+        left: 0;
+        top: 0;
+      }
     }
   </style>
 </head>
 <body>
 
-<div class="topbar">
-  <div class="hamburger" onclick="toggleSidebar()">☰</div>
-  <h2>BotX Pro</h2>
-</div>
+<div class="container">
+  <div class="sidebar hide" id="sidebar">
+    <a href="/home.html">Bot Chat</a>
+    <a href="/chatroom.html">Chat Room</a>
+    <a href="/history.html">Bot History</a>
+    <a href="/login.html" onclick="logout()">Logout</a>
+  </div>
 
-<div class="sidebar" id="sidebar">
-  <a href="/home.html">Home (Bot Chat)</a>
-  <a href="/chatroom.html">Chat Room</a>
-  <a href="/login.html" onclick="logout()">Logout</a>
-</div>
+  <div class="main">
+    <div class="topbar">
+      <span class="burger" onclick="toggleSidebar()">☰</span>
+      <h2>BotX Assistant</h2>
+    </div>
 
-<div class="chat-box" id="chat-box">
-  <!-- Messages will appear here -->
-</div>
+    <div id="chat-box"></div>
 
-<div class="input-area">
-  <input type="text" id="user-input" placeholder="Type a message..." />
-  <button onclick="sendMessage()">Send</button>
+    <div class="input-area">
+      <input type="text" id="msgInput" placeholder="Type your message..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
 </div>
 
 <script>
-function toggleSidebar() {
-  const sidebar = document.getElementById('sidebar');
-  sidebar.style.left = sidebar.style.left === '0px' ? '-250px' : '0px';
-}
+const name = localStorage.getItem('user') || prompt("Your name?");
+const socket = io("https://real-time-chat-1-pa6c.onrender.com");
+socket.emit("set_name", name);
 
 function logout() {
-  localStorage.removeItem('user');
+  localStorage.removeItem("user");
 }
 
-async function sendMessage() {
-  const input = document.getElementById('user-input').value.trim();
-  if (!input) return;
+function toggleSidebar() {
+  document.getElementById("sidebar").classList.toggle("hide");
+}
 
-  const chatBox = document.getElementById('chat-box');
-  const myMsg = document.createElement('div');
-  myMsg.className = 'message me';
-  myMsg.innerText = input;
-  chatBox.appendChild(myMsg);
+function sendMessage() {
+  const input = document.getElementById("msgInput");
+  const msg = input.value.trim();
+  if (!msg) return;
+  appendMessage(name, msg, 'me');
+  socket.emit("message", "bot " + msg);
+  input.value = "";
+}
 
-  document.getElementById('user-input').value = '';
+socket.on("message", (data) => {
+  if (data.sender === "BotX") {
+    appendMessage("Bot", data.text, 'bot');
+  }
+});
 
-  const res = await fetch('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: `Reply in short Hinglish friendly: ${input}` }] }]
-    })
-  });
-  const data = await res.json();
-  const botText = data.candidates?.[0]?.content?.parts?.[0]?.text || "Bot: Sorry, kuch error aaya!";
-
-  const botMsg = document.createElement('div');
-  botMsg.className = 'message';
-  botMsg.innerText = botText;
-  chatBox.appendChild(botMsg);
-
-  chatBox.scrollTop = chatBox.scrollHeight;
+function appendMessage(sender, msg, cls) {
+  const div = document.createElement("div");
+  div.className = `msg ${cls}`;
+  div.innerText = `${sender}: ${msg}`;
+  document.getElementById("chat-box").appendChild(div);
+  document.getElementById("chat-box").scrollTop = chatBox.scrollHeight;
 }
 </script>
 
