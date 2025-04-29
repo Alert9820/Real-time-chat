@@ -1,12 +1,10 @@
-<!-- Save as home.html in public folder -->
-<!-- Save as home.html in public folder -->
 <!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>BotX - Home</title>
-  <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
@@ -14,12 +12,8 @@
       background: #0f0f0f;
       color: #fff;
       height: 100vh;
-      overflow: hidden;
-    }
-
-    .container {
       display: flex;
-      height: 100vh;
+      overflow: hidden;
     }
 
     .sidebar {
@@ -41,8 +35,7 @@
     }
 
     .sidebar .close-btn {
-      align-self: flex-end;
-      font-size: 22px;
+      font-size: 20px;
       color: #f66;
       cursor: pointer;
       margin-bottom: 20px;
@@ -53,22 +46,21 @@
       text-decoration: none;
       margin-bottom: 15px;
       font-weight: bold;
-      font-size: 16px;
     }
 
     .main {
       flex: 1;
       display: flex;
       flex-direction: column;
-      padding: 20px;
-      margin-left: 0;
+      padding: 10px;
       width: 100%;
+      height: 100vh;
     }
 
     .topbar {
       display: flex;
       align-items: center;
-      gap: 10px;
+      justify-content: space-between;
       margin-bottom: 10px;
     }
 
@@ -82,12 +74,11 @@
       flex: 1;
       overflow-y: auto;
       background: #1a1a1a;
-      padding: 15px;
+      padding: 12px;
       border-radius: 10px;
       display: flex;
       flex-direction: column;
       gap: 10px;
-      margin-bottom: 10px;
     }
 
     .msg {
@@ -114,27 +105,42 @@
 
     .input-area {
       display: flex;
-      gap: 10px;
+      align-items: center;
+      padding: 5px;
+      gap: 5px;
+      background: #1b1b1b;
+      border-top: 1px solid #333;
     }
 
     input[type="text"] {
       flex: 1;
-      padding: 12px;
-      border-radius: 10px;
-      border: none;
-      font-size: 14px;
+      padding: 8px 12px;
       background: #222;
+      border: none;
+      border-radius: 10px;
       color: #fff;
+      font-size: 14px;
     }
 
-    button {
-      padding: 12px 16px;
-      border: none;
-      border-radius: 10px;
-      font-weight: bold;
+    .icon-btn {
       background: #6cf;
-      color: #000;
+      border: none;
+      padding: 8px;
+      border-radius: 50%;
       cursor: pointer;
+      font-size: 16px;
+      color: #000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    label.icon-btn {
+      cursor: pointer;
+    }
+
+    input[type="file"] {
+      display: none;
     }
 
     @keyframes fadeIn {
@@ -143,15 +149,13 @@
     }
 
     @media(max-width: 768px) {
-      .main {
-        margin-left: 0;
-        padding: 15px;
-      }
+      .main { padding: 10px; }
     }
   </style>
 </head>
 <body>
 
+<!-- Sidebar -->
 <div class="sidebar" id="sidebar">
   <span class="close-btn" onclick="toggleSidebar()">✖</span>
   <a href="/home.html">Bot Chat</a>
@@ -160,57 +164,86 @@
   <a href="/login.html" onclick="logout()">Logout</a>
 </div>
 
-<div class="container">
-  <div class="main">
-    <div class="topbar">
-      <span class="burger" onclick="toggleSidebar()">☰</span>
-      <h2>BotX Assistant</h2>
-    </div>
+<!-- Main Chat -->
+<div class="main">
+  <div class="topbar">
+    <span class="burger" onclick="toggleSidebar()">☰</span>
+    <h3>BotX Assistant</h3>
+  </div>
 
-    <div id="chat-box"></div>
+  <div id="chat-box"></div>
 
-    <div class="input-area">
-      <input type="text" id="msgInput" placeholder="Type your message..." />
-      <button onclick="sendMessage()">Send</button>
-    </div>
+  <div class="input-area">
+    <label for="file-input" class="icon-btn">📎</label>
+    <input type="file" id="file-input" />
+    <input type="text" id="msgInput" placeholder="Type your message..." />
+    <button class="icon-btn" onclick="startVoice()">🎤</button>
+    <button class="icon-btn" onclick="sendMessage()" id="sendBtn">➡</button>
   </div>
 </div>
 
 <script>
-const name = localStorage.getItem('user') || prompt("Your name?");
-const socket = io("https://real-time-chat-1-pa6c.onrender.com");
-socket.emit("set_name", name);
-socket.emit("message", ">>bot"); // Always activate bot
-
-function logout() {
-  localStorage.removeItem("user");
-}
+const API_KEY = "YOUR_GEMINI_API_KEY"; // <-- Tum apna yaha daalna
+const chatBox = document.getElementById("chat-box");
 
 function toggleSidebar() {
   document.getElementById("sidebar").classList.toggle("show");
+}
+
+function logout() {
+  localStorage.removeItem("user");
 }
 
 function sendMessage() {
   const input = document.getElementById("msgInput");
   const msg = input.value.trim();
   if (!msg) return;
-  appendMessage(name, msg, 'me');
-  socket.emit("message", "bot " + msg);
-  input.value = "";
-}
 
-socket.on("message", (data) => {
-  if (data.sender === "BotX") {
-    appendMessage("Bot", data.text, 'bot');
-  }
-});
+  appendMessage("You", msg, 'me');
+  input.value = "";
+  animateSend();
+
+  fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-pro:generateContent?key=${API_KEY}`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({
+      contents: [{ parts: [{ text: `You are a friendly Hinglish assistant. Reply shortly and simply. User says: "${msg}"` }] }]
+    })
+  })
+  .then(res => res.json())
+  .then(data => {
+    const botText = data.candidates?.[0]?.content?.parts?.[0]?.text || "No response.";
+    appendMessage("Bot", botText, "bot");
+  })
+  .catch(() => appendMessage("Bot", "Error talking to AI.", "bot"));
+}
 
 function appendMessage(sender, msg, cls) {
   const div = document.createElement("div");
   div.className = `msg ${cls}`;
   div.innerText = `${sender}: ${msg}`;
-  document.getElementById("chat-box").appendChild(div);
-  document.getElementById("chat-box").scrollTop = chatBox.scrollHeight;
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function animateSend() {
+  anime({
+    targets: '#sendBtn',
+    scale: [1, 1.3, 1],
+    duration: 300,
+    easing: 'easeInOutQuad'
+  });
+}
+
+function startVoice() {
+  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.lang = "en-IN";
+  recognition.start();
+  recognition.onresult = function (event) {
+    const transcript = event.results[0][0].transcript;
+    document.getElementById("msgInput").value = transcript;
+    sendMessage();
+  };
 }
 </script>
 
