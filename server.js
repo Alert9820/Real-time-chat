@@ -1,5 +1,4 @@
-// BotX Pro Server.js (Sunny Chaurasiya Official Version Without ID Column)
-// BotX Pro Server.js (Sunny Chaurasiya Official Version)
+// BotX Pro v5.0 Full Server - by Sunny Chaurasiya
 
 import express from 'express';
 import cors from 'cors';
@@ -11,7 +10,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import fetch from 'node-fetch';
 
-// ES Module Setup
+// Setup for ES Module (path fix)
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -41,7 +40,6 @@ const db = mysql.createConnection({
   port: process.env.DB_PORT
 });
 
-// Connect Database
 db.connect((err) => {
   if (err) {
     console.error('❌ Database connection failed:', err);
@@ -53,7 +51,7 @@ db.connect((err) => {
 // Environment Variables
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-// In-Memory Users and Bot Status
+// In-Memory Users
 const users = {};
 let botActive = false;
 
@@ -64,15 +62,14 @@ app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// Register Route
+// Register
 app.post('/register', (req, res) => {
   const { name, email, password } = req.body;
   if (!name || !email || !password) {
     return res.status(400).send('Please fill all fields.');
   }
 
-  const checkQuery = 'SELECT * FROM person WHERE email = ? OR name = ?';
-  db.query(checkQuery, [email, name], (err, results) => {
+  db.query('SELECT * FROM person WHERE email = ? OR name = ?', [email, name], (err, results) => {
     if (err) {
       console.error('❌ Error while checking user:', err);
       return res.status(500).send('Server Error while checking user.');
@@ -81,8 +78,7 @@ app.post('/register', (req, res) => {
       return res.status(400).send('Email or Username already exists.');
     }
 
-    const insertQuery = 'INSERT INTO person (name, email, password) VALUES (?, ?, ?)';
-    db.query(insertQuery, [name, email, password], (err) => {
+    db.query('INSERT INTO person (name, email, password) VALUES (?, ?, ?)', [name, email, password], (err) => {
       if (err) {
         console.error('❌ Error while inserting user:', err);
         return res.status(500).send('Server Error while inserting user.');
@@ -92,7 +88,7 @@ app.post('/register', (req, res) => {
   });
 });
 
-// Login Route
+// Login
 app.post('/login', (req, res) => {
   const { email, password } = req.body;
   if (!email || !password) {
@@ -107,12 +103,12 @@ app.post('/login', (req, res) => {
     if (results.length === 0) {
       return res.status(401).send('Invalid Email or Password.');
     }
-    
+
     res.json({ message: 'Login Successful', name: results[0].name });
   });
 });
 
-// Fetch all registered users
+// Fetch all users
 app.get('/users', (req, res) => {
   db.query('SELECT name, email FROM person', (err, results) => {
     if (err) {
@@ -123,7 +119,7 @@ app.get('/users', (req, res) => {
   });
 });
 
-// Fetch total registered users count
+// Fetch users count
 app.get('/users/count', (req, res) => {
   db.query('SELECT COUNT(*) AS total FROM person', (err, results) => {
     if (err) {
@@ -134,28 +130,27 @@ app.get('/users/count', (req, res) => {
   });
 });
 
-// Gemini API Request (Sunny's Bot Assistant)
+// Gemini API integration
 async function generateBotReply(prompt) {
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: `Reply in Hinglish, short, easy way. No long paragraphs. Friendly tone. If asked who made you, reply: "Sunny Chaurasiya ne banaya hai mujhe." User said: ${prompt}` }] }]
+        contents: [{ parts: [{ text: `Reply in Hinglish, short, simple way, friendly tone. Don't write long paragraphs. If asked who made you, say: "Mujhe Sunny Chaurasiya ne banaya hai." User said: ${prompt}` }] }]
       })
     });
-
     const data = await response.json();
-    return data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, kuch samajh nahi aaya!";
-  } catch (err) {
-    console.error('Gemini Error:', err);
-    return "Sorry, kuch error aaya!";
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, kuch samajh nahi aaya.";
+  } catch (error) {
+    console.error('Gemini Error:', error);
+    return "Sorry, kuch error aaya.";
   }
 }
 
-// Socket.IO - Realtime Messaging
+// Real-Time Chat (Socket.IO)
 io.on('connection', (socket) => {
-  console.log('🔵 A user connected:', socket.id);
+  console.log('🔵 New user connected:', socket.id);
 
   socket.on('set_name', (name) => {
     users[socket.id] = name;
@@ -164,25 +159,9 @@ io.on('connection', (socket) => {
   socket.on('message', async (text) => {
     const sender = users[socket.id] || 'Unknown';
 
-    // Bot Activation
-    if (text === '>>bot') {
-      botActive = true;
-      io.emit('message', { sender: "BotX", text: "Bot is now active! Feel free to ask me anything." });
-      return;
-    }
-
-    // Bot Deactivation
-    if (text === '<<bot') {
-      botActive = false;
-      io.emit('message', { sender: "BotX", text: "Bot is now inactive." });
-      return;
-    }
-
-    // Broadcast user message
     io.emit('message', { sender, text });
 
-    // Bot auto-reply if active and message contains "bot"
-    if (botActive && (text.toLowerCase().includes("bot") || text.toLowerCase().includes("sunny"))) {
+    if (botActive && (text.toLowerCase().includes('bot') || text.toLowerCase().includes('sunny'))) {
       const cleanPrompt = text.replace(/bot/gi, '').replace(/sunny/gi, '').trim();
       const botReply = await generateBotReply(cleanPrompt || "Hello");
       io.emit('message', { sender: "BotX", text: botReply });
@@ -202,5 +181,5 @@ io.on('connection', (socket) => {
 // Start Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`🚀 BotX Pro Server is running on port ${PORT}`);
+  console.log(`🚀 Server running on port ${PORT}`);
 });
