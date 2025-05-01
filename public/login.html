@@ -68,11 +68,31 @@
   </div>
 
   <script>
-    function saveName() {
-      const email = document.querySelector('input[name=email]').value;
-      localStorage.setItem("user", email.split("@")[0]);
-      return true;
+  function saveName() {
+    const email = document.querySelector('input[name=email]').value;
+    localStorage.setItem("user", email.split("@")[0]);
+    return true;
+  }
+
+  // Redirect after successful login
+  document.querySelector('form').addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const form = e.target;
+    const data = new FormData(form);
+
+    const res = await fetch('/login', {
+      method: 'POST',
+      body: new URLSearchParams(data)
+    });
+    const result = await res.json();
+
+    if (res.ok) {
+      localStorage.setItem("user", result.name);
+      window.location.href = '/home.html';
+    } else {
+      alert(result.message || "Login failed.");
     }
+  });
   </script>
 </body>
 </html>
