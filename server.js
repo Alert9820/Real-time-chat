@@ -44,7 +44,7 @@ const users = {};
 let botActive = false;
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 
-// Generate Bot Reply from Gemini
+// Gemini Prompt Function
 async function generateBotReply(prompt) {
   try {
     const response = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
@@ -58,10 +58,11 @@ async function generateBotReply(prompt) {
         }]
       })
     });
+
     const data = await response.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text || "Kuch samajh nahi aaya bhai!";
   } catch (err) {
-    console.error("Bot error:", err);
+    console.error("❌ Gemini API Error:", err);
     return "Bot se reply nahi mila.";
   }
 }
@@ -98,7 +99,6 @@ app.post('/login', (req, res) => {
   });
 });
 
-// Bot History API
 app.get("/bot-history", (req, res) => {
   const name = req.query.name;
   db.query("SELECT * FROM bot_history WHERE name = ?", [name], (err, results) => {
@@ -107,19 +107,18 @@ app.get("/bot-history", (req, res) => {
   });
 });
 
-// Real-Time Messaging
+// Realtime Messaging
 io.on("connection", (socket) => {
-  console.log("🟢 User connected:", socket.id);
+  console.log("🟢 Connected:", socket.id);
 
   socket.on("set_name", (name) => {
     users[socket.id] = name;
-    console.log(`✅ Name set: ${socket.id} -> ${name}`);
+    console.log(`✅ ${socket.id} set name: ${name}`);
   });
 
   socket.on("message", async (text) => {
     const sender = users[socket.id] || "Unknown";
-    console.log("📤 Message:", sender, text);
-
+    console.log("💬", sender, ":", text);
     io.emit("message", { sender, text });
 
     if (text === ">>bot") {
@@ -135,14 +134,11 @@ io.on("connection", (socket) => {
     }
 
     if (botActive && (text.toLowerCase().includes("bot") || text.toLowerCase().includes("sunny"))) {
-      const cleanPrompt = text.replace(/Reply to .*?:/, "").replace(/bot/gi, "").replace(/sunny/gi, "").trim();
+      const cleanPrompt = text.replace(/Reply to \.*?\:/, "").replace(/bot/gi, "").replace(/sunny/gi, "").trim();
       const botReply = await generateBotReply(cleanPrompt || "Hello");
-
       io.emit("message", { sender: "BotX", text: botReply });
 
-      // Save to bot history
-      db.query("INSERT INTO bot_history (name, prompt, reply) VALUES (?, ?, ?)",
-        [sender, cleanPrompt, botReply]);
+      db.query("INSERT INTO bot_history (name, prompt, reply) VALUES (?, ?, ?)", [sender, cleanPrompt, botReply]);
     }
   });
 
@@ -156,8 +152,8 @@ io.on("connection", (socket) => {
   });
 });
 
-// Start Server
+// Start server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
+  console.log(`🚀 Server running at http://localhost:${PORT}`);
 });
