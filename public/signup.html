@@ -1,61 +1,56 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Register | BotX</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Signup - BotX</title>
   <style>
     body {
-      margin: 0;
       font-family: 'Poppins', sans-serif;
-      background: linear-gradient(145deg, #0d0d0d, #1a1a1a);
+      background: linear-gradient(to right, #0f0f0f, #1c1c1c);
       color: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
       height: 100vh;
+      margin: 0;
     }
     .box {
-      background: rgba(255,255,255,0.05);
-      backdrop-filter: blur(10px);
-      border-radius: 20px;
+      background: #1a1a1a;
       padding: 30px;
-      width: 350px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+      border-radius: 10px;
+      box-shadow: 0 0 10px #000;
+      width: 300px;
     }
     h2 {
       text-align: center;
-      margin-bottom: 20px;
       color: #6cf;
     }
     input {
       width: 100%;
-      padding: 12px;
+      padding: 10px;
       margin: 10px 0;
       border: none;
-      border-radius: 10px;
-      background: #222;
+      border-radius: 5px;
+      background: #2b2b2b;
       color: #fff;
-      font-size: 16px;
     }
     button {
       width: 100%;
-      padding: 12px;
+      padding: 10px;
       background: #6cf;
-      color: #000;
       border: none;
-      border-radius: 10px;
+      border-radius: 5px;
       font-weight: bold;
       cursor: pointer;
       margin-top: 10px;
+      color: #000;
     }
-    p {
+    .switch {
       text-align: center;
       margin-top: 10px;
-      font-size: 14px;
     }
-    a {
+    .switch a {
       color: #6cf;
       text-decoration: none;
     }
@@ -63,38 +58,21 @@
 </head>
 <body>
   <div class="box">
-    <h2>Register on BotX</h2>
-    <input type="text" id="name" placeholder="Full Name">
-    <input type="email" id="email" placeholder="Email">
-    <input type="password" id="password" placeholder="Password">
-    <button onclick="register()">Register</button>
-    <p>Already have an account? <a href="login.html">Login</a></p>
+    <h2>Create Account</h2>
+    <form action="/register" method="POST" onsubmit="return saveName()">
+      <input type="text" name="name" placeholder="Username" required />
+      <input type="email" name="email" placeholder="Email" required />
+      <input type="password" name="password" placeholder="Password" required />
+      <button type="submit">Register</button>
+    </form>
+    <div class="switch">Already have an account? <a href="/login.html">Login</a></div>
   </div>
 
   <script>
-    async function register() {
-      const name = document.getElementById('name').value.trim();
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value.trim();
-
-      if (!name || !email || !password) {
-        alert('Please fill all fields!');
-        return;
-      }
-
-      const res = await fetch('/register', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name, email, password })
-      });
-
-      if (res.ok) {
-        alert('Registration successful! Please login.');
-        window.location.href = 'login.html';
-      } else {
-        const errorText = await res.text();
-        alert(errorText);
-      }
+    function saveName() {
+      const name = document.querySelector('input[name=name]').value;
+      localStorage.setItem("user", name);
+      return true;
     }
   </script>
 </body>
