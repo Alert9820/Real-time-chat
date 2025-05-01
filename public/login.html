@@ -2,85 +2,77 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Login - BotX Pro</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;600&display=swap" rel="stylesheet">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Login - BotX</title>
   <style>
     body {
-      background: linear-gradient(145deg, #0d0d0d, #1a1a1a);
-      color: #fff;
       font-family: 'Poppins', sans-serif;
+      background: linear-gradient(to right, #0f0f0f, #1c1c1c);
+      color: #fff;
       display: flex;
-      justify-content: center;
       align-items: center;
+      justify-content: center;
       height: 100vh;
       margin: 0;
     }
-    .login-container {
-      background: rgba(255,255,255,0.05);
-      backdrop-filter: blur(8px);
+    .box {
+      background: #1a1a1a;
       padding: 30px;
-      border-radius: 15px;
-      box-shadow: 0 8px 32px rgba(0,0,0,0.5);
+      border-radius: 10px;
+      box-shadow: 0 0 10px #000;
       width: 300px;
+    }
+    h2 {
       text-align: center;
+      color: #6cf;
     }
     input {
       width: 100%;
-      padding: 12px;
+      padding: 10px;
       margin: 10px 0;
-      border-radius: 8px;
       border: none;
-      background: #333;
+      border-radius: 5px;
+      background: #2b2b2b;
       color: #fff;
     }
     button {
       width: 100%;
-      padding: 12px;
-      border: none;
-      border-radius: 8px;
+      padding: 10px;
       background: #6cf;
-      color: #000;
+      border: none;
+      border-radius: 5px;
       font-weight: bold;
-      margin-top: 10px;
       cursor: pointer;
+      margin-top: 10px;
+      color: #000;
+    }
+    .switch {
+      text-align: center;
+      margin-top: 10px;
+    }
+    .switch a {
+      color: #6cf;
+      text-decoration: none;
     }
   </style>
 </head>
 <body>
+  <div class="box">
+    <h2>Login to BotX</h2>
+    <form action="/login" method="POST" onsubmit="return saveName()">
+      <input type="email" name="email" placeholder="Email" required />
+      <input type="password" name="password" placeholder="Password" required />
+      <button type="submit">Login</button>
+    </form>
+    <div class="switch">Don't have an account? <a href="/signup.html">Create Account</a></div>
+  </div>
 
-<div class="login-container">
-  <h2>Login to BotX Pro</h2>
-  <input type="email" id="email" placeholder="Email" />
-  <input type="password" id="password" placeholder="Password" />
-  <button onclick="login()">Login</button>
-</div>
-
-<script>
-async function login() {
-  const email = document.getElementById('email').value.trim();
-  const password = document.getElementById('password').value.trim();
-
-  if (!email || !password) {
-    alert('Please fill all fields.');
-    return;
-  }
-
-  const res = await fetch('/login', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ email, password })
-  });
-
-  if (res.ok) {
-    const data = await res.json();
-    localStorage.setItem('user', data.name);
-    window.location.href = '/home.html';
-  } else {
-    alert('Invalid Email or Password!');
-  }
-}
-</script>
-
+  <script>
+    function saveName() {
+      const email = document.querySelector('input[name=email]').value;
+      localStorage.setItem("user", email.split("@")[0]);
+      return true;
+    }
+  </script>
 </body>
 </html>
