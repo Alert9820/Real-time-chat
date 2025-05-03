@@ -65,20 +65,26 @@ async function generateBotReply(prompt) {
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
+
 app.post('/register', (req, res) => {
   const { name, email, password } = req.body;
-  if (!name || !email || !password) return res.status(400).send("Fill all fields");
+  if (!name?.trim() || !email?.trim() || !password?.trim()) {
+    return res.status(400).send("Sab fields bharna zaroori hai.");
+  }
 
-  db.query('SELECT * FROM person WHERE email = ? OR name = ?', [email, name], (err, result) => {
+  const checkQuery = 'SELECT * FROM person WHERE email = ? OR name = ?';
+  db.query(checkQuery, [email, name], (err, result) => {
     if (err) return res.status(500).send("Server error");
-    if (result.length > 0) return res.status(400).send("Already exists");
+    if (result.length > 0) return res.status(400).send("User already exists");
 
-    db.query('INSERT INTO person (name, email, password) VALUES (?, ?, ?)', [name, email, password], err => {
+    const insertQuery = 'INSERT INTO person (name, email, password) VALUES (?, ?, ?)';
+    db.query(insertQuery, [name, email, password], (err) => {
       if (err) return res.status(500).send("Registration failed");
-      res.send("Registration success");
+      res.send("Registration successful");
     });
   });
 });
+
 app.post('/login', (req, res) => {
   const { email, password } = req.body;
   db.query('SELECT * FROM person WHERE email = ? AND password = ?', [email, password], (err, result) => {
@@ -86,6 +92,7 @@ app.post('/login', (req, res) => {
     res.json({ name: result[0].name });
   });
 });
+
 app.get("/bot-history", (req, res) => {
   const name = req.query.name;
   db.query("SELECT * FROM bot_history WHERE name = ?", [name], (err, rows) => {
