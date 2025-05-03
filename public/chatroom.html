@@ -107,173 +107,154 @@
   <button onclick="sendMsg()">Send</button>
 </div>
 
-  <script>
-  const socket = io("https://real-time-chat-1-pa6c.onrender.com");
-  const name = localStorage.getItem('user') || prompt("Enter your name:");
-  socket.emit("set_name", name);
+<script>
+const socket = io("https://real-time-chat-1-pa6c.onrender.com");
+const name = localStorage.getItem('user') || prompt("Enter your name:");
+socket.emit("set_name", name);
 
-  let botActive = false;
-  let replyTo = null;
-  let sidebarOpen = false;
+let botActive = false;
+let replyTo = null;
 
-  const chatBox = document.getElementById("chat-box");
-  const msgInput = document.getElementById("msgInput");
-  const typingDiv = document.getElementById("typing");
-  const fileInput = document.getElementById("file-input");
-  const sidebar = document.getElementById("sidebar");
-  const sidebarToggleBtn = document.getElementById("sidebarToggleBtn");
+const chatBox = document.getElementById("chat-box");
+const msgInput = document.getElementById("msgInput");
+const typingDiv = document.getElementById("typing");
+const fileInput = document.getElementById("file-input");
 
-  // Sidebar toggle functionality
-  sidebarToggleBtn.addEventListener("click", () => {
-    sidebarOpen = !sidebarOpen;
-    if (sidebarOpen) {
-      sidebar.style.transform = "translateX(0)";
-    } else {
-      sidebar.style.transform = "translateX(-100%)";
-    }
-  });
+function sendMsg() {
+  const msg = msgInput.value.trim();
+  if (!msg) return;
 
-  function sendMsg() {
-    const msg = msgInput.value.trim();
-    if (!msg) return;
-
-    if (msg === '>>bot') {
-      botActive = true;
-      socket.emit("message", msg);
-      msgInput.value = '';
-      return;
-    }
-    if (msg === '<<bot') {
-      botActive = false;
-      socket.emit("message", msg);
-      msgInput.value = '';
-      return;
-    }
-
-    const final = replyTo ? `Reply to [${replyTo}]: ${msg}` : msg;
-    socket.emit("message", final);
+  if (msg === '>>bot') {
+    botActive = true;
+    socket.emit("message", msg);
     msgInput.value = '';
-    replyTo = null;
+    return;
+  }
+  if (msg === '<<bot') {
+    botActive = false;
+    socket.emit("message", msg);
+    msgInput.value = '';
+    return;
   }
 
-  function startVoice() {
-    const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    rec.lang = "en-IN";
-    rec.start();
-    rec.onresult = e => {
-      const transcript = e.results[0][0].transcript;
-      msgInput.value = transcript;
-      sendMsg();
-    };
-  }
+  const final = replyTo ? `Reply to [${replyTo}]: ${msg}` : msg;
+  socket.emit("message", final);
+  msgInput.value = '';
+  replyTo = null;
+}
 
-  fileInput.addEventListener('change', () => {
-    const file = fileInput.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (file.type.startsWith("image/")) {
-        socket.emit("message", `[img]${reader.result}`);
-      } else {
-        socket.emit("message", `[file]${reader.result}`);
-      }
-    };
-    reader.readAsDataURL(file);
-  });
+function startVoice() {
+  const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  rec.lang = "en-IN";
+  rec.start();
+  rec.onresult = e => {
+    const transcript = e.results[0][0].transcript;
+    msgInput.value = transcript;
+    sendMsg();
+  };
+}
 
-  function addMessage(sender, text) {
-    const div = document.createElement("div");
-    div.className = `message ${sender === name ? 'me' : 'other'}`;
-
-    // Check if message contains an image
-    if (text.startsWith("[img]")) {
-      const img = document.createElement("img");
-      img.src = text.replace("[img]", "");
-      img.style.maxWidth = "180px";
-      img.style.borderRadius = "10px";
-      div.appendChild(img);
-    } else if (text.startsWith("[file]")) {
-      const link = document.createElement("a");
-      link.href = text.replace("[file]", "");
-      link.innerText = "Download File";
-      link.target = "_blank";
-      link.style.color = "#6cf";
-      div.appendChild(link);
-    } else if (text.includes("Reply to [")) {
-      const parts = text.split("]:");
-      const reply = document.createElement("div");
-      reply.className = "reply";
-      reply.innerText = parts[0].replace("Reply to [", "Reply: ");
-      div.appendChild(reply);
-      div.innerHTML += parts[1];
+fileInput.addEventListener('change', () => {
+  const file = fileInput.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    if (file.type.startsWith("image/")) {
+      socket.emit("message", `[img]${reader.result}`);
     } else {
-      // For bot replies, wrap the response in <pre> tag for program output
-      if (sender === "Bot") {
-        div.innerHTML += `<b>${sender}:</b> <pre>${text}</pre>`;
-      } else {
-        div.innerHTML += `<b>${sender}:</b> ${text}`;
-      }
+      socket.emit("message", `[file]${reader.result}`);
     }
+  };
+  reader.readAsDataURL(file);
+});
 
-    div.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      showReaction(div);
-    });
+function addMessage(sender, text) {
+  const div = document.createElement("div");
+  div.className = `message ${sender === name ? 'me' : 'other'}`;
 
-    div.addEventListener("dblclick", () => {
-      replyTo = text;
-      alert(`Now replying to: ${text}`);
-    });
-
-    chatBox.appendChild(div);
-    chatBox.scrollTop = chatBox.scrollHeight;
+  if (text.startsWith("[img]")) {
+    const img = document.createElement("img");
+    img.src = text.replace("[img]", "");
+    img.style.maxWidth = "180px";
+    img.style.borderRadius = "10px";
+    div.appendChild(img);
+  } else if (text.startsWith("[file]")) {
+    const link = document.createElement("a");
+    link.href = text.replace("[file]", "");
+    link.innerText = "Download File";
+    link.target = "_blank";
+    link.style.color = "#6cf";
+    div.appendChild(link);
+  } else if (text.includes("Reply to [")) {
+    const parts = text.split("]:");
+    const reply = document.createElement("div");
+    reply.className = "reply";
+    reply.innerText = parts[0].replace("Reply to [", "Reply: ");
+    div.appendChild(reply);
+    div.innerHTML += parts[1];
+  } else {
+    div.innerHTML += `<b>${sender}:</b> ${text}`;
   }
 
-  function showReaction(div) {
-    const emojis = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
-    const popup = document.createElement("div");
-    popup.style.position = "absolute";
-    popup.style.bottom = "30px";
-    popup.style.left = "50%";
-    popup.style.transform = "translateX(-50%)";
-    popup.style.background = "#222";
-    popup.style.padding = "5px 10px";
-    popup.style.borderRadius = "8px";
-    popup.style.display = "flex";
-    popup.style.gap = "5px";
-
-    emojis.forEach(emoji => {
-      const btn = document.createElement("button");
-      btn.innerText = emoji;
-      btn.style.background = "transparent";
-      btn.style.border = "none";
-      btn.style.fontSize = "18px";
-      btn.onclick = () => {
-        const react = document.createElement("div");
-        react.className = "reaction";
-        react.innerText = emoji;
-        div.appendChild(react);
-        popup.remove();
-      };
-      popup.appendChild(btn);
-    });
-
-    div.appendChild(popup);
-  }
-
-  socket.on("message", (data) => {
-    addMessage(data.sender, data.text);
+  div.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
+    showReaction(div);
   });
 
-  socket.on("typing", (user) => {
-    typingDiv.textContent = `${user} is typing...`;
-    setTimeout(() => typingDiv.textContent = '', 1500);
+  div.addEventListener("dblclick", () => {
+    replyTo = text;
+    alert(`Now replying to: ${text}`);
   });
 
-  msgInput.addEventListener("input", () => {
-    socket.emit("typing", name);
+  chatBox.appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function showReaction(div) {
+  const emojis = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+  const popup = document.createElement("div");
+  popup.style.position = "absolute";
+  popup.style.bottom = "30px";
+  popup.style.left = "50%";
+  popup.style.transform = "translateX(-50%)";
+  popup.style.background = "#222";
+  popup.style.padding = "5px 10px";
+  popup.style.borderRadius = "8px";
+  popup.style.display = "flex";
+  popup.style.gap = "5px";
+
+  emojis.forEach(emoji => {
+    const btn = document.createElement("button");
+    btn.innerText = emoji;
+    btn.style.background = "transparent";
+    btn.style.border = "none";
+    btn.style.fontSize = "18px";
+    btn.onclick = () => {
+      const react = document.createElement("div");
+      react.className = "reaction";
+      react.innerText = emoji;
+      div.appendChild(react);
+      popup.remove();
+    };
+    popup.appendChild(btn);
   });
-  </script>
+
+  div.appendChild(popup);
+}
+
+socket.on("message", (data) => {
+  addMessage(data.sender, data.text);
+});
+
+socket.on("typing", (user) => {
+  typingDiv.textContent = `${user} is typing...`;
+  setTimeout(() => typingDiv.textContent = '', 1500);
+});
+
+msgInput.addEventListener("input", () => {
+  socket.emit("typing", name);
+});
+</script>
 
 </body>
 </html>
