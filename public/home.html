@@ -35,10 +35,11 @@
     }
 
     .sidebar .close-btn {
-      font-size: 18px;
+      font-size: 22px;
       color: #f66;
       cursor: pointer;
       margin-bottom: 20px;
+      align-self: flex-end;
     }
 
     .sidebar a {
@@ -144,6 +145,7 @@
 
 <!-- Sidebar -->
 <div class="sidebar hide" id="sidebar">
+  <div class="close-btn" onclick="toggleSidebar()">×</div>
   <a href="/home.html">Bot Chat</a>
   <a href="/chatroom.html">Chat Room</a>
   <a href="/privatechat.html">Private Chat</a>
@@ -167,7 +169,7 @@
 </div>
 
 <script>
-const API_KEY = "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA"; // Gemini Flash 2.0 API Key
+const API_KEY = "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA";
 const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
 
 function toggleSidebar() {
