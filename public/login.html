@@ -59,7 +59,7 @@
 <body>
   <div class="box">
     <h2>Login to BotX</h2>
-    <form action="/login" method="POST" onsubmit="return saveName()">
+    <form id="loginForm">
       <input type="email" name="email" placeholder="Email" required />
       <input type="password" name="password" placeholder="Password" required />
       <button type="submit">Login</button>
@@ -68,31 +68,24 @@
   </div>
 
   <script>
-  function saveName() {
-    const email = document.querySelector('input[name=email]').value;
-    localStorage.setItem("user", email.split("@")[0]);
-    return true;
-  }
+    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const data = new FormData(e.target);
 
-  // Redirect after successful login
-  document.querySelector('form').addEventListener('submit', async (e) => {
-    e.preventDefault();
-    const form = e.target;
-    const data = new FormData(form);
+      const res = await fetch('/login', {
+        method: 'POST',
+        body: new URLSearchParams(data)
+      });
 
-    const res = await fetch('/login', {
-      method: 'POST',
-      body: new URLSearchParams(data)
+      const result = await res.json();
+
+      if (res.ok) {
+        localStorage.setItem("user", result.name || data.get('email').split("@")[0]);
+        window.location.href = '/home.html';
+      } else {
+        alert(result.message || "Invalid email or password.");
+      }
     });
-    const result = await res.json();
-
-    if (res.ok) {
-      localStorage.setItem("user", result.name);
-      window.location.href = '/home.html';
-    } else {
-      alert(result.message || "Login failed.");
-    }
-  });
   </script>
 </body>
 </html>
