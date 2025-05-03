@@ -7,45 +7,56 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: #111;
+      background: linear-gradient(to bottom right, rgba(0, 0, 0, 0.9), rgba(20, 20, 20, 0.8));
       color: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
       height: 100vh;
       margin: 0;
+      backdrop-filter: blur(8px);
     }
+
     .form-container {
-      background: #1e1e1e;
+      background: rgba(0, 0, 0, 0.6);
       padding: 2rem;
-      border-radius: 10px;
-      box-shadow: 0 0 10px #444;
+      border-radius: 15px;
+      box-shadow: 0 0 20px rgba(0, 123, 255, 0.3);
       width: 300px;
+      border: 1px solid rgba(255, 255, 255, 0.1);
     }
+
     .form-container h2 {
       text-align: center;
       margin-bottom: 1rem;
     }
+
     input {
       width: 100%;
       padding: 10px;
       margin: 10px 0;
       border: none;
-      border-radius: 5px;
+      border-radius: 8px;
       outline: none;
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
     }
+
     button {
       width: 100%;
       padding: 10px;
-      background: #00c853;
+      background: #2196f3;
       color: white;
       border: none;
-      border-radius: 5px;
+      border-radius: 8px;
       cursor: pointer;
+      font-weight: bold;
     }
+
     button:hover {
-      background: #00b347;
+      background: #1976d2;
     }
+
     .msg {
       text-align: center;
       margin-top: 10px;
@@ -84,8 +95,13 @@
         });
 
         const text = await res.text();
-        msg.textContent = text;
-        msg.style.color = text.includes("success") ? "lightgreen" : "red";
+        if (text.toLowerCase().includes("success")) {
+          alert("Registration Successful!");
+          window.location.href = "login.html";
+        } else {
+          msg.textContent = text;
+          msg.style.color = "red";
+        }
       } catch (err) {
         msg.textContent = "Error connecting to server.";
         msg.style.color = "red";
