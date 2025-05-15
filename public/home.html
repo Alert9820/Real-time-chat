@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -14,7 +13,6 @@
       height: 100vh;
       display: flex;
     }
-
     .sidebar {
       width: 230px;
       background: #121212;
@@ -29,11 +27,9 @@
       bottom: 0;
       z-index: 10;
     }
-
     .sidebar.hide {
       transform: translateX(-100%);
     }
-
     .sidebar .close-btn {
       font-size: 22px;
       color: #f66;
@@ -41,13 +37,11 @@
       margin-bottom: 20px;
       align-self: flex-end;
     }
-
     .sidebar a {
       text-decoration: none;
       color: #6cf;
       font-weight: bold;
     }
-
     .main {
       margin-left: 230px;
       flex: 1;
@@ -55,7 +49,6 @@
       flex-direction: column;
       height: 100vh;
     }
-
     .topbar {
       background: #111;
       padding: 15px 20px;
@@ -63,45 +56,41 @@
       justify-content: space-between;
       align-items: center;
     }
-
     .topbar .toggle {
       font-size: 24px;
       cursor: pointer;
       color: #6cf;
     }
-
     #chat-box {
       flex: 1;
       overflow-y: auto;
       padding: 20px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 15px;
     }
-
     .msg {
       max-width: 75%;
       padding: 10px 15px;
       border-radius: 15px;
       font-size: 15px;
-      line-height: 1.4;
+      line-height: 1.5;
       animation: slideIn 0.3s ease;
+      position: relative;
+      white-space: pre-wrap;
     }
-
     .me {
       align-self: flex-end;
       background: linear-gradient(to right, #6cf, #3cf);
       color: #000;
       border-bottom-right-radius: 0;
     }
-
     .bot {
       align-self: flex-start;
-      background: #333;
+      background: #222;
       color: #fff;
       border-bottom-left-radius: 0;
     }
-
     .input-area {
       display: flex;
       padding: 10px 20px;
@@ -109,7 +98,6 @@
       background: #111;
       align-items: center;
     }
-
     .input-area input[type="text"] {
       flex: 1;
       padding: 12px;
@@ -119,7 +107,6 @@
       background: #222;
       color: #fff;
     }
-
     .input-area button {
       background: #6cf;
       color: #000;
@@ -129,12 +116,29 @@
       border-radius: 10px;
       cursor: pointer;
     }
-
+    .copy-btn {
+      position: absolute;
+      top: 8px;
+      right: 10px;
+      font-size: 12px;
+      background: #444;
+      color: #fff;
+      padding: 4px 8px;
+      border-radius: 5px;
+      cursor: pointer;
+    }
+    pre {
+      background: #111;
+      padding: 10px;
+      border-radius: 10px;
+      overflow-x: auto;
+      color: #0f0;
+      font-family: monospace;
+    }
     @keyframes slideIn {
       from { transform: translateY(10px); opacity: 0; }
       to { transform: translateY(0); opacity: 1; }
     }
-
     @media (max-width: 768px) {
       .main { margin-left: 0; }
       .sidebar { position: fixed; height: 100%; }
@@ -142,35 +146,28 @@
   </style>
 </head>
 <body>
-
-<!-- Sidebar -->
-<div class="sidebar hide" id="sidebar">
-  <div class="close-btn" onclick="toggleSidebar()">×</div>
-  <a href="/home.html">Bot Chat</a>
-  <a href="/chatroom.html">Chat Room</a>
-  <a href="/privatechat.html">Private Chat</a>
-  <a href="/history.html">Bot History</a>
-  <a href="/login.html" onclick="logout()">Logout</a>
-</div>
-
-<!-- Main -->
-<div class="main">
-  <div class="topbar">
-    <span class="toggle" onclick="toggleSidebar()">☰</span>
-    <h2>BotX Assistant</h2>
+  <div class="sidebar hide" id="sidebar">
+    <div class="close-btn" onclick="toggleSidebar()">×</div>
+    <a href="/home.html">Bot Chat</a>
+    <a href="/chatroom.html">Chat Room</a>
+    <a href="/privatechat.html">Private Chat</a>
+    <a href="/history.html">Bot History</a>
+    <a href="/login.html" onclick="logout()">Logout</a>
   </div>
-
-  <div id="chat-box"></div>
-
-  <div class="input-area">
-    <input type="text" id="msgInput" placeholder="Type a message..." />
-    <button onclick="sendMessage()">Send</button>
+  <div class="main">
+    <div class="topbar">
+      <span class="toggle" onclick="toggleSidebar()">☰</span>
+      <h2>BotX Assistant</h2>
+    </div>
+    <div id="chat-box"></div>
+    <div class="input-area">
+      <input type="text" id="msgInput" placeholder="Type a message..." />
+      <button onclick="sendMessage()">Send</button>
+    </div>
   </div>
-</div>
-
-<script>
-const API_KEY = "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA";
-const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+  <script>
+    const API_KEY = "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA";
+    const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;let memory = [];
 
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('hide');
@@ -180,12 +177,33 @@ function logout() {
   localStorage.removeItem("user");
 }
 
-function appendMessage(sender, text, cls) {
+function appendMessage(sender, content, cls, isPre = false) {
   const msg = document.createElement("div");
   msg.className = `msg ${cls}`;
-  msg.innerText = `${sender}: ${text}`;
+  if (isPre) {
+    const pre = document.createElement("pre");
+    pre.textContent = content;
+    const copyBtn = document.createElement("div");
+    copyBtn.className = "copy-btn";
+    copyBtn.innerText = "Copy";
+    copyBtn.onclick = () => {
+      navigator.clipboard.writeText(content);
+      copyBtn.innerText = "Copied!";
+      setTimeout(() => copyBtn.innerText = "Copy", 1500);
+    };
+    msg.appendChild(pre);
+    msg.appendChild(copyBtn);
+  } else {
+    msg.innerHTML = `<span>${sender}: </span><span id="typing"></span>`;
+    typeEffect(msg.querySelector("#typing"), content);
+  }
   document.getElementById("chat-box").appendChild(msg);
   document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight;
+}
+
+function detectHindi(text) {
+  const hindiChars = /[\u0900-\u097F]/;
+  return hindiChars.test(text);
 }
 
 function sendMessage() {
@@ -194,27 +212,56 @@ function sendMessage() {
   if (!message) return;
 
   appendMessage("You", message, "me");
+  memory.push(`User: ${message}`);
   input.value = "";
 
-  const prompt = `Tum ek friendly Hinglish AI ho jiska naam BotX hai. Tumhe banaya hai Sunny Chaurasiya ne. Tum hamesha short, helpful aur clearly samjhane wale jawab doge — bina confusing tone ke. Ab user ne poocha: "${message}"`;
+  let langMode = detectHindi(message) ? "Hinglish" : "English";
+  let prompt;
+
+  if (["hi", "hello", "hey", "hii", "hola"].some(greet => message.toLowerCase().includes(greet))) {
+    prompt = langMode === "Hinglish"
+      ? "Haan boliye kya madad chahiye?"
+      : "Hi there! How can I assist you today?";
+    appendMessage("BotX", prompt, "bot");
+    return;
+  }
+
+  const systemPrompt = langMode === "Hinglish"
+    ? `Tum ek Hinglish AI ho. Tumhare jawab short, clear aur friendly hone chahiye. Jab user kuch technical ya code bole toh use ekdum clearly <pre> block ke andar do taki usko copy kiya ja sake.`
+    : `You are an English AI assistant. Your replies should be short, clear, and friendly. For code or structured data, always reply inside <pre> tags so it can be copied easily.`;
 
   fetch(modelUrl, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({
-      contents: [{ parts: [{ text: prompt }] }]
+      contents: [{ parts: [{ text: `${systemPrompt}\n${memory.join('\n')}` }] }]
     })
   })
   .then(res => res.json())
   .then(data => {
-    const reply = data.candidates?.[0]?.content?.parts?.[0]?.text || "Kuch error aaya reply me.";
-    appendMessage("BotX", reply, "bot");
+    const fullReply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't understand.";
+    memory.push(`BotX: ${fullReply}`);
+    if (fullReply.includes("<pre>")) {
+      const code = fullReply.match(/<pre>([\s\S]*?)<\/pre>/)?.[1];
+      const rest = fullReply.replace(/<pre>[\s\S]*?<\/pre>/, "").trim();
+      if (rest) appendMessage("BotX", rest, "bot");
+      if (code) appendMessage("BotX", code, "bot", true);
+    } else {
+      appendMessage("BotX", fullReply, "bot");
+    }
   })
   .catch(() => {
-    appendMessage("BotX", "Reply laate waqt error aaya.", "bot");
+    appendMessage("BotX", "Error while getting response.", "bot");
   });
 }
-</script>
 
+function typeEffect(element, text, i = 0) {
+  if (i < text.length) {
+    element.innerHTML += text.charAt(i);
+    setTimeout(() => typeEffect(element, text, i + 1), 20);
+  }
+}
+
+  </script>
 </body>
 </html>
