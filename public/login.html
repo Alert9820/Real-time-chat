@@ -5,59 +5,118 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Login - BotX</title>
   <style>
+    @import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;600&display=swap');
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
       font-family: 'Poppins', sans-serif;
-      background: linear-gradient(to right, #0f0f0f, #1c1c1c);
+      background: linear-gradient(135deg, #0f0f0f, #1a1a1a);
       color: #fff;
+      height: 100vh;
       display: flex;
       align-items: center;
       justify-content: center;
-      height: 100vh;
-      margin: 0;
+      overflow: hidden;
     }
+
     .box {
-      background: #1a1a1a;
+      width: 320px;
+      backdrop-filter: blur(12px);
+      background: rgba(30, 30, 30, 0.3);
+      border-radius: 16px;
+      box-shadow: 0 0 15px rgba(0,0,0,0.5);
       padding: 30px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px #000;
-      width: 300px;
+      transition: all 0.4s ease;
+      animation: fadeInUp 0.8s ease;
     }
+
+    @keyframes fadeInUp {
+      from {
+        opacity: 0;
+        transform: translateY(40px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+
+    @keyframes shake {
+      0%, 100% { transform: translateX(0); }
+      20%, 60% { transform: translateX(-8px); }
+      40%, 80% { transform: translateX(8px); }
+    }
+
+    .shake {
+      animation: shake 0.4s;
+    }
+
     h2 {
       text-align: center;
       color: #6cf;
+      margin-bottom: 20px;
     }
+
     input {
       width: 100%;
       padding: 10px;
-      margin: 10px 0;
-      border: none;
-      border-radius: 5px;
-      background: #2b2b2b;
+      margin-bottom: 15px;
+      background: rgba(255,255,255,0.05);
+      border: 1px solid #444;
+      border-radius: 8px;
       color: #fff;
+      transition: 0.3s;
     }
+
+    input:focus {
+      outline: none;
+      border-color: #6cf;
+      background: rgba(255,255,255,0.1);
+    }
+
     button {
       width: 100%;
       padding: 10px;
-      background: #6cf;
       border: none;
-      border-radius: 5px;
+      border-radius: 8px;
+      background: #6cf;
+      color: #000;
       font-weight: bold;
       cursor: pointer;
-      margin-top: 10px;
-      color: #000;
+      transition: background 0.3s ease;
     }
+
+    button:hover {
+      background: #4ccfff;
+    }
+
     .switch {
       text-align: center;
-      margin-top: 10px;
+      margin-top: 15px;
+      font-size: 14px;
     }
+
     .switch a {
       color: #6cf;
       text-decoration: none;
     }
+
+    .error-message {
+      color: #ff6b6b;
+      text-align: center;
+      font-size: 14px;
+      margin-top: 10px;
+      display: none;
+    }
   </style>
 </head>
 <body>
-  <div class="box">
+  <div class="box" id="box">
     <h2>Login to BotX</h2>
     <form id="loginForm">
       <input type="email" name="email" placeholder="Email" required />
@@ -65,27 +124,44 @@
       <button type="submit">Login</button>
     </form>
     <div class="switch">Don't have an account? <a href="/signup.html">Create Account</a></div>
+    <div class="error-message" id="errorMsg">Invalid email or password.</div>
   </div>
 
   <script>
-    document.getElementById('loginForm').addEventListener('submit', async (e) => {
+    const form = document.getElementById('loginForm');
+    const box = document.getElementById('box');
+    const errorMsg = document.getElementById('errorMsg');
+
+    form.addEventListener('submit', async (e) => {
       e.preventDefault();
-      const data = new FormData(e.target);
+      const data = new FormData(form);
 
-      const res = await fetch('/login', {
-        method: 'POST',
-        body: new URLSearchParams(data)
-      });
+      try {
+        const res = await fetch('/login', {
+          method: 'POST',
+          body: new URLSearchParams(data)
+        });
 
-      const result = await res.json();
+        const result = await res.json();
 
-      if (res.ok) {
-        localStorage.setItem("user", result.name || data.get('email').split("@")[0]);
-        window.location.href = '/home.html';
-      } else {
-        alert(result.message || "Invalid email or password.");
+        if (res.ok) {
+          localStorage.setItem("user", result.name || data.get('email').split("@")[0]);
+          window.location.href = '/home.html';
+        } else {
+          showError(result.message || "Invalid email or password.");
+        }
+      } catch (err) {
+        showError("Something went wrong. Try again.");
       }
     });
+
+    function showError(message) {
+      errorMsg.textContent = message;
+      errorMsg.style.display = 'block';
+      box.classList.remove('shake');
+      void box.offsetWidth; // reflow to restart animation
+      box.classList.add('shake');
+    }
   </script>
 </body>
 </html>
