@@ -1,7 +1,8 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/> 
   <title>BotX Assistant</title>
   <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
   <style>
@@ -161,107 +162,108 @@
     </div>
     <div id="chat-box"></div>
     <div class="input-area">
-      <input type="text" id="msgInput" placeholder="Type a message..." />
+      <input type="text" id="msgInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()" />
       <button onclick="sendMessage()">Send</button>
     </div>
   </div>
+
   <script>
     const API_KEY = "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA";
-    const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;let memory = [];
+    const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
+    let memory = [];
 
-function toggleSidebar() {
-  document.getElementById('sidebar').classList.toggle('hide');
-}
-
-function logout() {
-  localStorage.removeItem("user");
-}
-
-function appendMessage(sender, content, cls, isPre = false) {
-  const msg = document.createElement("div");
-  msg.className = `msg ${cls}`;
-  if (isPre) {
-    const pre = document.createElement("pre");
-    pre.textContent = content;
-    const copyBtn = document.createElement("div");
-    copyBtn.className = "copy-btn";
-    copyBtn.innerText = "Copy";
-    copyBtn.onclick = () => {
-      navigator.clipboard.writeText(content);
-      copyBtn.innerText = "Copied!";
-      setTimeout(() => copyBtn.innerText = "Copy", 1500);
-    };
-    msg.appendChild(pre);
-    msg.appendChild(copyBtn);
-  } else {
-    msg.innerHTML = `<span>${sender}: </span><span id="typing"></span>`;
-    typeEffect(msg.querySelector("#typing"), content);
-  }
-  document.getElementById("chat-box").appendChild(msg);
-  document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight;
-}
-
-function detectHindi(text) {
-  const hindiChars = /[\u0900-\u097F]/;
-  return hindiChars.test(text);
-}
-
-function sendMessage() {
-  const input = document.getElementById("msgInput");
-  const message = input.value.trim();
-  if (!message) return;
-
-  appendMessage("You", message, "me");
-  memory.push(`User: ${message}`);
-  input.value = "";
-
-  let langMode = detectHindi(message) ? "Hinglish" : "English";
-  let prompt;
-
-  if (["hi", "hello", "hey", "hii", "hola"].some(greet => message.toLowerCase().includes(greet))) {
-    prompt = langMode === "Hinglish"
-      ? "Haan boliye kya madad chahiye?"
-      : "Hi there! How can I assist you today?";
-    appendMessage("BotX", prompt, "bot");
-    return;
-  }
-
-  const systemPrompt = langMode === "Hinglish"
-    ? `Tum ek Hinglish AI ho. Tumhare jawab short, clear aur friendly hone chahiye. Jab user kuch technical ya code bole toh use ekdum clearly <pre> block ke andar do taki usko copy kiya ja sake.`
-    : `You are an English AI assistant. Your replies should be short, clear, and friendly. For code or structured data, always reply inside <pre> tags so it can be copied easily.`;
-
-  fetch(modelUrl, {
-    method: "POST",
-    headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({
-      contents: [{ parts: [{ text: `${systemPrompt}\n${memory.join('\n')}` }] }]
-    })
-  })
-  .then(res => res.json())
-  .then(data => {
-    const fullReply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't understand.";
-    memory.push(`BotX: ${fullReply}`);
-    if (fullReply.includes("<pre>")) {
-      const code = fullReply.match(/<pre>([\s\S]*?)<\/pre>/)?.[1];
-      const rest = fullReply.replace(/<pre>[\s\S]*?<\/pre>/, "").trim();
-      if (rest) appendMessage("BotX", rest, "bot");
-      if (code) appendMessage("BotX", code, "bot", true);
-    } else {
-      appendMessage("BotX", fullReply, "bot");
+    function toggleSidebar() {
+      document.getElementById('sidebar').classList.toggle('hide');
     }
-  })
-  .catch(() => {
-    appendMessage("BotX", "Error while getting response.", "bot");
-  });
-}
 
-function typeEffect(element, text, i = 0) {
-  if (i < text.length) {
-    element.innerHTML += text.charAt(i);
-    setTimeout(() => typeEffect(element, text, i + 1), 20);
-  }
-}
+    function logout() {
+      localStorage.removeItem("user");
+    }
 
+    function appendMessage(sender, content, cls, isPre = false) {
+      const msg = document.createElement("div");
+      msg.className = `msg ${cls}`;
+      if (isPre) {
+        const pre = document.createElement("pre");
+        pre.textContent = content;
+        const copyBtn = document.createElement("div");
+        copyBtn.className = "copy-btn";
+        copyBtn.innerText = "Copy";
+        copyBtn.onclick = () => {
+          navigator.clipboard.writeText(content);
+          copyBtn.innerText = "Copied!";
+          setTimeout(() => copyBtn.innerText = "Copy", 1500);
+        };
+        msg.appendChild(pre);
+        msg.appendChild(copyBtn);
+      } else {
+        msg.innerHTML = `<span>${sender}: </span><span id="typing"></span>`;
+        typeEffect(msg.querySelector("#typing"), content);
+      }
+      document.getElementById("chat-box").appendChild(msg);
+      document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight;
+    }
+
+    function detectHindi(text) {
+      return /[\u0900-\u097F]/.test(text);
+    }
+
+    function sendMessage() {
+      const input = document.getElementById("msgInput");
+      const message = input.value.trim();
+      if (!message) return;
+
+      appendMessage("You", message, "me");
+      memory.push(`User: ${message}`);
+      input.value = "";
+
+      let langMode = detectHindi(message) ? "Hinglish" : "English";
+      let prompt;
+
+      if (["hi", "hello", "hey", "hii", "hola"].some(g => message.toLowerCase().includes(g))) {
+        prompt = langMode === "Hinglish"
+          ? "Haan boliye kya madad chahiye?"
+          : "Hi there! How can I assist you today?";
+        appendMessage("BotX", prompt, "bot");
+        return;
+      }
+
+      const systemPrompt = langMode === "Hinglish"
+        ? `Tum ek Hinglish AI ho. Tumhare jawab short, clear aur friendly hone chahiye. Jab user kuch technical ya code bole toh use ekdum clearly <pre> block ke andar do taki usko copy kiya ja sake.`
+        : `You are an English AI assistant. Your replies should be short, clear, and friendly. For code or structured data, always reply inside <pre> tags so it can be copied easily.`;
+
+      fetch(modelUrl, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          contents: [{ parts: [{ text: `${systemPrompt}\n${memory.join('\n')}` }] }]
+        })
+      })
+      .then(res => res.json())
+      .then(data => {
+        const fullReply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't understand.";
+        memory.push(`BotX: ${fullReply}`);
+
+        if (fullReply.includes("<pre>")) {
+          const code = fullReply.match(/<pre>([\s\S]*?)<\/pre>/)?.[1];
+          const rest = fullReply.replace(/<pre>[\s\S]*?<\/pre>/, "").trim();
+          if (rest) appendMessage("BotX", rest, "bot");
+          if (code) appendMessage("BotX", code, "bot", true);
+        } else {
+          appendMessage("BotX", fullReply, "bot");
+        }
+      })
+      .catch(() => {
+        appendMessage("BotX", "Error while getting response.", "bot");
+      });
+    }
+
+    function typeEffect(element, text, i = 0) {
+      if (i < text.length) {
+        element.innerHTML += text.charAt(i);
+        setTimeout(() => typeEffect(element, text, i + 1), 20);
+      }
+    }
   </script>
 </body>
 </html>
