@@ -7,56 +7,36 @@
   <style>
     body {
       font-family: Arial, sans-serif;
-      background: linear-gradient(to bottom right, rgba(0, 0, 0, 0.9), rgba(20, 20, 20, 0.8));
+      background: #121212;
       color: #fff;
       display: flex;
       align-items: center;
       justify-content: center;
       height: 100vh;
       margin: 0;
-      backdrop-filter: blur(8px);
     }
-
     .form-container {
-      background: rgba(0, 0, 0, 0.6);
+      background: #1f1f1f;
       padding: 2rem;
-      border-radius: 15px;
-      box-shadow: 0 0 20px rgba(0, 123, 255, 0.3);
+      border-radius: 10px;
       width: 300px;
-      border: 1px solid rgba(255, 255, 255, 0.1);
     }
-
-    .form-container h2 {
-      text-align: center;
-      margin-bottom: 1rem;
-    }
-
-    input {
+    input, button {
       width: 100%;
-      padding: 10px;
       margin: 10px 0;
-      border: none;
-      border-radius: 8px;
-      outline: none;
-      background: rgba(255, 255, 255, 0.1);
-      color: white;
-    }
-
-    button {
-      width: 100%;
       padding: 10px;
-      background: #2196f3;
-      color: white;
       border: none;
-      border-radius: 8px;
+      border-radius: 5px;
+    }
+    input {
+      background: #333;
+      color: white;
+    }
+    button {
+      background: #4caf50;
+      color: white;
       cursor: pointer;
-      font-weight: bold;
     }
-
-    button:hover {
-      background: #1976d2;
-    }
-
     .msg {
       text-align: center;
       margin-top: 10px;
@@ -67,43 +47,43 @@
 <body>
   <div class="form-container">
     <h2>Create Account</h2>
-    <input type="text" id="name" placeholder="Your Name" required />
-    <input type="email" id="email" placeholder="Email Address" required />
-    <input type="password" id="password" placeholder="Password" required />
+    <input type="text" id="name" placeholder="Name" />
+    <input type="email" id="email" placeholder="Email" />
+    <input type="password" id="password" placeholder="Password" />
     <button onclick="signup()">Sign Up</button>
     <div class="msg" id="msg"></div>
   </div>
 
   <script>
     async function signup() {
-      const name = document.getElementById('name').value.trim();
-      const email = document.getElementById('email').value.trim();
-      const password = document.getElementById('password').value.trim();
-      const msg = document.getElementById('msg');
+      const name = document.getElementById("name").value.trim();
+      const email = document.getElementById("email").value.trim();
+      const password = document.getElementById("password").value.trim();
+      const msg = document.getElementById("msg");
 
       if (!name || !email || !password) {
-        msg.textContent = "Please fill all fields.";
+        msg.textContent = "All fields required!";
         msg.style.color = "orange";
         return;
       }
 
       try {
-        const res = await fetch('/register', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+        const res = await fetch("/register", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ name, email, password })
         });
 
         const text = await res.text();
         if (text.toLowerCase().includes("success")) {
-          alert("Registration Successful!");
-          window.location.href = "login.html";
+          alert("Registration Success!");
+          window.location.href = "/login.html";
         } else {
           msg.textContent = text;
           msg.style.color = "red";
         }
-      } catch (err) {
-        msg.textContent = "Error connecting to server.";
+      } catch (e) {
+        msg.textContent = "Error connecting to server";
         msg.style.color = "red";
       }
     }
