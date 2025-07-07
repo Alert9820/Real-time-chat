@@ -1,4 +1,4 @@
-// ✅ MONGO-READY BACKEND (server.js)
+// ✅ MODIFIED MONGO-READY BACKEND (server.js)
 import express from 'express';
 import cors from 'cors';
 import { Server } from 'socket.io';
@@ -11,18 +11,16 @@ import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 dotenv.config();
 
+// Setup path and app
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
-
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
-  cors: {
-    origin: '*',
-    methods: ['GET', 'POST']
-  }
+  cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
+// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -30,10 +28,15 @@ app.use(express.static(path.join(__dirname, 'public')));
 
 // MongoDB Setup
 const uri = process.env.MONGO_URI;
-const client = new MongoClient(uri);
+const client = new MongoClient(uri, {
+  ssl: true,
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+});
 const dbName = 'ChatDB';
 let userCollection, historyCollection;
 
+// Connect to Mongo
 client.connect().then(() => {
   const db = client.db(dbName);
   userCollection = db.collection('user');
@@ -41,11 +44,8 @@ client.connect().then(() => {
   console.log('✅ MongoDB Connected');
 }).catch(err => console.error('❌ Mongo Connection Error:', err));
 
-const users = {};
-let botActive = false;
+// Gemini API
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
-
-// Gemini Bot
 async function generateBotReply(prompt) {
   try {
     const res = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`, {
@@ -60,7 +60,7 @@ async function generateBotReply(prompt) {
     const data = await res.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text || "Bot confused hai.";
   } catch (e) {
-    console.error("Bot error:", e);
+    console.error("❌ Bot error:", e);
     return "Bot reply failed.";
   }
 }
@@ -71,32 +71,60 @@ app.get('/', (req, res) => {
 });
 
 app.post('/register', async (req, res) => {
-  const { name, email, password } = req.body;
-  if (!name || !email || !password) return res.status(400).send("Fill all fields");
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password)
+      return res.status(400).send("Fill all fields");
 
-  const exist = await userCollection.findOne({ $or: [{ email }, { name }] });
-  if (exist) return res.status(400).send("User already exists");
+    const exist = await userCollection.findOne({ $or: [{ email }, { name }] });
+    if (exist) return res.status(400).send("User already exists");
 
-  await userCollection.insertOne({ name, email, password });
-  res.send("Registration success");
+    await userCollection.insertOne({ name, email, password });
+    res.send("Registration success");
+  } catch (e) {
+    console.error("❌ Register Error:", e);
+    res.status(500).send("Server error");
+  }
 });
 
 app.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  const user = await userCollection.findOne({ email, password });
-  if (!user) return res.status(401).send("Invalid");
-  res.json({ name: user.name });
+  try {
+    let email, password;
+
+    if (req.headers['content-type']?.includes('application/json')) {
+      ({ email, password } = req.body);
+    } else {
+      email = req.body.email;
+      password = req.body.password;
+    }
+
+    const user = await userCollection.findOne({ email, password });
+    if (!user) return res.status(401).send("Invalid");
+
+    res.json({ name: user.name });
+  } catch (e) {
+    console.error("❌ Login Error:", e);
+    res.status(500).send("Server error");
+  }
 });
 
 app.get("/bot-history", async (req, res) => {
-  const name = req.query.name;
-  const rows = await historyCollection.find({ name }).toArray();
-  res.json(rows);
+  try {
+    const name = req.query.name;
+    const rows = await historyCollection.find({ name }).toArray();
+    res.json(rows);
+  } catch (e) {
+    console.error("❌ History Fetch Error:", e);
+    res.status(500).send("Error fetching history");
+  }
 });
 
-// Realtime Chat
+// Socket.IO Real-time
+const users = {};
+let botActive = false;
+
 io.on("connection", socket => {
-  console.log("User connected:", socket.id);
+  console.log("🔌 User connected:", socket.id);
 
   socket.on("set_name", name => {
     users[socket.id] = name;
@@ -153,12 +181,12 @@ io.on("connection", socket => {
   });
 
   socket.on("disconnect", () => {
-    console.log("Disconnected:", socket.id);
+    console.log("❌ Disconnected:", socket.id);
     delete users[socket.id];
   });
 });
 
-// Server
+// Start Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
