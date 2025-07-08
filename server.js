@@ -11,7 +11,6 @@ import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 dotenv.config();
 
-// Setup path and app
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const app = express();
@@ -20,7 +19,6 @@ const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
-// Middleware
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -36,7 +34,6 @@ const client = new MongoClient(uri, {
 const dbName = 'ChatDB';
 let userCollection, historyCollection;
 
-// Connect to Mongo
 client.connect().then(() => {
   const db = client.db(dbName);
   userCollection = db.collection('user');
@@ -65,11 +62,17 @@ async function generateBotReply(prompt) {
   }
 }
 
+// 🔹 Utility to generate UID
+function generateUID() {
+  return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit string
+}
+
 // Routes
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
+// 🔹 Register Route — with UID
 app.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -79,7 +82,8 @@ app.post('/register', async (req, res) => {
     const exist = await userCollection.findOne({ $or: [{ email }, { name }] });
     if (exist) return res.status(400).send("User already exists");
 
-    await userCollection.insertOne({ name, email, password });
+    const uid = generateUID();
+    await userCollection.insertOne({ name, email, password, uid });
     res.send("Registration success");
   } catch (e) {
     console.error("❌ Register Error:", e);
@@ -87,10 +91,10 @@ app.post('/register', async (req, res) => {
   }
 });
 
+// 🔹 Login Route — returns UID
 app.post('/login', async (req, res) => {
   try {
     let email, password;
-
     if (req.headers['content-type']?.includes('application/json')) {
       ({ email, password } = req.body);
     } else {
@@ -101,13 +105,32 @@ app.post('/login', async (req, res) => {
     const user = await userCollection.findOne({ email, password });
     if (!user) return res.status(401).send("Invalid");
 
-    res.json({ name: user.name });
+    res.json({ name: user.name, email: user.email, uid: user.uid });
   } catch (e) {
     console.error("❌ Login Error:", e);
     res.status(500).send("Server error");
   }
 });
 
+// 🔹 Delete Account Route (client will send email)
+app.post("/delete-account", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).send("Missing email");
+
+    const result = await userCollection.deleteOne({ email });
+    if (result.deletedCount === 1) {
+      res.send("Account deleted successfully");
+    } else {
+      res.status(404).send("User not found");
+    }
+  } catch (e) {
+    console.error("❌ Delete Account Error:", e);
+    res.status(500).send("Server error");
+  }
+});
+
+// 🔹 History Route
 app.get("/bot-history", async (req, res) => {
   try {
     const name = req.query.name;
@@ -119,7 +142,7 @@ app.get("/bot-history", async (req, res) => {
   }
 });
 
-// Socket.IO Real-time
+// 🔹 Socket.IO Real-time Chat
 const users = {};
 let botActive = false;
 
@@ -186,7 +209,6 @@ io.on("connection", socket => {
   });
 });
 
-// Start Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
