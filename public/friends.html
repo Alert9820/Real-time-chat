@@ -186,7 +186,7 @@
   <a href="/privatechat.html">Private Chat</a>
   <a href="/friends.html">Friends</a>
   <a href="/history.html">Bot History</a>
-  <a href="/login.html" onclick="logout()">Logout</a>
+  <a href="#" onclick="logout()">Logout</a>
 </div>
 
 <div class="mailbox-popup" id="mailboxPopup"></div>
@@ -214,8 +214,10 @@
   const uidInput = document.getElementById("uidInput");
   const friendList = document.getElementById("friendList");
 
-  const name = localStorage.getItem("name");
-  const uid = localStorage.getItem("uid");
+  const storedUser = localStorage.getItem("user");
+  if (!storedUser) window.location.href = "/login.html";
+
+  const { name, uid } = JSON.parse(storedUser);
 
   function toggleSidebar() {
     sidebar.classList.toggle("active");
@@ -227,6 +229,7 @@
 
   function logout() {
     localStorage.clear();
+    window.location.href = "/login.html";
   }
 
   async function sendRequest() {
@@ -260,22 +263,20 @@
   }
 
   async function acceptFriend(friendName) {
-    const res = await fetch("/accept-request", {
+    const res = await fetch("/get-users");
+    const users = await res.json();
+    const match = users.find(u => u.name === friendName);
+    if (!match) return alert("User not found");
+
+    const confirmAdd = await fetch("/accept-request", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ fromUid: await getUidByName(friendName), toUid: uid })
+      body: JSON.stringify({ fromUid: match.uid, toUid: uid })
     });
-    const msg = await res.text();
+    const msg = await confirmAdd.text();
     alert(msg);
     getFriends();
     getRequests();
-  }
-
-  async function getUidByName(name) {
-    const res = await fetch("/get-users");
-    const users = await res.json();
-    const match = users.find(u => u.name === name);
-    return match?.uid;
   }
 
   async function getFriends() {
@@ -294,7 +295,6 @@
   }
 
   window.onload = () => {
-    if (!uid) return location.href = "/login.html";
     getRequests();
     getFriends();
   };
