@@ -1,0 +1,297 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Dashboard | BotX</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #0f0f0f;
+      color: #fff;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .topbar {
+      background: #121212;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+    }
+
+    .toggle {
+      font-size: 24px;
+      color: #6cf;
+      cursor: pointer;
+    }
+
+    .profile-pic {
+      width: 42px;
+      height: 42px;
+      border-radius: 50%;
+      object-fit: cover;
+      cursor: pointer;
+      border: 2px solid #6cf;
+    }
+
+    .sidebar {
+      width: 230px;
+      background: #121212;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+      z-index: 10;
+    }
+
+    .sidebar.active {
+      transform: translateX(0);
+    }
+
+    .sidebar .close-btn {
+      font-size: 22px;
+      color: #f66;
+      align-self: flex-end;
+      cursor: pointer;
+    }
+
+    .sidebar a {
+      text-decoration: none;
+      color: #6cf;
+      font-weight: bold;
+    }
+
+    .main {
+      padding: 30px 20px;
+    }
+
+    h1 {
+      font-size: 26px;
+      margin-bottom: 10px;
+    }
+
+    .tagline {
+      font-size: 14px;
+      margin-bottom: 10px;
+      color: #aaa;
+    }
+
+    .uid-text {
+      color: #6cf;
+      font-size: 14px;
+      margin-bottom: 30px;
+    }
+
+    .feature-box {
+      background: #1c1c1c;
+      padding: 20px;
+      border-radius: 10px;
+      margin-bottom: 15px;
+      border-left: 4px solid #6cf;
+    }
+
+    .profile-popup {
+      position: fixed;
+      top: 60px;
+      right: 20px;
+      width: 300px;
+      background: #1f1f1f;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 0 20px #000;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 20;
+    }
+
+    .profile-popup.active {
+      display: flex;
+    }
+
+    .dp-wrapper {
+      position: relative;
+      align-self: center;
+    }
+
+    .dp-wrapper img {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      object-fit: cover;
+      border: 2px solid #6cf;
+    }
+
+    .dp-wrapper label {
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      background: #6cf;
+      color: #000;
+      font-size: 14px;
+      padding: 4px 6px;
+      border-radius: 50%;
+      cursor: pointer;
+    }
+
+    .profile-popup input, textarea {
+      background: #2a2a2a;
+      border: none;
+      border-radius: 8px;
+      padding: 10px;
+      color: white;
+      width: 100%;
+      font-size: 14px;
+    }
+
+    .profile-popup button {
+      background: #6cf;
+      color: black;
+      border: none;
+      border-radius: 8px;
+      padding: 10px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .profile-popup .danger {
+      background: #f66;
+      margin-top: 5px;
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 200px;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="topbar">
+    <div class="toggle" onclick="toggleSidebar()">☰</div>
+    <h2>BotX Dashboard</h2>
+    <img src="default.png" id="dp" class="profile-pic" onclick="toggleProfile()" />
+  </div>
+
+  <div class="sidebar" id="sidebar">
+    <div class="close-btn" onclick="toggleSidebar()">×</div>
+    <a href="/home.html">Bot Assistant</a>
+    <a href="/chatroom.html">Chat Room</a>
+    <a href="/privatechat.html">Private Chat</a>
+    <a href="/history.html">Bot History</a>
+    <a href="/login.html" onclick="logout()">Logout</a>
+  </div>
+
+  <div class="main">
+    <h1 id="welcome">Welcome!</h1>
+    <p class="tagline">"Let your thoughts flow — BotX is here to assist you ✨"</p>
+    <p class="uid-text" id="uidDisplay">Your UID: Loading...</p>
+
+    <div class="feature-box">
+      <strong>Bot Assistant:</strong> A smart Hinglish/English assistant to answer your queries, give code, ideas, etc.
+    </div>
+    <div class="feature-box">
+      <strong>Chat Room:</strong> A place to talk with random users in real-time with typing indicators.
+    </div>
+    <div class="feature-box">
+      <strong>Private Chat:</strong> Invite friends with a unique room code and chat privately — even with BotX!
+    </div>
+    <div class="feature-box">
+      <strong>Bot History:</strong> View your previous conversations with BotX across sessions.
+    </div>
+  </div>
+
+  <div class="profile-popup" id="profilePopup">
+    <div class="dp-wrapper">
+      <img id="popupDp" src="default.png" />
+      <label for="dpInput">✏️</label>
+      <input type="file" id="dpInput" accept="image/*" style="display: none" />
+    </div>
+    <input type="text" id="userName" placeholder="Your name" />
+    <input type="email" id="userEmail" placeholder="Your email" />
+    <textarea id="userBio" rows="3" placeholder="Bio (optional)"></textarea>
+    <button onclick="saveProfile()">Save</button>
+    <button class="danger" onclick="deleteAccount()">Delete Account</button>
+  </div>
+
+  <script>
+    const sidebar = document.getElementById("sidebar");
+    const profilePopup = document.getElementById("profilePopup");
+    const dp = document.getElementById("dp");
+    const popupDp = document.getElementById("popupDp");
+    const dpInput = document.getElementById("dpInput");
+
+    function toggleSidebar() {
+      sidebar.classList.toggle("active");
+    }
+
+    function toggleProfile() {
+      profilePopup.classList.toggle("active");
+    }
+
+    function logout() {
+      localStorage.clear();
+    }
+
+    dpInput.onchange = function () {
+      const file = this.files[0];
+      if (file) {
+        const reader = new FileReader();
+        reader.onload = () => {
+          localStorage.setItem("dp", reader.result);
+          dp.src = reader.result;
+          popupDp.src = reader.result;
+        };
+        reader.readAsDataURL(file);
+      }
+    };
+
+    function saveProfile() {
+      const name = document.getElementById("userName").value.trim();
+      const email = document.getElementById("userEmail").value.trim();
+      const bio = document.getElementById("userBio").value.trim();
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const uid = user.uid || "000000"; // keep existing UID
+
+      localStorage.setItem("user", JSON.stringify({ name, email, bio, uid }));
+      document.getElementById("welcome").innerText = `Welcome, ${name || "User"}!`;
+      document.getElementById("uidDisplay").innerText = `Your UID: ${uid}`;
+      profilePopup.classList.remove("active");
+    }
+
+    function deleteAccount() {
+      if (confirm("Are you sure you want to delete your account?")) {
+        localStorage.clear();
+        window.location.href = "/login.html";
+      }
+    }
+
+    // Load user info
+    window.onload = () => {
+      const userData = JSON.parse(localStorage.getItem("user") || "{}");
+      const dpSrc = localStorage.getItem("dp");
+
+      document.getElementById("userName").value = userData.name || "";
+      document.getElementById("userEmail").value = userData.email || "";
+      document.getElementById("userBio").value = userData.bio || "";
+      document.getElementById("welcome").innerText = `Welcome, ${userData.name || "User"}!`;
+      document.getElementById("uidDisplay").innerText = `Your UID: ${userData.uid || "000000"}`;
+
+      if (dpSrc) {
+        dp.src = dpSrc;
+        popupDp.src = dpSrc;
+      }
+    };
+  </script>
+</body>
+</html>
