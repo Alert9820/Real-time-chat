@@ -88,12 +88,9 @@
         const result = await res.json();
 
         if (res.ok) {
-          // 🔐 Store full user info: name, email, UID
-          localStorage.setItem("user", JSON.stringify({
-            name: result.name,
-            email: result.email,
-            uid: result.uid
-          }));
+          localStorage.setItem("uid", result.uid);
+          localStorage.setItem("name", result.name);
+          localStorage.setItem("email", result.email);
           window.location.href = "/dashboard.html";
         } else {
           errorMsg.textContent = "Invalid email or password.";
