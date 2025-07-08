@@ -1,59 +1,67 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8"/>
+  <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Login</title>
+  <title>Login | BotX</title>
   <style>
     body {
-      background: #121212;
-      color: white;
-      font-family: sans-serif;
+      background: #0f0f0f;
+      color: #fff;
+      font-family: 'Poppins', sans-serif;
       display: flex;
       justify-content: center;
       align-items: center;
       height: 100vh;
     }
-    .box {
-      background: #1f1f1f;
+    .login-box {
+      background: #1c1c1c;
       padding: 30px;
-      border-radius: 10px;
-      width: 300px;
+      border-radius: 12px;
+      width: 320px;
+      box-shadow: 0 0 15px rgba(0, 255, 255, 0.2);
+    }
+    .login-box h2 {
+      margin-bottom: 20px;
+      text-align: center;
+      color: #6cf;
     }
     input, button {
       width: 100%;
-      padding: 10px;
-      margin-top: 10px;
-      border-radius: 5px;
+      padding: 12px;
+      margin: 10px 0;
       border: none;
+      border-radius: 8px;
+      font-size: 14px;
     }
     input {
-      background: #333;
-      color: white;
+      background: #2c2c2c;
+      color: #fff;
     }
     button {
-      background: #03a9f4;
-      color: white;
+      background: #6cf;
+      color: #000;
+      font-weight: bold;
       cursor: pointer;
     }
     .error {
       color: red;
       font-size: 13px;
       text-align: center;
-      margin-top: 10px;
     }
     a {
-      color: #4caf50;
       text-decoration: none;
+      color: #4caf50;
       display: block;
       text-align: center;
       margin-top: 10px;
+      font-size: 14px;
     }
   </style>
 </head>
 <body>
-  <div class="box">
-    <h2>Login</h2>
+  <div class="login-box">
+    <h2>Login to BotX</h2>
     <form id="loginForm">
       <input type="email" name="email" placeholder="Email" required />
       <input type="password" name="password" placeholder="Password" required />
@@ -80,8 +88,13 @@
         const result = await res.json();
 
         if (res.ok) {
-          localStorage.setItem("user", result.name || result.email);
-          window.location.href = "/home.html";
+          // 🔐 Store full user info: name, email, UID
+          localStorage.setItem("user", JSON.stringify({
+            name: result.name,
+            email: result.email,
+            uid: result.uid
+          }));
+          window.location.href = "/dashboard.html";
         } else {
           errorMsg.textContent = "Invalid email or password.";
         }
