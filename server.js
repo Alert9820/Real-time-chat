@@ -1,4 +1,4 @@
-// ✅ MODIFIED MONGO-READY BACKEND (server.js)
+// ✅ FINAL MONGO-READY BACKEND (server.js)
 import express from 'express';
 import cors from 'cors';
 import { Server } from 'socket.io';
@@ -11,20 +11,24 @@ import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 dotenv.config();
 
+// 📁 Setup path
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
+
+// ⚙️ Express app and server
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
+// 🧩 Middleware
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// MongoDB Setup
+// 🗃️ MongoDB Setup
 const uri = process.env.MONGO_URI;
 const client = new MongoClient(uri, {
   ssl: true,
@@ -41,7 +45,7 @@ client.connect().then(() => {
   console.log('✅ MongoDB Connected');
 }).catch(err => console.error('❌ Mongo Connection Error:', err));
 
-// Gemini API
+// 🤖 Gemini API
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 async function generateBotReply(prompt) {
   try {
@@ -62,17 +66,19 @@ async function generateBotReply(prompt) {
   }
 }
 
-// 🔹 Utility to generate UID
+// 🔐 Generate UID (6-digit)
 function generateUID() {
-  return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit string
+  return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Routes
+// 🌐 Routes
+
+// 🏠 Home Route
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// 🔹 Register Route — with UID
+// 🔐 Register
 app.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
@@ -91,7 +97,7 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// 🔹 Login Route — returns UID
+// 🔓 Login
 app.post('/login', async (req, res) => {
   try {
     let email, password;
@@ -112,7 +118,7 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// 🔹 Delete Account Route (client will send email)
+// ❌ Delete Account
 app.post("/delete-account", async (req, res) => {
   try {
     const { email } = req.body;
@@ -130,7 +136,7 @@ app.post("/delete-account", async (req, res) => {
   }
 });
 
-// 🔹 History Route
+// 📜 Bot History
 app.get("/bot-history", async (req, res) => {
   try {
     const name = req.query.name;
@@ -142,17 +148,19 @@ app.get("/bot-history", async (req, res) => {
   }
 });
 
-// 🔹 Socket.IO Real-time Chat
+// 💬 Socket.IO Logic
 const users = {};
 let botActive = false;
 
 io.on("connection", socket => {
   console.log("🔌 User connected:", socket.id);
 
-  socket.on("set_name", name => {
-    users[socket.id] = name;
+  // ✅ Store clean name (not object)
+  socket.on("set_name", data => {
+    users[socket.id] = typeof data === 'object' ? data.name : data;
   });
 
+  // 🌍 Public Message
   socket.on("message", async text => {
     const sender = users[socket.id] || "Unknown";
     io.emit("message", { sender, text });
@@ -176,10 +184,12 @@ io.on("connection", socket => {
     }
   });
 
+  // 🧠 Typing
   socket.on("typing", name => {
     socket.broadcast.emit("typing", name);
   });
 
+  // 🔐 Private Rooms
   socket.on("join-room", room => {
     socket.join(room);
     const name = users[socket.id] || "User";
@@ -203,12 +213,14 @@ io.on("connection", socket => {
     }
   });
 
+  // 🔌 Disconnect
   socket.on("disconnect", () => {
     console.log("❌ Disconnected:", socket.id);
     delete users[socket.id];
   });
 });
 
+// 🚀 Start
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
