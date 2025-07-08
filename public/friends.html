@@ -1,0 +1,277 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Friends - BotX</title>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #0f0f0f;
+      color: #fff;
+      height: 100vh;
+      overflow: hidden;
+    }
+
+    .topbar {
+      background: #121212;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+    }
+
+    .toggle {
+      font-size: 24px;
+      color: #6cf;
+      cursor: pointer;
+    }
+
+    .mailbox-icon {
+      font-size: 22px;
+      cursor: pointer;
+      color: #6cf;
+    }
+
+    .sidebar {
+      width: 230px;
+      background: #121212;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      padding: 20px;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+      z-index: 10;
+    }
+
+    .sidebar.active {
+      transform: translateX(0);
+    }
+
+    .sidebar .close-btn {
+      font-size: 22px;
+      color: #f66;
+      align-self: flex-end;
+      cursor: pointer;
+    }
+
+    .sidebar a {
+      text-decoration: none;
+      color: #6cf;
+      font-weight: bold;
+    }
+
+    .main {
+      padding: 20px;
+      margin-left: 230px;
+    }
+
+    .section {
+      margin-top: 20px;
+    }
+
+    .input-box {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 20px;
+    }
+
+    .input-box input {
+      flex: 1;
+      padding: 10px;
+      border: none;
+      border-radius: 10px;
+      background: #1f1f1f;
+      color: #fff;
+    }
+
+    .input-box button {
+      padding: 10px 16px;
+      background: #6cf;
+      color: #000;
+      border: none;
+      border-radius: 10px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+
+    .friend-list {
+      max-height: 300px;
+      overflow-y: auto;
+    }
+
+    .friend {
+      padding: 10px;
+      background: #1c1c1c;
+      border-radius: 10px;
+      margin-bottom: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .status {
+      width: 10px;
+      height: 10px;
+      border-radius: 50%;
+    }
+
+    .online { background: #0f0; }
+    .offline { background: #888; }
+
+    .mailbox-popup {
+      position: fixed;
+      top: 60px;
+      right: 20px;
+      width: 300px;
+      background: #1f1f1f;
+      padding: 20px;
+      border-radius: 15px;
+      box-shadow: 0 0 20px #000;
+      display: none;
+      flex-direction: column;
+      gap: 12px;
+      z-index: 20;
+    }
+
+    .mailbox-popup.active {
+      display: flex;
+    }
+
+    .mail-request {
+      background: #2a2a2a;
+      padding: 10px;
+      border-radius: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .mail-request button {
+      background: #6cf;
+      color: #000;
+      border: none;
+      padding: 6px 10px;
+      border-radius: 8px;
+      font-size: 12px;
+      cursor: pointer;
+    }
+
+    @media (max-width: 768px) {
+      .main { margin-left: 0; padding: 10px; }
+      .sidebar { width: 200px; }
+    }
+  </style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="toggle" onclick="toggleSidebar()">☰</div>
+  <h2>Friends</h2>
+  <div class="mailbox-icon" onclick="toggleMailbox()">📩</div>
+</div>
+
+<div class="sidebar" id="sidebar">
+  <div class="close-btn" onclick="toggleSidebar()">×</div>
+  <a href="/dashboard.html">Dashboard</a>
+  <a href="/home.html">Bot Assistant</a>
+  <a href="/chatroom.html">Chat Room</a>
+  <a href="/privatechat.html">Private Chat</a>
+  <a href="/friends.html">Friends</a>
+  <a href="/history.html">Bot History</a>
+  <a href="/login.html" onclick="logout()">Logout</a>
+</div>
+
+<div class="mailbox-popup" id="mailboxPopup">
+  <!-- Real requests will be inserted here by JavaScript -->
+</div>
+
+<div class="main">
+  <div class="section">
+    <h3>Add Friend by UID</h3>
+    <div class="input-box">
+      <input type="text" id="uidInput" placeholder="Enter UID to search">
+      <button onclick="sendRequest()">Add</button>
+    </div>
+  </div>
+
+  <div class="section">
+    <h3>Your Friends</h3>
+    <div class="friend-list" id="friendList">
+      <!-- Friends will be listed here -->
+    </div>
+  </div>
+</div>
+
+<script>
+  const sidebar = document.getElementById("sidebar");
+  const mailboxPopup = document.getElementById("mailboxPopup");
+  const uidInput = document.getElementById("uidInput");
+  const friendList = document.getElementById("friendList");
+
+  function toggleSidebar() {
+    sidebar.classList.toggle("active");
+  }
+
+  function toggleMailbox() {
+    mailboxPopup.classList.toggle("active");
+  }
+
+  function logout() {
+    localStorage.clear();
+  }
+
+  function sendRequest() {
+    const uid = uidInput.value.trim();
+    if (!uid) return alert("Enter UID to search!");
+    
+    // Later: Send UID to server.js and validate
+    alert(`Friend request sent to UID: ${uid}`);
+  }
+
+  function acceptFriend(name) {
+    alert(`You are now friends with ${name}`);
+    // Later: Confirm to server and update list
+  }
+
+  // 💡 Placeholder to show how UI will work when backend sends real requests
+  window.onload = () => {
+    const requests = ['DevendraPad', 'Shizune123'];
+    const friends = [
+      { name: 'Shizune', online: true },
+      { name: 'Hinata', online: false },
+    ];
+
+    // Friend Requests
+    requests.forEach(req => {
+      const div = document.createElement("div");
+      div.className = "mail-request";
+      div.innerHTML = `
+        ${req} sent you a request
+        <button onclick="acceptFriend('${req}')">Accept</button>
+      `;
+      mailboxPopup.appendChild(div);
+    });
+
+    // Friends List
+    friends.forEach(f => {
+      const div = document.createElement("div");
+      div.className = "friend";
+      div.innerHTML = `
+        <span>${f.name}</span>
+        <div class="status ${f.online ? 'online' : 'offline'}"></div>
+      `;
+      friendList.appendChild(div);
+    });
+  };
+</script>
+
+</body>
+  </html>
