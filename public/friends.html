@@ -189,9 +189,7 @@
   <a href="/login.html" onclick="logout()">Logout</a>
 </div>
 
-<div class="mailbox-popup" id="mailboxPopup">
-  <!-- Real requests will be inserted here by JavaScript -->
-</div>
+<div class="mailbox-popup" id="mailboxPopup"></div>
 
 <div class="main">
   <div class="section">
@@ -216,6 +214,9 @@
   const uidInput = document.getElementById("uidInput");
   const friendList = document.getElementById("friendList");
 
+  const name = localStorage.getItem("name");
+  const uid = localStorage.getItem("uid");
+
   function toggleSidebar() {
     sidebar.classList.toggle("active");
   }
@@ -228,40 +229,60 @@
     localStorage.clear();
   }
 
-  function sendRequest() {
-    const uid = uidInput.value.trim();
-    if (!uid) return alert("Enter UID to search!");
-    
-    // Later: Send UID to server.js and validate
-    alert(`Friend request sent to UID: ${uid}`);
+  async function sendRequest() {
+    const toUid = uidInput.value.trim();
+    if (!toUid) return alert("Enter UID!");
+
+    const res = await fetch("/send-request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fromUid: uid, toUid })
+    });
+    const msg = await res.text();
+    alert(msg);
+    uidInput.value = "";
   }
 
-  function acceptFriend(name) {
-    alert(`You are now friends with ${name}`);
-    // Later: Confirm to server and update list
-  }
+  async function getRequests() {
+    const res = await fetch(`/get-requests?uid=${uid}`);
+    const names = await res.json();
 
-  // 💡 Placeholder to show how UI will work when backend sends real requests
-  window.onload = () => {
-    const requests = ['DevendraPad', 'Shizune123'];
-    const friends = [
-      { name: 'Shizune', online: true },
-      { name: 'Hinata', online: false },
-    ];
-
-    // Friend Requests
-    requests.forEach(req => {
+    mailboxPopup.innerHTML = "";
+    names.forEach(n => {
       const div = document.createElement("div");
       div.className = "mail-request";
       div.innerHTML = `
-        ${req} sent you a request
-        <button onclick="acceptFriend('${req}')">Accept</button>
+        ${n} sent you a request
+        <button onclick="acceptFriend('${n}')">Accept</button>
       `;
       mailboxPopup.appendChild(div);
     });
+  }
 
-    // Friends List
-    friends.forEach(f => {
+  async function acceptFriend(friendName) {
+    const res = await fetch("/accept-request", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ fromUid: await getUidByName(friendName), toUid: uid })
+    });
+    const msg = await res.text();
+    alert(msg);
+    getFriends();
+    getRequests();
+  }
+
+  async function getUidByName(name) {
+    const res = await fetch("/get-users");
+    const users = await res.json();
+    const match = users.find(u => u.name === name);
+    return match?.uid;
+  }
+
+  async function getFriends() {
+    const res = await fetch(`/get-friends?uid=${uid}`);
+    const data = await res.json();
+    friendList.innerHTML = "";
+    data.forEach(f => {
       const div = document.createElement("div");
       div.className = "friend";
       div.innerHTML = `
@@ -270,8 +291,14 @@
       `;
       friendList.appendChild(div);
     });
+  }
+
+  window.onload = () => {
+    if (!uid) return location.href = "/login.html";
+    getRequests();
+    getFriends();
   };
 </script>
 
 </body>
-  </html>
+</html>
