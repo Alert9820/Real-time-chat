@@ -1,3 +1,4 @@
+// ✅ FINAL MONGO-READY BACKEND (server.js) WITH FRIEND SYSTEM
 import express from 'express';
 import cors from 'cors';
 import { Server } from 'socket.io';
@@ -10,24 +11,30 @@ import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 dotenv.config();
 
-// Paths
+// 📁 Setup path
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Express + Socket
+// ⚙️ Express app and server
 const app = express();
 const server = createServer(app);
-const io = new Server(server, { cors: { origin: '*', methods: ['GET', 'POST'] } });
+const io = new Server(server, {
+  cors: { origin: '*', methods: ['GET', 'POST'] }
+});
 
-// Middleware
+// 🧩 Middleware
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// MongoDB
+// 🗃️ MongoDB Setup
 const uri = process.env.MONGO_URI;
-const client = new MongoClient(uri, { ssl: true, useNewUrlParser: true, useUnifiedTopology: true });
+const client = new MongoClient(uri, {
+  ssl: true,
+  useNewUrlParser: true,
+  useUnifiedTopology: true
+});
 const dbName = 'ChatDB';
 let userCollection, historyCollection, requestCollection, friendCollection;
 
@@ -38,9 +45,9 @@ client.connect().then(() => {
   requestCollection = db.collection('friend_requests');
   friendCollection = db.collection('friends');
   console.log('✅ MongoDB Connected');
-}).catch(err => console.error('❌ MongoDB Error:', err));
+}).catch(err => console.error('❌ Mongo Connection Error:', err));
 
-// Gemini API
+// 🤖 Gemini API
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 async function generateBotReply(prompt) {
   try {
@@ -48,65 +55,113 @@ async function generateBotReply(prompt) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{ parts: [{ text: `Reply in short Hinglish. ${prompt}` }] }]
+        contents: [{
+          parts: [{ text: `Reply in short Hinglish. ${prompt}` }]
+        }]
       })
     });
     const data = await res.json();
     return data.candidates?.[0]?.content?.parts?.[0]?.text || "Bot confused hai.";
   } catch (e) {
-    console.error("❌ Gemini API error:", e);
+    console.error("❌ Bot error:", e);
     return "Bot reply failed.";
   }
 }
 
-// UID Generator
+// 🔐 Generate UID (6-digit)
 function generateUID() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
-// Routes
+// 🌐 Routes
+
+// 🏠 Home Route
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
+// 🔐 Register
 app.post('/register', async (req, res) => {
-  const { name, email, password } = req.body;
-  if (!name || !email || !password) return res.status(400).send("Fill all fields");
+  try {
+    const { name, email, password } = req.body;
+    if (!name || !email || !password)
+      return res.status(400).send("Fill all fields");
 
-  const exist = await userCollection.findOne({ $or: [{ email }, { name }] });
-  if (exist) return res.status(400).send("User already exists");
+    const exist = await userCollection.findOne({ $or: [{ email }, { name }] });
+    if (exist) return res.status(400).send("User already exists");
 
-  const uid = generateUID();
-  await userCollection.insertOne({ name, email, password, uid });
-  res.send("Registration success");
-});
-
-app.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  const user = await userCollection.findOne({ email, password });
-  if (!user) return res.status(401).send("Invalid");
-  res.json({ name: user.name, email: user.email, uid: user.uid });
-});
-
-app.post("/delete-account", async (req, res) => {
-  const { email } = req.body;
-  if (!email) return res.status(400).send("Missing email");
-
-  const result = await userCollection.deleteOne({ email });
-  if (result.deletedCount === 1) {
-    res.send("Account deleted");
-  } else {
-    res.status(404).send("User not found");
+    const uid = generateUID();
+    await userCollection.insertOne({ name, email, password, uid });
+    res.send("Registration success");
+  } catch (e) {
+    console.error("❌ Register Error:", e);
+    res.status(500).send("Server error");
   }
 });
 
-app.get("/bot-history", async (req, res) => {
-  const name = req.query.name;
-  const rows = await historyCollection.find({ name }).toArray();
-  res.json(rows);
+// 🔓 Login
+app.post('/login', async (req, res) => {
+  try {
+    let email, password;
+    if (req.headers['content-type']?.includes('application/json')) {
+      ({ email, password } = req.body);
+    } else {
+      email = req.body.email;
+      password = req.body.password;
+    }
+
+    const user = await userCollection.findOne({ email, password });
+    if (!user) return res.status(401).send("Invalid");
+
+    res.json({ name: user.name, email: user.email, uid: user.uid });
+  } catch (e) {
+    console.error("❌ Login Error:", e);
+    res.status(500).send("Server error");
+  }
 });
 
-// Friend System
+// ❌ Delete Account
+app.post("/delete-account", async (req, res) => {
+  try {
+    const { email } = req.body;
+    if (!email) return res.status(400).send("Missing email");
+
+    const result = await userCollection.deleteOne({ email });
+    if (result.deletedCount === 1) {
+      res.send("Account deleted successfully");
+    } else {
+      res.status(404).send("User not found");
+    }
+  } catch (e) {
+    console.error("❌ Delete Account Error:", e);
+    res.status(500).send("Server error");
+  }
+});
+
+// 📜 Bot History
+app.get("/bot-history", async (req, res) => {
+  try {
+    const name = req.query.name;
+    const rows = await historyCollection.find({ name }).toArray();
+    res.json(rows);
+  } catch (e) {
+    console.error("❌ History Fetch Error:", e);
+    res.status(500).send("Error fetching history");
+  }
+});
+
+// 🔍 Get all users (for UID search)
+app.get("/get-users", async (req, res) => {
+  try {
+    const users = await userCollection.find().toArray();
+    res.json(users);
+  } catch (e) {
+    console.error("❌ Get Users Error:", e);
+    res.status(500).send("Server error");
+  }
+});
+
+// 👥 Friend Request Routes
 app.post("/send-request", async (req, res) => {
   const { fromUid, toUid } = req.body;
   const toUser = await userCollection.findOne({ uid: toUid });
@@ -144,17 +199,20 @@ app.get("/get-friends", async (req, res) => {
   const friends = await friendCollection.find({ uid1: uid }).toArray();
   const result = await Promise.all(friends.map(async f => {
     const u = await userCollection.findOne({ uid: f.uid2 });
-    return { name: u?.name || f.uid2, online: Object.values(users).includes(u?.name || '') };
+    return {
+      name: u?.name || f.uid2,
+      online: Object.values(users).includes(u?.name || '')
+    };
   }));
   res.json(result);
 });
 
-// Chat System
+// 💬 Socket.IO Logic
 const users = {};
 let botActive = false;
 
 io.on("connection", socket => {
-  console.log("🔌 Connected:", socket.id);
+  console.log("🔌 User connected:", socket.id);
 
   socket.on("set_name", data => {
     users[socket.id] = typeof data === 'object' ? data.name : data;
@@ -216,7 +274,7 @@ io.on("connection", socket => {
   });
 });
 
-// Start
+// 🚀 Start
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
