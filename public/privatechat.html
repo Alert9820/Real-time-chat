@@ -5,15 +5,62 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Private Chat - BotX</title>
   <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
   <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      margin: 0;
       font-family: 'Poppins', sans-serif;
       background: #111;
       color: #fff;
       height: 100vh;
       display: flex;
       flex-direction: column;
+    }
+
+    .topbar {
+      background: #1c1c1c;
+      padding: 15px 20px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+
+    .toggle {
+      font-size: 24px;
+      color: #6cf;
+      cursor: pointer;
+    }
+
+    .sidebar {
+      width: 230px;
+      background: #121212;
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 100%;
+      padding: 20px;
+      transform: translateX(-100%);
+      transition: transform 0.3s ease;
+      z-index: 10;
+    }
+
+    .sidebar.active {
+      transform: translateX(0);
+    }
+
+    .sidebar .close-btn {
+      font-size: 22px;
+      color: #f66;
+      text-align: right;
+      cursor: pointer;
+    }
+
+    .sidebar a {
+      display: block;
+      margin: 15px 0;
+      text-decoration: none;
+      color: #6cf;
+      font-weight: bold;
     }
 
     .center-box {
@@ -25,14 +72,6 @@
       display: none;
       flex-direction: column;
       height: 100%;
-    }
-
-    .topbar {
-      padding: 15px;
-      background: #1c1c1c;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
     }
 
     .chat-box {
@@ -49,6 +88,7 @@
       border-radius: 12px;
       max-width: 70%;
       word-wrap: break-word;
+      position: relative;
     }
 
     .me { align-self: flex-end; background: #6cf; color: #000; }
@@ -104,19 +144,45 @@
       padding: 5px;
       border-radius: 10px;
       position: absolute;
-      top: -40px;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 1;
+    }
+
+    #typingIndicator {
+      font-size: 13px;
+      font-style: italic;
+      opacity: 0.6;
     }
 
     @media(max-width: 768px) {
       .chat-box { padding: 10px; }
+      .sidebar { width: 200px; }
     }
   </style>
 </head>
 <body>
 
+<div class="topbar">
+  <div class="toggle" onclick="toggleSidebar()">☰</div>
+  <h3>Private Chat</h3>
+  <span id="typingIndicator"></span>
+</div>
+
+<div class="sidebar" id="sidebar">
+  <div class="close-btn" onclick="toggleSidebar()">×</div>
+  <a href="dashboard.html">Dashboard</a>
+  <a href="home.html">Bot Assistant</a>
+  <a href="chatroom.html">Chat Room</a>
+  <a href="privatechat.html">Private Chat</a>
+  <a href="history.html">Bot History</a>
+  <a href="login.html" onclick="localStorage.clear()">Logout</a>
+</div>
+
 <!-- ROOM SELECTION -->
 <div class="center-box" id="room-selection">
-  <h2>Private Chat</h2>
+  <h2>Join / Create Room</h2>
   <button onclick="createRoom()">Create Room</button>
   <br><br>
   <input type="text" id="joinCode" placeholder="Enter Room Code" />
@@ -125,11 +191,6 @@
 
 <!-- CHAT UI -->
 <div class="chat-container" id="chatUI">
-  <div class="topbar">
-    <span>Room Code: <b id="roomDisplay"></b></span>
-    <span id="typingIndicator"></span>
-  </div>
-
   <div class="chat-box" id="chatBox"></div>
 
   <div class="input-area">
@@ -142,73 +203,84 @@
 </div>
 
 <script>
-  const socket = io("https://real-time-chat-1-pa6c.onrender.com");
-  const name = localStorage.getItem("user") || prompt("Your name?");
-  socket.emit("set_name", name);
+const socket = io("https://real-time-chat-1-pa6c.onrender.com");
+const userData = JSON.parse(localStorage.getItem("user") || "{}");
+const name = userData.name || prompt("Your name?");
+socket.emit("set_name", name);
 
-  let currentRoom = null;
-  let replyTo = null;
+let currentRoom = null;
+let replyTo = null;
 
-  function createRoom() {
-    const code = Math.floor(10000 + Math.random() * 90000).toString();
-    currentRoom = code;
-    document.getElementById("roomDisplay").textContent = code;
-    document.getElementById("room-selection").style.display = "none";
-    document.getElementById("chatUI").style.display = "flex";
-    socket.emit("join-room", code);
-    appendSystem(`Room created. Share code: ${code}`);
-  }
+function toggleSidebar() {
+  document.getElementById("sidebar").classList.toggle("active");
+}
 
-  function joinRoom() {
-    const code = document.getElementById("joinCode").value.trim();
-    if (!code) return;
-    currentRoom = code;
-    document.getElementById("roomDisplay").textContent = code;
-    document.getElementById("room-selection").style.display = "none";
-    document.getElementById("chatUI").style.display = "flex";
-    socket.emit("join-room", code);
-  }
+function createRoom() {
+  const code = Math.floor(10000 + Math.random() * 90000).toString();
+  currentRoom = code;
+  document.getElementById("room-selection").style.display = "none";
+  document.getElementById("chatUI").style.display = "flex";
+  socket.emit("join-room", code);
+  appendSystem(`Room created. Code: ${code}`);
+}
 
-  function appendSystem(msg) {
-    const div = document.createElement("div");
-    div.className = "message other";
-    div.innerHTML = `<i>${msg}</i>`;
-    document.getElementById("chatBox").appendChild(div);
-    chatBox.scrollTop = chatBox.scrollHeight;
-  }
+function joinRoom() {
+  const code = document.getElementById("joinCode").value.trim();
+  if (!code) return;
+  currentRoom = code;
+  document.getElementById("room-selection").style.display = "none";
+  document.getElementById("chatUI").style.display = "flex";
+  socket.emit("join-room", code);
+  appendSystem(`Joined room: ${code}`);
+}
 
-  function appendMessage(sender, text, isImg = false, isFile = false) {
-    const div = document.createElement("div");
-    div.className = "message " + (sender === name ? "me" : "other");
+function appendSystem(msg) {
+  const div = document.createElement("div");
+  div.className = "message other";
+  div.innerHTML = `<i>${msg}</i>`;
+  document.getElementById("chatBox").appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
 
-    if (text.startsWith("Reply: ")) {
-      const [_, replyText, actual] = text.match(/Reply: (.*?)\|\|(.*)/) || [];
-      if (replyText) {
-        const replyDiv = document.createElement("div");
-        replyDiv.className = "reply";
-        replyDiv.innerText = "Reply to: " + replyText;
-        div.appendChild(replyDiv);
-        text = actual;
-      }
+function appendMessage(sender, text, isImg = false, isFile = false) {
+  const div = document.createElement("div");
+  div.className = "message " + (sender === name ? "me" : "other");
+
+  if (text.startsWith("Reply: ")) {
+    const [_, replyText, actual] = text.match(/Reply: (.*?)\|\|(.*)/) || [];
+    if (replyText) {
+      const replyDiv = document.createElement("div");
+      replyDiv.className = "reply";
+      replyDiv.innerText = "Reply to: " + replyText;
+      div.appendChild(replyDiv);
+      text = actual;
     }
+  }
 
-    if (isImg) {
-      const img = document.createElement("img");
-      img.src = text;
-      img.style.width = "150px";
-      img.style.borderRadius = "10px";
-      div.appendChild(img);
-    } else if (isFile) {
-      const link = document.createElement("a");
-      link.href = text;
-      link.innerText = "Download File";
-      link.style.color = "#6cf";
-      link.download = "file";
-      div.appendChild(link);
-    } else {
-      div.innerHTML += `<b>${sender}:</b> ${text}`;
-    }
+  if (isImg) {
+    const img = document.createElement("img");
+    img.src = text;
+    img.style.width = "150px";
+    img.style.borderRadius = "10px";
+    div.appendChild(img);
+  } else if (isFile) {
+    const link = document.createElement("a");
+    link.href = text;
+    link.innerText = "Download File";
+    link.style.color = "#6cf";
+    link.download = "file";
+    div.appendChild(link);
+  } else {
+    div.innerHTML += `<b>${sender}:</b> ${text}`;
+  }
 
+  div.addEventListener("dblclick", () => {
+    replyTo = text;
+    alert("Replying to: " + text);
+  });
+
+  div.addEventListener("contextmenu", (e) => {
+    e.preventDefault();
     const popup = document.createElement("div");
     popup.className = "reaction-popup";
     ["❤️", "😂", "👍", "😮"].forEach(emoji => {
@@ -223,90 +295,86 @@
       };
       popup.appendChild(btn);
     });
+    div.appendChild(popup);
+  });
 
-    div.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      div.appendChild(popup);
+  document.getElementById("chatBox").appendChild(div);
+  chatBox.scrollTop = chatBox.scrollHeight;
+}
+
+function sendMessage() {
+  const msg = document.getElementById("messageInput").value.trim();
+  if (!msg || !currentRoom) return;
+
+  let final = msg;
+  if (replyTo) {
+    final = `Reply: ${replyTo}||${msg}`;
+    replyTo = null;
+  }
+
+  if (msg === ">>bot") {
+    socket.emit("private-message", { room: currentRoom, sender: name, text: msg });
+    return;
+  }
+
+  socket.emit("private-message", { room: currentRoom, sender: name, text: final });
+  appendMessage(name, final); // show only once
+  document.getElementById("messageInput").value = "";
+}
+
+function startVoice() {
+  const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+  recognition.lang = "en-IN";
+  recognition.start();
+  recognition.onresult = function (event) {
+    document.getElementById("messageInput").value = event.results[0][0].transcript;
+    sendMessage();
+  };
+}
+
+document.getElementById("fileInput").addEventListener("change", () => {
+  const file = fileInput.files[0];
+  const reader = new FileReader();
+  reader.onload = () => {
+    const type = file.type.startsWith("image/") ? "img" : "file";
+    const data = `[${type}]${reader.result}`;
+    socket.emit("private-message", {
+      room: currentRoom,
+      sender: name,
+      text: data
     });
+    if (type === "img") appendMessage(name, reader.result, true);
+    else appendMessage(name, reader.result, false, true);
+  };
+  reader.readAsDataURL(file);
+});
 
-    div.addEventListener("dblclick", () => {
-      replyTo = text;
-      alert("Replying to: " + text);
-    });
-
-    document.getElementById("chatBox").appendChild(div);
-    chatBox.scrollTop = chatBox.scrollHeight;
+socket.on("private-message", (data) => {
+  if (data.sender === name) return; // avoid showing duplicate
+  if (data.text.startsWith("[img]")) {
+    appendMessage(data.sender, data.text.replace("[img]", ""), true);
+  } else if (data.text.startsWith("[file]")) {
+    appendMessage(data.sender, data.text.replace("[file]", ""), false, true);
+  } else {
+    appendMessage(data.sender, data.text);
   }
+});
 
-  function sendMessage() {
-    const msg = document.getElementById("messageInput").value.trim();
-    if (!msg || !currentRoom) return;
+socket.on("room-joined", (user) => {
+  appendSystem(`${user} joined the room.`);
+});
 
-    let final = msg;
-    if (replyTo) {
-      final = `Reply: ${replyTo}||${msg}`;
-      replyTo = null;
-    }
+socket.on("typing", (user) => {
+  document.getElementById("typingIndicator").innerText = `${user} is typing...`;
+  setTimeout(() => {
+    document.getElementById("typingIndicator").innerText = "";
+  }, 1500);
+});
 
-    if (msg === ">>bot") {
-      socket.emit("private-message", { room: currentRoom, sender: name, text: msg });
-      return;
-    }
-
-    socket.emit("private-message", { room: currentRoom, sender: name, text: final });
-    appendMessage(name, final);
-    document.getElementById("messageInput").value = "";
-  }
-
-  function startVoice() {
-    const recognition = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    recognition.lang = "en-IN";
-    recognition.start();
-    recognition.onresult = function (event) {
-      document.getElementById("messageInput").value = event.results[0][0].transcript;
-      sendMessage();
-    };
-  }
-
-  document.getElementById("fileInput").addEventListener("change", () => {
-    const file = fileInput.files[0];
-    const reader = new FileReader();
-    reader.onload = () => {
-      const type = file.type.startsWith("image/") ? "img" : "file";
-      socket.emit("private-message", {
-        room: currentRoom,
-        sender: name,
-        text: `[${type}]${reader.result}`
-      });
-    };
-    reader.readAsDataURL(file);
-  });
-
-  socket.on("private-message", (data) => {
-    if (data.text.startsWith("[img]")) {
-      appendMessage(data.sender, data.text.replace("[img]", ""), true);
-    } else if (data.text.startsWith("[file]")) {
-      appendMessage(data.sender, data.text.replace("[file]", ""), false, true);
-    } else {
-      appendMessage(data.sender, data.text);
-    }
-  });
-
-  socket.on("room-joined", (user) => {
-    appendSystem(`${user} joined the room.`);
-  });
-
-  socket.on("typing", (user) => {
-    document.getElementById("typingIndicator").innerText = `${user} is typing...`;
-    setTimeout(() => {
-      document.getElementById("typingIndicator").innerText = "";
-    }, 1500);
-  });
-
-  document.getElementById("messageInput").addEventListener("input", () => {
-    socket.emit("typing", name);
-  });
+document.getElementById("messageInput").addEventListener("input", () => {
+  socket.emit("typing", name);
+});
 </script>
 
 </body>
-  </html>
+</html>
