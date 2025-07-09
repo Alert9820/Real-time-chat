@@ -2,14 +2,20 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <!-- Prevent zooming on mobile -->
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
   <title>BotX | Chat Home</title>
-  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap"/>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <script src="https://cdnjs.cloudflare.com/ajax/libs/animejs/3.2.1/anime.min.js"></script>
   <style>
     * {
-      margin: 0; padding: 0; box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
       font-family: 'Inter', sans-serif;
+      -webkit-user-select: none;
+      user-select: none;
+      touch-action: manipulation;
     }
     body {
       background: #0d0d0d;
@@ -74,7 +80,6 @@
       color: #aaa;
     }
 
-    /* Floating buttons */
     .floating-btn {
       position: fixed;
       bottom: 90px;
@@ -98,7 +103,6 @@
       background: #2020ff;
     }
 
-    /* Bottom navbar */
     .bottom-nav {
       display: flex;
       justify-content: space-around;
@@ -137,7 +141,7 @@
   </header>
 
   <!-- 🔸 Friend List -->
-  <div id="friend-list"></div>
+  <div id="friend-list">Loading friends...</div>
 
   <!-- 🔘 Floating Buttons -->
   <div class="floating-btn bot-btn" onclick="openBot()">🤖</div>
@@ -164,7 +168,7 @@
   </div>
 
   <script>
-    // ✅ Animate on load
+    // 🔄 Animation on Load
     anime({
       targets: 'header, .floating-btn, .bottom-nav',
       translateY: [-50, 0],
@@ -173,35 +177,55 @@
       delay: anime.stagger(100)
     });
 
-    const currentUID = localStorage.getItem("uid");
-
+    // ✅ Dashboard Redirect
     function goToDashboard() {
       location.href = "/dashboard.html";
     }
 
-    async function loadFriends() {
-      const res = await fetch(`/get-friends?uid=${currentUID}`);
-      const data = await res.json();
-      const container = document.getElementById("friend-list");
-      container.innerHTML = "";
-
-      data.forEach(friend => {
-        const div = document.createElement("div");
-        div.className = "friend-item";
-        div.innerHTML = `
-          <span>👤 ${friend.name}</span>
-          <p class="uid">UID: ${friend.uid || 'unknown'}</p>
-        `;
-        div.onclick = () => {
-          localStorage.setItem("receiver", friend.name);
-          location.href = "/privatechat.html";
-        };
-        container.appendChild(div);
-      });
-    }
-
+    // ✅ Open Bot page
     function openBot() {
       location.href = "/home.html";
+    }
+
+    // ✅ Load Friends
+    async function loadFriends() {
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      const currentUID = user.uid;
+
+      if (!currentUID) {
+        document.getElementById("friend-list").innerHTML = "<p style='color:red;'>User not logged in</p>";
+        return;
+      }
+
+      try {
+        const res = await fetch(`/get-friends?uid=${currentUID}`);
+        const data = await res.json();
+        const container = document.getElementById("friend-list");
+        container.innerHTML = "";
+
+        if (!data.length) {
+          container.innerHTML = "<p style='text-align:center;color:#777;'>No friends yet. Add some!</p>";
+          return;
+        }
+
+        data.forEach(friend => {
+          const div = document.createElement("div");
+          div.className = "friend-item";
+          div.innerHTML = `
+            <span>👤 ${friend.name}</span>
+            <p class="uid">UID: ${friend.uid || 'unknown'}</p>
+          `;
+          div.onclick = () => {
+            localStorage.setItem("receiver", friend.name);
+            localStorage.setItem("receiverUid", friend.uid);
+            location.href = "/privatechat.html";
+          };
+          container.appendChild(div);
+        });
+      } catch (err) {
+        document.getElementById("friend-list").innerHTML = "<p style='color:red;'>Error loading friends</p>";
+        console.error("Error:", err);
+      }
     }
 
     loadFriends();
