@@ -1,47 +1,50 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Private Chat - BotX</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Private Chat | BotX</title>
   <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600&display=swap" rel="stylesheet">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Inter', sans-serif; }
-    body { background: #0e0e0e; color: white; height: 100vh; display: flex; flex-direction: column; }
-    .topbar {
-      background: #1c1c1c;
-      display: flex;
-      align-items: center;
-      padding: 12px 16px;
-      gap: 10px;
-      box-shadow: 0 2px 4px rgba(0,0,0,0.5);
-    }
-    .topbar img {
-      width: 42px;
-      height: 42px;
-      border-radius: 50%;
-      background: #4e4eff;
-    }
-    .user-info {
+    * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Arial', sans-serif; }
+    body {
+      background: #0d0d0d;
+      color: #fff;
+      height: 100vh;
       display: flex;
       flex-direction: column;
     }
-    .user-info span { font-weight: 600; font-size: 16px; }
-    .status {
-      font-size: 12px;
-      color: #0f0;
+    .topbar {
+      background: #1a1a1a;
+      padding: 12px 16px;
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 10px;
+      box-shadow: 0 2px 5px #000;
     }
-    .status-dot {
-      width: 8px;
-      height: 8px;
-      background: #0f0;
+    .topbar .circle {
+      width: 40px;
+      height: 40px;
       border-radius: 50%;
+      background: #4e4eff;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      font-size: 18px;
     }
-
+    .name {
+      display: flex;
+      flex-direction: column;
+    }
+    .name h3 {
+      margin: 0;
+      font-size: 18px;
+    }
+    .name p {
+      margin: 0;
+      font-size: 12px;
+      color: #67ff67;
+    }
     #chat-box {
       flex: 1;
       overflow-y: auto;
@@ -49,134 +52,162 @@
       display: flex;
       flex-direction: column;
     }
-
     .message {
-      padding: 10px;
-      margin: 5px;
       max-width: 70%;
-      border-radius: 10px;
+      margin: 6px;
+      padding: 10px;
+      border-radius: 12px;
       word-wrap: break-word;
-      animation: fadein 0.3s ease;
+      line-height: 1.4;
+      position: relative;
     }
-    .me { align-self: flex-end; background: #4e4eff; color: white; }
-    .other { align-self: flex-start; background: #1e1e1e; }
-
+    .me {
+      background: #4e4eff;
+      color: white;
+      align-self: flex-end;
+    }
+    .other {
+      background: #333;
+      color: white;
+      align-self: flex-start;
+    }
+    .reaction {
+      margin-top: 4px;
+      text-align: right;
+      font-size: 18px;
+    }
+    #typing {
+      font-size: 12px;
+      text-align: center;
+      font-style: italic;
+      opacity: 0.6;
+      margin-bottom: 4px;
+    }
     .input-area {
       display: flex;
-      gap: 8px;
       padding: 10px;
-      background: #181818;
+      background: #1a1a1a;
+      gap: 8px;
+      align-items: center;
       border-top: 1px solid #333;
     }
     .input-area input {
       flex: 1;
       padding: 10px;
-      border-radius: 8px;
+      border-radius: 10px;
       border: none;
       background: #2a2a2a;
       color: white;
     }
     .input-area button {
+      padding: 10px 14px;
       background: #4e4eff;
       border: none;
+      border-radius: 10px;
       color: white;
-      font-weight: bold;
-      padding: 10px 14px;
-      border-radius: 8px;
       cursor: pointer;
     }
-    .typing {
-      font-size: 12px;
+    .bot-hint {
+      font-size: 10px;
       text-align: center;
       color: #aaa;
-      font-style: italic;
-    }
-
-    @keyframes fadein {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
+      margin-bottom: 5px;
     }
   </style>
 </head>
 <body>
-  <!-- 🔹 Topbar -->
   <div class="topbar">
-    <img src="/bot-icon.png" />
-    <div class="user-info">
-      <span id="receiver-name">Devesh</span>
-      <div class="status"><div class="status-dot"></div> online</div>
+    <div class="circle">👤</div>
+    <div class="name">
+      <h3 id="chat-name">Friend</h3>
+      <p id="online-status">● online</p>
     </div>
-  </div>
-
-  <!-- 🔸 Chat Box -->
-  <div id="chat-box"></div>
-  <div id="typing" class="typing"></div>
-
-  <!-- 🔻 Input Area -->
-  <div class="input-area">
-    <input type="text" id="msgInput" placeholder="Type your message..." />
-    <button onclick="startVoice()">🎤</button>
+  </div>  <div id="chat-box"></div>
+  <div id="typing"></div>
+  <div class="bot-hint">Type <code>>></code> to activate bot, <code><<</code> to deactivate</div>  <div class="input-area">
+    <input type="text" id="msgInput" placeholder="Type a message..." />
     <button onclick="sendMsg()">Send</button>
-  </div>
-
-  <script>
+  </div>  <script>
     const socket = io("https://real-time-chat-1-pa6c.onrender.com");
+    const user = JSON.parse(localStorage.getItem("user") || '{}');
+    const receiver = localStorage.getItem("receiver") || "Friend";
+    const receiverUid = localStorage.getItem("receiverUid") || "000000";
+    const nameEl = document.getElementById("chat-name");
+    const statusEl = document.getElementById("online-status");
+    const chatBox = document.getElementById("chat-box");
+    const msgInput = document.getElementById("msgInput");
+    const typingDiv = document.getElementById("typing");
 
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    const receiverName = localStorage.getItem("receiver");
-    const receiverUid = localStorage.getItem("receiverUid");
+    nameEl.textContent = receiver;
     const room = [user.uid, receiverUid].sort().join("_");
 
-    const msgInput = document.getElementById("msgInput");
-    const chatBox = document.getElementById("chat-box");
-    const typingDiv = document.getElementById("typing");
-    document.getElementById("receiver-name").innerText = receiverName || "Unknown";
+    socket.emit("set_name", user.name);
+    socket.emit("join-room", room);
 
     let botActive = false;
 
-    socket.emit("join_private", { room, name: user.name });
-
     function sendMsg() {
-      const msg = msgInput.value.trim();
-      if (!msg) return;
+      const text = msgInput.value.trim();
+      if (!text) return;
 
-      if (msg === '>>bot') { botActive = true; }
-      if (msg === '<<bot') { botActive = false; }
+      if (text === '>>bot') { botActive = true; }
+      if (text === '<<bot') { botActive = false; }
 
-      socket.emit("private_msg", {
-        room, sender: user.name, text: msg, to: receiverName
+      socket.emit("private-message", { room, sender: user.name, text });
+      msgInput.value = '';
+    }
+
+    socket.on("private-message", ({ sender, text }) => {
+      const div = document.createElement("div");
+      div.className = "message " + (sender === user.name ? "me" : "other");
+      div.innerHTML = `<b>${sender}:</b> ${text}`;
+
+      div.addEventListener("contextmenu", e => {
+        e.preventDefault();
+        showReactions(div);
       });
 
-      msgInput.value = "";
-    }
-
-    function startVoice() {
-      const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-      rec.lang = "en-IN";
-      rec.start();
-      rec.onresult = e => {
-        const transcript = e.results[0][0].transcript;
-        msgInput.value = transcript;
-        sendMsg();
-      };
-    }
-
-    socket.on("private_msg", data => {
-      const div = document.createElement("div");
-      div.className = "message " + (data.sender === user.name ? "me" : "other");
-      div.innerText = data.text;
       chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
     });
 
-    socket.on("typing", (name) => {
+    function showReactions(div) {
+      const reactions = ["❤️","😂","👍","😢"];
+      const menu = document.createElement("div");
+      menu.style.position = "absolute";
+      menu.style.bottom = "25px";
+      menu.style.left = "50%";
+      menu.style.transform = "translateX(-50%)";
+      menu.style.background = "#222";
+      menu.style.padding = "4px";
+      menu.style.borderRadius = "6px";
+      menu.style.display = "flex";
+      reactions.forEach(r => {
+        const btn = document.createElement("button");
+        btn.textContent = r;
+        btn.style.fontSize = "16px";
+        btn.style.background = "transparent";
+        btn.style.color = "white";
+        btn.style.border = "none";
+        btn.onclick = () => {
+          const react = document.createElement("div");
+          react.className = "reaction";
+          react.textContent = r;
+          div.appendChild(react);
+          menu.remove();
+        };
+        menu.appendChild(btn);
+      });
+      div.appendChild(menu);
+    }
+
+    msgInput.addEventListener("input", () => {
+      socket.emit("typing", user.name);
+    });
+
+    socket.on("typing", name => {
       typingDiv.textContent = `${name} is typing...`;
       setTimeout(() => typingDiv.textContent = '', 1500);
     });
-
-    msgInput.addEventListener("input", () => {
-      socket.emit("typing", { room, name: user.name });
-    });
-  </script>
-</body>
-</html>
+  </script></body>
+  </html>
