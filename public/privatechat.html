@@ -1,198 +1,255 @@
-<!-- ✅ BotX Private Chat with Friend-Based Messaging --><!-- 🎯 No Room System, Pure Friend UID-Based Chat, Data Persist in localStorage --><!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
+  <title>BotX Private Chat</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Private Chat - BotX</title>
   <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
   <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet" />
   <style>
+    :root {
+      --main-bg: #111;
+      --accent: #6cf;
+      --bubble-user: #6cf;
+      --bubble-friend: #333;
+    }
     * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
       font-family: 'Poppins', sans-serif;
-      background: #111;
+      background: var(--main-bg);
       color: #fff;
-      height: 100vh;
       display: flex;
       flex-direction: column;
+      height: 100vh;
     }
-    .topbar {
-      background: #1c1c1c;
-      padding: 15px 20px;
+    header {
+      background: #1e1e1e;
+      padding: 10px 15px;
       display: flex;
       justify-content: space-between;
       align-items: center;
     }
-    .toggle {
-      font-size: 24px;
-      color: #6cf;
-      cursor: pointer;
+    .container {
+      flex: 1;
+      display: flex;
+      flex-direction: row;
+      overflow: hidden;
     }
     .sidebar {
-      width: 230px;
-      background: #121212;
-      position: fixed;
-      top: 0;
-      left: 0;
-      height: 100%;
-      padding: 20px;
-      transform: translateX(-100%);
-      transition: transform 0.3s ease;
-      z-index: 10;
-    }
-    .sidebar.active { transform: translateX(0); }
-    .sidebar .close-btn {
-      font-size: 22px;
-      color: #f66;
-      text-align: right;
-      cursor: pointer;
-    }
-    .sidebar a {
-      display: block;
-      margin: 15px 0;
-      text-decoration: none;
-      color: #6cf;
-      font-weight: bold;
-    }
-    .friend-list {
-      padding: 20px;
+      width: 270px;
+      background: #161616;
       overflow-y: auto;
-      flex: 1;
-    }
-    .friend-item {
       padding: 10px;
-      background: #222;
-      margin-bottom: 10px;
-      border-radius: 10px;
-      cursor: pointer;
+      border-right: 1px solid #222;
+      transition: all 0.3s ease;
     }
-    .friend-item:hover { background: #333; }
-    .chat-container {
-      display: none;
+    .friend {
+      padding: 10px;
+      margin-bottom: 10px;
+      background: #222;
+      border-radius: 8px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .friend:hover {
+      background: #333;
+    }
+    .online-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: lime;
+    }
+    .chat-area {
+      flex: 1;
+      display: flex;
       flex-direction: column;
-      height: 100%;
     }
     .chat-box {
       flex: 1;
-      padding: 15px;
+      padding: 10px;
       overflow-y: auto;
       display: flex;
       flex-direction: column;
       gap: 10px;
     }
-    .message {
-      padding: 10px;
-      border-radius: 12px;
-      max-width: 70%;
+    .msg {
+      padding: 8px 14px;
+      border-radius: 15px;
+      max-width: 75%;
       word-wrap: break-word;
-      position: relative;
+      animation: fadeIn 0.3s ease;
     }
-    .me { align-self: flex-end; background: #6cf; color: #000; }
-    .other { align-self: flex-start; background: #333; }
-    .input-area {
+    .me {
+      align-self: flex-end;
+      background: var(--bubble-user);
+      color: #000;
+    }
+    .other {
+      align-self: flex-start;
+      background: var(--bubble-friend);
+    }
+    .input-bar {
       display: flex;
-      gap: 8px;
       padding: 10px;
-      background: #1c1c1c;
+      background: #1e1e1e;
+      gap: 8px;
     }
-    input[type="text"] {
+    .input-bar input {
       flex: 1;
       background: #222;
       border: none;
+      color: white;
       padding: 10px;
-      color: #fff;
       border-radius: 10px;
     }
-    button {
-      padding: 10px;
-      background: #6cf;
+    .input-bar button {
+      background: var(--accent);
+      color: #000;
+      font-weight: bold;
       border: none;
+      padding: 10px 14px;
       border-radius: 10px;
       cursor: pointer;
-      font-weight: bold;
-      color: #000;
+    }
+    #typing {
+      font-size: 12px;
+      padding-left: 10px;
+      font-style: italic;
+      opacity: 0.7;
+    }
+
+    /* Responsive */
+    @media (max-width: 768px) {
+      .container {
+        flex-direction: column;
+      }
+      .sidebar {
+        width: 100%;
+        height: 160px;
+        border-right: none;
+        border-bottom: 1px solid #222;
+        display: flex;
+        flex-wrap: nowrap;
+        overflow-x: auto;
+      }
+      .friend {
+        flex: 0 0 auto;
+        min-width: 120px;
+      }
+    }
+
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(5px); }
+      to { opacity: 1; transform: translateY(0); }
     }
   </style>
 </head>
-<body><div class="topbar">
-  <div class="toggle" onclick="toggleSidebar()">☰</div>
-  <h3>Private Chat</h3>
-  <span id="activeFriend"></span>
-</div><div class="sidebar" id="sidebar">
-  <div class="close-btn" onclick="toggleSidebar()">×</div>
-  <a href="dashboard.html">Dashboard</a>
-  <a href="home.html">Bot Assistant</a>
-  <a href="chatroom.html">Chat Room</a>
-  <a href="privatechat.html">Private Chat</a>
-  <a href="history.html">Bot History</a>
-  <a href="friends.html">Friends</a>
-  <a href="login.html" onclick="localStorage.clear()">Logout</a>
-</div><!-- Friend List --><div class="friend-list" id="friendList"></div><!-- Chat UI --><div class="chat-container" id="chatUI">
-  <div class="chat-box" id="chatBox"></div>
-  <div class="input-area">
-    <input type="text" id="messageInput" placeholder="Type a message..." />
-    <button onclick="sendMessage()">Send</button>
+<body>
+  <header>
+    <h3>BotX Private Chat</h3>
+    <div id="typing"></div>
+  </header>
+
+  <div class="container">
+    <div class="sidebar" id="friendsList"></div>
+
+    <div class="chat-area">
+      <div class="chat-box" id="chatBox"></div>
+      <div class="input-bar">
+        <input type="text" id="msgInput" placeholder="Type a message..." />
+        <button onclick="sendMessage()">Send</button>
+      </div>
+    </div>
   </div>
-</div><script>
-const userData = JSON.parse(localStorage.getItem("user") || "{}");
-const name = userData.name || "User";
-const friends = userData.friends || [];
 
-let activeUID = null;
-let messages = {};
+<script>
+const socket = io("https://real-time-chat-1-pa6c.onrender.com");
+const user = JSON.parse(localStorage.getItem("user") || "{}");
+const myName = user.name;
+const myUid = user.uid;
+let currentFriendUid = null;
+let roomId = null;
 
-function toggleSidebar() {
-  document.getElementById("sidebar").classList.toggle("active");
-}
-
-function loadMessages(uid) {
-  const raw = localStorage.getItem("chat-" + uid);
-  return raw ? JSON.parse(raw) : [];
-}
-
-function saveMessages(uid, msgs) {
-  localStorage.setItem("chat-" + uid, JSON.stringify(msgs));
-}
-
-function openChat(uid, friendName) {
-  activeUID = uid;
-  messages[uid] = loadMessages(uid);
-  document.getElementById("chatBox").innerHTML = "";
-  document.getElementById("chatUI").style.display = "flex";
-  document.getElementById("friendList").style.display = "none";
-  document.getElementById("activeFriend").innerText = friendName;
-  messages[uid].forEach(m => appendMessage(m.sender, m.text));
+function getRoomId(uid1, uid2) {
+  return [uid1, uid2].sort().join("_");
 }
 
 function appendMessage(sender, text) {
   const div = document.createElement("div");
-  div.className = "message " + (sender === name ? "me" : "other");
+  div.className = "msg " + (sender === myName ? "me" : "other");
   div.innerHTML = `<b>${sender}:</b> ${text}`;
   document.getElementById("chatBox").appendChild(div);
   document.getElementById("chatBox").scrollTop = chatBox.scrollHeight;
 }
 
 function sendMessage() {
-  const input = document.getElementById("messageInput");
+  const input = document.getElementById("msgInput");
   const text = input.value.trim();
-  if (!text || !activeUID) return;
-  appendMessage(name, text);
-  messages[activeUID].push({ sender: name, text });
-  saveMessages(activeUID, messages[activeUID]);
+  if (!text || !roomId) return;
+
+  socket.emit("private-message", {
+    room: roomId,
+    sender: myName,
+    text
+  });
+
+  fetch("/messages", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ roomId, sender: myName, text })
+  });
+
+  appendMessage(myName, text);
   input.value = "";
 }
 
-// Load Friend List
-const listDiv = document.getElementById("friendList");
-if (Array.isArray(friends) && friends.length) {
-  friends.forEach(f => {
-    const item = document.createElement("div");
-    item.className = "friend-item";
-    item.innerText = f.name;
-    item.onclick = () => openChat(f.uid, f.name);
-    listDiv.appendChild(item);
-  });
-} else {
-  listDiv.innerHTML = "<p style='padding:20px;'>No friends found.</p>";
+document.getElementById("msgInput").addEventListener("input", () => {
+  socket.emit("typing", myName);
+});
+
+socket.on("typing", who => {
+  document.getElementById("typing").innerText = `${who} is typing...`;
+  setTimeout(() => {
+    document.getElementById("typing").innerText = "";
+  }, 1500);
+});
+
+socket.on("private-message", data => {
+  appendMessage(data.sender, data.text);
+});
+
+function loadChat(friendUid, friendName) {
+  document.getElementById("chatBox").innerHTML = "";
+  roomId = getRoomId(myUid, friendUid);
+  socket.emit("join-room", roomId);
+  fetch(`/messages/${roomId}`)
+    .then(res => res.json())
+    .then(data => {
+      data.forEach(m => appendMessage(m.sender, m.text));
+    });
 }
-</script></body>
-    </html>
+
+function renderFriendList() {
+  fetch(`/get-friends?uid=${myUid}`)
+    .then(res => res.json())
+    .then(data => {
+      const list = document.getElementById("friendsList");
+      list.innerHTML = "";
+      data.forEach(f => {
+        const friendDiv = document.createElement("div");
+        friendDiv.className = "friend";
+        friendDiv.innerHTML = `${f.online ? '<span class="online-dot"></span>' : ''}${f.name}`;
+        friendDiv.onclick = () => loadChat(f.uid, f.name);
+        list.appendChild(friendDiv);
+      });
+    });
+}
+
+socket.emit("set_name", myName);
+renderFriendList();
+</script>
+</body>
+</html>
