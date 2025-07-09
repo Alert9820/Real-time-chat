@@ -1,5 +1,4 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -40,110 +39,95 @@
       border-radius: 8px;
       background: #2a2a2a;
       color: white;
-    }
+    }#friend-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+}
 
-    #friend-list {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px;
-    }
+.friend-item {
+  background: #1f1f1f;
+  padding: 12px 14px;
+  border-radius: 14px;
+  margin-bottom: 10px;
+  box-shadow: 0 0 6px #000;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
 
-    .friend-item {
-      background: #1f1f1f;
-      padding: 12px 14px;
-      border-radius: 14px;
-      margin-bottom: 10px;
-      box-shadow: 0 0 6px #000;
-      transition: all 0.3s ease;
-      cursor: pointer;
-    }
+.friend-item:hover {
+  background: #292929;
+  transform: scale(1.02);
+}
 
-    .friend-item:hover {
-      background: #292929;
-      transform: scale(1.02);
-    }
+.friend-item span {
+  font-weight: 600;
+  font-size: 16px;
+}
 
-    .friend-item span {
-      font-weight: 600;
-      font-size: 16px;
-    }
+.uid {
+  font-size: 12px;
+  color: #aaa;
+}
 
-    .uid {
-      font-size: 12px;
-      color: #aaa;
-    }
+.floating-btn {
+  position: fixed;
+  bottom: 90px;
+  right: 20px;
+  width: 52px;
+  height: 52px;
+  background: #4e4eff;
+  color: white;
+  border-radius: 50%;
+  font-size: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.4);
+  cursor: pointer;
+  z-index: 1000;
+}
 
-    /* Floating buttons */
-    .floating-btn {
-      position: fixed;
-      bottom: 90px;
-      right: 20px;
-      width: 52px;
-      height: 52px;
-      background: #4e4eff;
-      color: white;
-      border-radius: 50%;
-      font-size: 28px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.4);
-      cursor: pointer;
-      z-index: 1000;
-    }
+.bot-btn {
+  bottom: 160px;
+  background: #2020ff;
+}
 
-    .bot-btn {
-      bottom: 160px;
-      background: #2020ff;
-    }
+.bottom-nav {
+  display: flex;
+  justify-content: space-around;
+  align-items: center;
+  background: #1a1a1a;
+  padding: 10px 0;
+  border-top: 1px solid #333;
+}
 
-    /* Bottom navbar */
-    .bottom-nav {
-      display: flex;
-      justify-content: space-around;
-      align-items: center;
-      background: #1a1a1a;
-      padding: 10px 0;
-      border-top: 1px solid #333;
-    }
+.bottom-nav div {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  font-size: 12px;
+  color: #aaa;
+}
 
-    .bottom-nav div {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      font-size: 12px;
-      color: #aaa;
-    }
+.bottom-nav .active {
+  color: #4e4eff;
+}
 
-    .bottom-nav .active {
-      color: #4e4eff;
-    }
+.bottom-nav img {
+  width: 22px;
+  height: 22px;
+  margin-bottom: 3px;
+  filter: brightness(0.8);
+}
 
-    .bottom-nav img {
-      width: 22px;
-      height: 22px;
-      margin-bottom: 3px;
-      filter: brightness(0.8);
-    }
   </style>
 </head>
-<body>
-
-  <!-- 🔹 Header -->
-  <header>
+<body>  <header>
     <img src="/bot-icon.png" alt="BotX" />
     <input type="text" placeholder="Search friend..." disabled />
-  </header>
-
-  <!-- 🔸 Friend List -->
-  <div id="friend-list"></div>
-
-  <!-- 🔘 Floating Buttons -->
-  <div class="floating-btn bot-btn" onclick="openBot()">🤖</div>
-  <div class="floating-btn" onclick="location.href='/friends.html'">+</div>
-
-  <!-- 🔻 Bottom Navbar -->
-  <div class="bottom-nav">
+  </header>  <div id="friend-list"></div>  <div class="floating-btn bot-btn" onclick="openBot()">🤖</div>
+  <div class="floating-btn" onclick="location.href='/friends.html'">+</div>  <div class="bottom-nav">
     <div class="active">
       <img src="https://cdn-icons-png.flaticon.com/512/2462/2462719.png" />
       Chat
@@ -160,10 +144,7 @@
       <img src="https://cdn-icons-png.flaticon.com/512/2099/2099058.png" />
       Settings
     </div>
-  </div>
-
-  <script>
-    // ✅ Animate on load
+  </div>  <script>
     anime({
       targets: 'header, .floating-btn, .bottom-nav',
       translateY: [-50, 0],
@@ -172,7 +153,8 @@
       delay: anime.stagger(100)
     });
 
-    const currentUID = localStorage.getItem("uid");
+    const user = JSON.parse(localStorage.getItem("user") || "{}");
+    const currentUID = user.uid;
 
     async function loadFriends() {
       const res = await fetch(`/get-friends?uid=${currentUID}`);
@@ -189,6 +171,7 @@
         `;
         div.onclick = () => {
           localStorage.setItem("receiver", friend.name);
+          localStorage.setItem("receiverUid", friend.uid);
           location.href = "/privatechat.html";
         };
         container.appendChild(div);
@@ -200,7 +183,5 @@
     }
 
     loadFriends();
-  </script>
-
-</body>
+  </script></body>
 </html>
