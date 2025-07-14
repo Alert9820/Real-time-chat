@@ -1,103 +1,183 @@
-<!DOCTYPE html>
-<html lang="en">
+<!DOCTYPE html><html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Private Chat • Dark Mode</title>
+  <title>Private Chat</title>
   <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
   <style>
-    body { margin:0; font-family:sans-serif; background:#121212; color:#eee; height:100vh; display:flex; flex-direction:column; }
-    .topbar { background:#1f1f1f; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; }
-    .topbar h3 { margin:0; }
-    .topbar .actions button { background:transparent; border:none; color:#eee; font-size:18px; margin-left:12px; cursor:pointer; }
-    #chat-box { flex:1; overflow-y:auto; padding:12px; }
-    .message { max-width: 70%; padding:10px; margin-bottom:8px; border-radius:12px; position:relative; }
-    .me    { background:#2979ff; align-self:flex-end; }
-    .other { background:#333; align-self:flex-start; }
-    .reply, .reaction, .timestamp { font-size:12px; color:#bbb; margin-top:4px; }
-    .input-area { display:flex; padding:12px; background:#1f1f1f; gap:8px; }
-    .input-area input { flex:1; padding:10px; border-radius:20px; border:none; background:#333; color:#eee; }
-    .input-area button { background:#2979ff; border:none; padding:10px 16px; border-radius:20px; color:#fff; cursor:pointer; }
-    #typing { padding:0 16px; font-size:13px; font-style:italic; color:#aaa; height:18px; }
-    .video-call-ui { position:fixed; top:70px; right:20px; width:320px; height:360px; background:#000; display:none; flex-direction:column; border:2px solid #2979ff; border-radius:12px; overflow:hidden; }
-    .video-call-ui video { flex:1; width:100%; }
-    .call-controls { background:#1f1f1f; padding:8px; display:flex; justify-content:center; gap:12px; }
-    .call-controls button { background:#d32f2f; border:none; padding:8px 12px; border-radius:6px; color:#fff; cursor:pointer; }
+    body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #0f0f0f; color: #f2f2f2; height: 100vh; display: flex; flex-direction: column; }
+    .topbar { background: #1a1a1a; padding: 14px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
+    .topbar h3 { margin: 0; font-size: 18px; }
+    .status { font-size: 12px; color: #0f0; }
+    #chat-box { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
+    .message { max-width: 70%; padding: 10px; border-radius: 8px; word-wrap: break-word; }
+    .me { align-self: flex-end; background: #0047ab; color: white; }
+    .other { align-self: flex-start; background: #333; }
+    .reply { font-size: 12px; background: rgba(255,255,255,0.1); padding: 5px; border-radius: 4px; margin-bottom: 4px; }
+    .reaction { text-align: center; font-size: 16px; margin-top: 5px; }
+    .input-area { background: #1a1a1a; padding: 10px; display: flex; gap: 10px; align-items: center; }
+    input[type="text"] { flex: 1; background: #222; color: white; padding: 10px; border-radius: 6px; border: none; }
+    button, label { background: #0055ff; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; }
+    #typing { text-align: center; font-size: 12px; font-style: italic; color: #aaa; margin: 4px 0; }
+    label { display: flex; align-items: center; cursor: pointer; }
   </style>
 </head>
 <body>
-
   <div class="topbar">
-    <h3 id="receiver-name">Loading...</h3>
-    <div class="actions">
-      <button onclick="startCall()">📞</button>
-      <button onclick="endCall()">📴</button>
+    <div>
+      <h3 id="receiver-name">Loading...</h3>
+      <div class="status" id="online-status">online</div>
     </div>
-  </div>
-
-  <div id="chat-box"></div>
-  <div id="typing"></div>
-
-  <div class="input-area">
-    <input type="text" id="msgInput" placeholder="Type a message..." autocomplete="off"/>
+  </div>  <div id="chat-box"></div>
+  <div id="typing"></div>  <div class="input-area">
+    <input type="file" id="file-input" accept="image/*,application/pdf" hidden>
+    <label for="file-input">📎</label>
+    <input type="text" id="msgInput" placeholder="Type a message..." />
+    <button onclick="startVoice()">🎤</button>
     <button onclick="sendMsg()">Send</button>
-  </div>
-
-  <div class="video-call-ui" id="call-ui">
-    <video id="remoteVideo" autoplay></video>
-    <div class="call-controls">
-      <button onclick="toggleMic()">Mute</button>
-      <button onclick="toggleCam()">Cam</button>
-      <button onclick="endCall()">End</button>
-    </div>
-  </div>
-
-  <script>
+  </div>  <script>
     const socket = io("https://real-time-chat-1-pa6c.onrender.com");
     const user = JSON.parse(localStorage.getItem("user"));
-    const receiverUid = localStorage.getItem("receiverUid");
     const receiver = localStorage.getItem("receiver");
+    const receiverUid = localStorage.getItem("receiverUid");
     const sender = user.name;
     const senderUid = user.uid;
     const room = [senderUid, receiverUid].sort().join("_");
 
     document.getElementById("receiver-name").innerText = receiver;
-    socket.emit("set_name", sender);
-    socket.emit("join-room", room);
+    const chatBox = document.getElementById("chat-box");
+    const msgInput = document.getElementById("msgInput");
+    const typingDiv = document.getElementById("typing");
+    const fileInput = document.getElementById("file-input");
 
-    const chatBox = document.getElementById("chat-box"), msgInput = document.getElementById("msgInput"), typingDiv = document.getElementById("typing");
+    let replyTo = null;
 
-    socket.on("private-message", ({ sender: s, text }) => addMessage(s, text));
-    socket.on("typing", name => { typingDiv.innerText = name + ' is typing...'; setTimeout(() => typingDiv.innerText = '', 2000); });
-
-    window.onload = async () => {
-      const res = await fetch(`/get-room-messages?room=${room}`);
-      (await res.json()).forEach(m => addMessage(m.sender, m.text));
+    async function loadOldMessages() {
+      const res = await fetch(`https://real-time-chat-1-pa6c.onrender.com/get-room-messages?room=${room}`);
+      const msgs = await res.json();
+      msgs.forEach(m => addMessage(m.sender, m.text));
     }
 
-    msgInput.addEventListener("input", () => socket.emit("typing", sender));
-
     function sendMsg() {
-      const txt = msgInput.value.trim();
-      if (!txt) return;
-      socket.emit("private-message", { room, sender, text: txt });
+      const msg = msgInput.value.trim();
+      if (!msg) return;
+
+      const fullMsg = replyTo ? `Reply to [${replyTo}]: ${msg}` : msg;
+      socket.emit("private-message", { room, sender, text: fullMsg });
       msgInput.value = "";
+      replyTo = null;
     }
 
     function addMessage(senderName, text) {
       const div = document.createElement("div");
-      div.classList.add('message', senderName === sender ? 'me' : 'other');
-      div.innerHTML = `<b>${senderName}:</b> ${text}`;
+      div.className = `message ${senderName === sender ? 'me' : 'other'}`;
+
+      if (text.startsWith("[img]")) {
+        const img = document.createElement("img");
+        img.src = text.replace("[img]", "");
+        img.style.maxWidth = "150px";
+        img.style.borderRadius = "8px";
+        div.appendChild(img);
+      } else if (text.startsWith("[file]")) {
+        const link = document.createElement("a");
+        link.href = text.replace("[file]", "");
+        link.innerText = "Download File";
+        link.style.color = "#6cf";
+        link.target = "_blank";
+        div.appendChild(link);
+      } else if (text.includes("Reply to [")) {
+        const parts = text.split("]:");
+        const reply = document.createElement("div");
+        reply.className = "reply";
+        reply.innerText = parts[0].replace("Reply to [", "Reply: ");
+        div.appendChild(reply);
+        div.innerHTML += parts[1];
+      } else {
+        div.innerHTML += `<b>${senderName}:</b> ${text}`;
+      }
+
+      div.addEventListener("contextmenu", (e) => {
+        e.preventDefault();
+        showReaction(div);
+      });
+
+      div.addEventListener("dblclick", () => {
+        replyTo = text;
+        alert("Now replying to: " + text);
+      });
+
       chatBox.appendChild(div);
       chatBox.scrollTop = chatBox.scrollHeight;
     }
 
-    // 💬 CALL UI STUB
-    function startCall() { document.getElementById('call-ui').style.display = 'flex'; /* WebRTC init... */ }
-    function endCall()   { document.getElementById('call-ui').style.display = 'none'; /* tearDown... */ }
-    function toggleMic() {}
-    function toggleCam() {}
+    function showReaction(div) {
+      const emojis = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+      const popup = document.createElement("div");
+      popup.style.position = "absolute";
+      popup.style.bottom = "30px";
+      popup.style.left = "50%";
+      popup.style.transform = "translateX(-50%)";
+      popup.style.background = "#222";
+      popup.style.padding = "5px 10px";
+      popup.style.borderRadius = "8px";
+      popup.style.display = "flex";
+      popup.style.gap = "5px";
 
-  </script>
-</body>
+      emojis.forEach(emoji => {
+        const btn = document.createElement("button");
+        btn.innerText = emoji;
+        btn.style.background = "transparent";
+        btn.style.border = "none";
+        btn.style.fontSize = "18px";
+        btn.onclick = () => {
+          const react = document.createElement("div");
+          react.className = "reaction";
+          react.innerText = emoji;
+          div.appendChild(react);
+          popup.remove();
+        };
+        popup.appendChild(btn);
+      });
+
+      div.appendChild(popup);
+    }
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        const prefix = file.type.startsWith("image/") ? "[img]" : "[file]";
+        socket.emit("private-message", { room, sender, text: prefix + reader.result });
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function startVoice() {
+      const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      rec.lang = "en-IN";
+      rec.start();
+      rec.onresult = e => {
+        msgInput.value = e.results[0][0].transcript;
+        sendMsg();
+      };
+    }
+
+    socket.emit("set_name", sender);
+    socket.emit("join-room", room);
+    socket.on("private-message", ({ sender, text }) => {
+      addMessage(sender, text);
+    });
+
+    msgInput.addEventListener("input", () => {
+      socket.emit("typing", sender);
+    });
+
+    socket.on("typing", name => {
+      typingDiv.innerText = `${name} is typing...`;
+      setTimeout(() => typingDiv.innerText = "", 2000);
+    });
+
+    loadOldMessages();
+  </script></body>
 </html>
