@@ -1,4 +1,4 @@
-// ✅ FINAL MONGO-READY BACKEND (server.js) WITH FRIEND SYSTEM
+// ✅ FINAL MONGO-READY BACKEND (server.js) WITH PRIVATE CHAT PERSISTENCE
 import express from 'express';
 import cors from 'cors';
 import { Server } from 'socket.io';
@@ -11,18 +11,18 @@ import fetch from 'node-fetch';
 import dotenv from 'dotenv';
 dotenv.config();
 
-// 📁 Setup path
+// 📁 Path setup
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// ⚙️ Express app and server
+// ⚙️ Express + HTTP + Socket.io
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: { origin: '*', methods: ['GET', 'POST'] }
 });
 
-// 🧩 Middleware
+// 🔧 Middleware
 app.use(cors());
 app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
@@ -35,8 +35,9 @@ const client = new MongoClient(uri, {
   useNewUrlParser: true,
   useUnifiedTopology: true
 });
+
 const dbName = 'ChatDB';
-let userCollection, historyCollection, requestCollection, friendCollection;
+let userCollection, historyCollection, requestCollection, friendCollection, privateMsgCollection;
 
 client.connect().then(() => {
   const db = client.db(dbName);
@@ -44,10 +45,16 @@ client.connect().then(() => {
   historyCollection = db.collection('bot_history');
   requestCollection = db.collection('friend_requests');
   friendCollection = db.collection('friends');
+  privateMsgCollection = db.collection('privateMessages'); // ✅ NEW
   console.log('✅ MongoDB Connected');
 }).catch(err => console.error('❌ Mongo Connection Error:', err));
 
-// 🤖 Gemini API
+// 🔐 UID generator
+function generateUID() {
+  return Math.floor(100000 + Math.random() * 900000).toString();
+}
+
+// 🤖 Gemini Bot Reply (Short Hinglish)
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 async function generateBotReply(prompt) {
   try {
@@ -55,9 +62,7 @@ async function generateBotReply(prompt) {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        contents: [{
-          parts: [{ text: `Reply in short Hinglish. ${prompt}` }]
-        }]
+        contents: [{ parts: [{ text: `Reply in short Hinglish. ${prompt}` }] }]
       })
     });
     const data = await res.json();
@@ -68,24 +73,15 @@ async function generateBotReply(prompt) {
   }
 }
 
-// 🔐 Generate UID (6-digit)
-function generateUID() {
-  return Math.floor(100000 + Math.random() * 900000).toString();
-}
-
 // 🌐 Routes
-
-// 🏠 Home Route
 app.get('/', (req, res) => {
   res.sendFile(path.join(__dirname, 'public', 'login.html'));
 });
 
-// 🔐 Register
 app.post('/register', async (req, res) => {
   try {
     const { name, email, password } = req.body;
-    if (!name || !email || !password)
-      return res.status(400).send("Fill all fields");
+    if (!name || !email || !password) return res.status(400).send("Fill all fields");
 
     const exist = await userCollection.findOne({ $or: [{ email }, { name }] });
     if (exist) return res.status(400).send("User already exists");
@@ -99,7 +95,6 @@ app.post('/register', async (req, res) => {
   }
 });
 
-// 🔓 Login
 app.post('/login', async (req, res) => {
   try {
     let email, password;
@@ -120,7 +115,6 @@ app.post('/login', async (req, res) => {
   }
 });
 
-// ❌ Delete Account
 app.post("/delete-account", async (req, res) => {
   try {
     const { email } = req.body;
@@ -138,7 +132,6 @@ app.post("/delete-account", async (req, res) => {
   }
 });
 
-// 📜 Bot History
 app.get("/bot-history", async (req, res) => {
   try {
     const name = req.query.name;
@@ -150,7 +143,6 @@ app.get("/bot-history", async (req, res) => {
   }
 });
 
-// 🔍 Get all users (for UID search)
 app.get("/get-users", async (req, res) => {
   try {
     const users = await userCollection.find().toArray();
@@ -161,7 +153,7 @@ app.get("/get-users", async (req, res) => {
   }
 });
 
-// 👥 Friend Request Routes
+// 📨 Friend Request System
 app.post("/send-request", async (req, res) => {
   const { fromUid, toUid } = req.body;
   const toUser = await userCollection.findOne({ uid: toUid });
@@ -207,7 +199,19 @@ app.get("/get-friends", async (req, res) => {
   res.json(result);
 });
 
-// 💬 Socket.IO Logic
+// ✅ GET Saved Private Chat
+app.get("/get-room-messages", async (req, res) => {
+  try {
+    const { room } = req.query;
+    const messages = await privateMsgCollection.find({ room }).sort({ timestamp: 1 }).toArray();
+    res.json(messages);
+  } catch (e) {
+    console.error("❌ Message Fetch Error:", e);
+    res.status(500).send("Error loading messages");
+  }
+});
+
+// 🧠 Socket.IO Logic
 const users = {};
 let botActive = false;
 
@@ -216,6 +220,16 @@ io.on("connection", socket => {
 
   socket.on("set_name", data => {
     users[socket.id] = typeof data === 'object' ? data.name : data;
+  });
+
+  socket.on("typing", name => {
+    socket.broadcast.emit("typing", name);
+  });
+
+  socket.on("join-room", room => {
+    socket.join(room);
+    const name = users[socket.id] || "User";
+    socket.to(room).emit("room-joined", name);
   });
 
   socket.on("message", async text => {
@@ -227,6 +241,7 @@ io.on("connection", socket => {
       io.emit("message", { sender: "System", text: "Bot is now active." });
       return;
     }
+
     if (text === "<<bot") {
       botActive = false;
       io.emit("message", { sender: "System", text: "Bot is now inactive." });
@@ -241,30 +256,17 @@ io.on("connection", socket => {
     }
   });
 
-  socket.on("typing", name => {
-    socket.broadcast.emit("typing", name);
-  });
-
-  socket.on("join-room", room => {
-    socket.join(room);
-    const name = users[socket.id] || "User";
-    socket.to(room).emit("room-joined", name);
-  });
-
-  socket.on("private-message", async data => {
-    const { room, sender, text } = data;
+  socket.on("private-message", async ({ room, sender, text }) => {
     io.to(room).emit("private-message", { sender, text });
 
-    if (text === ">>bot" && !botActive) {
-      botActive = true;
-      io.to(room).emit("private-message", { sender: "System", text: "Bot activated in room." });
-      return;
-    }
+    // ✅ Save to MongoDB
+    await privateMsgCollection.insertOne({ room, sender, text, timestamp: new Date() });
 
     if (botActive && text.toLowerCase().includes("bot")) {
       const prompt = text.replace(/bot/gi, "").trim();
       const reply = await generateBotReply(prompt);
       io.to(room).emit("private-message", { sender: "BotX", text: reply });
+      await historyCollection.insertOne({ name: sender, prompt, reply });
     }
   });
 
@@ -274,7 +276,7 @@ io.on("connection", socket => {
   });
 });
 
-// 🚀 Start
+// 🚀 Start Server
 const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
