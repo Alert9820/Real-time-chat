@@ -426,7 +426,7 @@
   <div class="toast" id="toast"></div>
 
   
-    <script>
+<script>
   const profilePopup = document.getElementById("profilePopup");
   const dp = document.getElementById("dp");
   const popupDp = document.getElementById("popupDp");
@@ -481,25 +481,19 @@
     const email = document.getElementById("userEmail").value.trim();
     const bio = document.getElementById("userBio").value.trim();
 
-    // Generate UID if not exists
-    let uid = localStorage.getItem("userUid");
-    if (!uid) {
-      uid = "USER" + Math.floor(Math.random() * 1000000);
-      localStorage.setItem("userUid", uid);
-    }
-
     if (!name) {
       showToast("Please enter your name", "error");
       return;
     }
 
-    // Save all user data
+    // Save all user data (but UID signup ke time already set hai)
     localStorage.setItem("userName", name);
     localStorage.setItem("userEmail", email);
     localStorage.setItem("userBio", bio);
 
-    // Update UI
+    const uid = localStorage.getItem("userUid"); // 🔑 Stored UID fetch karna
     updateUserInfo(name, uid);
+
     profilePopup.classList.remove("active");
     showToast("Profile saved successfully", "success");
   }
@@ -507,16 +501,12 @@
   // ✅ Update user info in UI
   function updateUserInfo(name, uid) {
     welcomeText.innerText = `Welcome, ${name || "User"}!`;
-    uidDisplay.innerText = `Your UID: ${uid}`;
+    uidDisplay.innerText = `Your UID: ${uid || "N/A"}`;
   }
 
   // ✅ Delete Account
   function deleteAccount() {
-    if (
-      confirm(
-        "Are you sure you want to delete your account? This cannot be undone."
-      )
-    ) {
+    if (confirm("Are you sure you want to delete your account? This cannot be undone.")) {
       localStorage.clear();
       showToast("Account deleted successfully", "success");
       setTimeout(() => {
@@ -527,9 +517,7 @@
 
   // ✅ Show Toast Notification
   function showToast(message, type = "success") {
-    toast.innerHTML = `<i class="fas fa-${
-      type === "success" ? "check-circle" : "exclamation-circle"
-    }"></i> ${message}`;
+    toast.innerHTML = `<i class="fas fa-${type === "success" ? "check-circle" : "exclamation-circle"}"></i> ${message}`;
     toast.className = `toast ${type === "error" ? "error" : ""} show`;
 
     setTimeout(() => {
@@ -552,22 +540,13 @@
     }
 
     const userName = localStorage.getItem("userName") || "User";
-    let userUid = localStorage.getItem("userUid");
-
-    // Generate UID if not exists
-    if (!userUid) {
-      userUid = "USER" + Math.floor(Math.random() * 1000000);
-      localStorage.setItem("userUid", userUid);
-    }
-
+    const userUid = localStorage.getItem("userUid"); // 🔑 MongoDB signup se mila UID
     const userDp = localStorage.getItem("userDp") || "default.png";
 
     // Set values in form
     document.getElementById("userName").value = userName;
-    document.getElementById("userEmail").value =
-      localStorage.getItem("userEmail") || "";
-    document.getElementById("userBio").value =
-      localStorage.getItem("userBio") || "";
+    document.getElementById("userEmail").value = localStorage.getItem("userEmail") || "";
+    document.getElementById("userBio").value = localStorage.getItem("userBio") || "";
 
     // Update UI
     updateUserInfo(userName, userUid);
@@ -588,6 +567,6 @@
       profilePopup.classList.remove("active");
     }
   });
-    </script>
+</script>
 </body>
 </html>
