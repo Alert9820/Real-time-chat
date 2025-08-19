@@ -425,157 +425,169 @@
   <!-- Toast Notification -->
   <div class="toast" id="toast"></div>
 
-  <script>
-    // DOM Elements
-    const profilePopup = document.getElementById("profilePopup");
-    const dp = document.getElementById("dp");
-    const popupDp = document.getElementById("popupDp");
-    const dpInput = document.getElementById("dpInput");
-    const statusIndicator = document.getElementById("statusIndicator");
-    const toast = document.getElementById("toast");
-    const welcomeText = document.getElementById("welcome");
-    const uidDisplay = document.getElementById("uidDisplay");
+  
+    <script>
+  const profilePopup = document.getElementById("profilePopup");
+  const dp = document.getElementById("dp");
+  const popupDp = document.getElementById("popupDp");
+  const dpInput = document.getElementById("dpInput");
+  const statusIndicator = document.getElementById("statusIndicator");
+  const toast = document.getElementById("toast");
+  const welcomeText = document.getElementById("welcome");
+  const uidDisplay = document.getElementById("uidDisplay");
 
-    // Toggle Profile Popup
-    function toggleProfile() {
-      profilePopup.classList.toggle("active");
-    }
+  // ✅ Toggle Profile Popup
+  function toggleProfile() {
+    profilePopup.classList.toggle("active");
+  }
 
-    // Logout Function
-    function logout() {
-      localStorage.clear();
-      showToast("Logged out successfully", "success");
-      setTimeout(() => {
-        window.location.href = "/login.html";
-      }, 1000);
-    }
+  // ✅ Logout Function
+  function logout() {
+    localStorage.clear();
+    showToast("Logged out successfully", "success");
+    setTimeout(() => {
+      window.location.href = "/login.html";
+    }, 1000);
+  }
 
-    // Profile Picture Upload
-    dpInput.onchange = function() {
-      const file = this.files[0];
-      if (file) {
-        if (file.size > 2 * 1024 * 1024) {
-          showToast("Image size should be less than 2MB", "error");
-          return;
-        }
-        
-        const reader = new FileReader();
-        reader.onload = () => {
-          localStorage.setItem("userDp", reader.result);
-          updateProfilePicture(reader.result);
-          showToast("Profile picture updated", "success");
-        };
-        reader.readAsDataURL(file);
-      }
-    };
-
-    // Update profile picture everywhere
-    function updateProfilePicture(imageSrc) {
-      dp.src = imageSrc;
-      popupDp.src = imageSrc;
-    }
-
-    // Save Profile
-    function saveProfile() {
-      const name = document.getElementById("userName").value.trim();
-      const email = document.getElementById("userEmail").value.trim();
-      const bio = document.getElementById("userBio").value.trim();
-      
-      // Generate UID if not exists
-      let uid = localStorage.getItem("userUid");
-      if (!uid) {
-        uid = "USER" + Math.floor(Math.random() * 1000000);
-        localStorage.setItem("userUid", uid);
-      }
-
-      if (!name) {
-        showToast("Please enter your name", "error");
+  // ✅ Profile Picture Upload
+  dpInput.onchange = function () {
+    const file = this.files[0];
+    if (file) {
+      if (file.size > 2 * 1024 * 1024) {
+        showToast("Image size should be less than 2MB", "error");
         return;
       }
 
-      // Save all user data
-      localStorage.setItem("userName", name);
-      localStorage.setItem("userEmail", email);
-      localStorage.setItem("userBio", bio);
-      
-      // Update UI
-      updateUserInfo(name, uid);
+      const reader = new FileReader();
+      reader.onload = () => {
+        localStorage.setItem("userDp", reader.result);
+        updateProfilePicture(reader.result);
+        showToast("Profile picture updated", "success");
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  // ✅ Update profile picture everywhere
+  function updateProfilePicture(imageSrc) {
+    dp.src = imageSrc;
+    popupDp.src = imageSrc;
+  }
+
+  // ✅ Save Profile
+  function saveProfile() {
+    const name = document.getElementById("userName").value.trim();
+    const email = document.getElementById("userEmail").value.trim();
+    const bio = document.getElementById("userBio").value.trim();
+
+    // Generate UID if not exists
+    let uid = localStorage.getItem("userUid");
+    if (!uid) {
+      uid = "USER" + Math.floor(Math.random() * 1000000);
+      localStorage.setItem("userUid", uid);
+    }
+
+    if (!name) {
+      showToast("Please enter your name", "error");
+      return;
+    }
+
+    // Save all user data
+    localStorage.setItem("userName", name);
+    localStorage.setItem("userEmail", email);
+    localStorage.setItem("userBio", bio);
+
+    // Update UI
+    updateUserInfo(name, uid);
+    profilePopup.classList.remove("active");
+    showToast("Profile saved successfully", "success");
+  }
+
+  // ✅ Update user info in UI
+  function updateUserInfo(name, uid) {
+    welcomeText.innerText = `Welcome, ${name || "User"}!`;
+    uidDisplay.innerText = `Your UID: ${uid}`;
+  }
+
+  // ✅ Delete Account
+  function deleteAccount() {
+    if (
+      confirm(
+        "Are you sure you want to delete your account? This cannot be undone."
+      )
+    ) {
+      localStorage.clear();
+      showToast("Account deleted successfully", "success");
+      setTimeout(() => {
+        window.location.href = "/login.html";
+      }, 1500);
+    }
+  }
+
+  // ✅ Show Toast Notification
+  function showToast(message, type = "success") {
+    toast.innerHTML = `<i class="fas fa-${
+      type === "success" ? "check-circle" : "exclamation-circle"
+    }"></i> ${message}`;
+    toast.className = `toast ${type === "error" ? "error" : ""} show`;
+
+    setTimeout(() => {
+      toast.classList.remove("show");
+    }, 3000);
+  }
+
+  // ✅ Simulate Connection Status
+  function updateConnectionStatus() {
+    statusIndicator.style.backgroundColor = "var(--success)";
+    statusIndicator.style.boxShadow = "0 0 10px var(--success)";
+  }
+
+  // ✅ Load user info when page loads
+  document.addEventListener("DOMContentLoaded", () => {
+    // Agar user data hi nahi hai toh redirect
+    if (!localStorage.getItem("userName")) {
+      window.location.href = "/login.html";
+      return;
+    }
+
+    const userName = localStorage.getItem("userName") || "User";
+    let userUid = localStorage.getItem("userUid");
+
+    // Generate UID if not exists
+    if (!userUid) {
+      userUid = "USER" + Math.floor(Math.random() * 1000000);
+      localStorage.setItem("userUid", userUid);
+    }
+
+    const userDp = localStorage.getItem("userDp") || "default.png";
+
+    // Set values in form
+    document.getElementById("userName").value = userName;
+    document.getElementById("userEmail").value =
+      localStorage.getItem("userEmail") || "";
+    document.getElementById("userBio").value =
+      localStorage.getItem("userBio") || "";
+
+    // Update UI
+    updateUserInfo(userName, userUid);
+    updateProfilePicture(userDp);
+
+    // Initialize status indicator
+    updateConnectionStatus();
+
+    // Welcome toast
+    setTimeout(() => {
+      showToast(`Welcome back, ${userName}!`, "success");
+    }, 1000);
+  });
+
+  // ✅ Close popup when clicking outside
+  document.addEventListener("click", (e) => {
+    if (!e.target.closest("#profilePopup") && !e.target.closest("#dp")) {
       profilePopup.classList.remove("active");
-      showToast("Profile saved successfully", "success");
     }
-
-    // Update user info in UI
-    function updateUserInfo(name, uid) {
-      welcomeText.innerText = `Welcome, ${name || "User"}!`;
-      uidDisplay.innerText = `Your UID: ${uid}`;
-    }
-
-    // Delete Account
-    function deleteAccount() {
-      if (confirm("Are you sure you want to delete your account? This cannot be undone.")) {
-        localStorage.clear();
-        showToast("Account deleted successfully", "success");
-        setTimeout(() => {
-          window.location.href = "/login.html";
-        }, 1500);
-      }
-    }
-
-    // Show Toast Notification
-    function showToast(message, type = "success") {
-      toast.innerHTML = `<i class="fas fa-${type === "success" ? "check-circle" : "exclamation-circle"}"></i> ${message}`;
-      toast.className = `toast ${type === "error" ? "error" : ""} show`;
-      
-      setTimeout(() => {
-        toast.classList.remove("show");
-      }, 3000);
-    }
-
-    // Simulate Connection Status
-    function updateConnectionStatus() {
-      statusIndicator.style.backgroundColor = "var(--success)";
-      statusIndicator.style.boxShadow = "0 0 10px var(--success)";
-    }
-
-    // Load user info when page loads
-    document.addEventListener("DOMContentLoaded", () => {
-      // Load user data from localStorage
-      const userName = localStorage.getItem("userName") || "User";
-      let userUid = localStorage.getItem("userUid");
-      
-      // Generate UID if not exists
-      if (!userUid) {
-        userUid = "USER" + Math.floor(Math.random() * 1000000);
-        localStorage.setItem("userUid", userUid);
-      }
-      
-      // Load profile picture
-      const userDp = localStorage.getItem("userDp") || "default.png";
-      
-      // Set values in form
-      document.getElementById("userName").value = userName;
-      document.getElementById("userEmail").value = localStorage.getItem("userEmail") || "";
-      document.getElementById("userBio").value = localStorage.getItem("userBio") || "";
-      
-      // Update UI
-      updateUserInfo(userName, userUid);
-      updateProfilePicture(userDp);
-      
-      // Initialize status indicator
-      updateConnectionStatus();
-      
-      // Show welcome toast
-      setTimeout(() => {
-        showToast(`Welcome back, ${userName}!`, "success");
-      }, 1000);
-    });
-
-    // Close popup when clicking outside
-    document.addEventListener("click", (e) => {
-      if (!e.target.closest("#profilePopup") && !e.target.closest("#dp")) {
-        profilePopup.classList.remove("active");
-      }
-    });
-  </script>
+  });
+    </script>
 </body>
 </html>
