@@ -1,271 +1,239 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/> 
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>BotX Assistant</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Poppins', sans-serif;
-      background: #0f0f0f;
-      color: #fff;
-      height: 100vh;
-      display: flex;
+    :root {
+      --primary: #6cf;
+      --primary-dark: #4aa8ff;
+      --bg-dark: #0f0f0f;
+      --card-bg: #1c1c1c;
+      --text-light: #aaa;
+      --text-lighter: #ddd;
+      --success: #6bff6b;
+      --secondary: #ff6b6b;
     }
-    .sidebar {
-      width: 230px;
-      background: #121212;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
-      transition: transform 0.3s ease;
-      position: fixed;
-      left: 0;
-      top: 0;
-      bottom: 0;
-      z-index: 10;
+    *{margin:0;padding:0;box-sizing:border-box}
+    body{font-family:'Poppins',sans-serif;background:var(--bg-dark);color:#fff;min-height:100vh;overflow-x:hidden}
+
+    /* Topbar */
+    .topbar{
+      background:rgba(18,18,18,0.9);
+      display:flex;justify-content:space-between;align-items:center;
+      padding:15px 30px;position:fixed;top:0;left:0;width:100%;
+      z-index:100;backdrop-filter:blur(10px);
+      box-shadow:0 2px 20px rgba(0,0,0,0.3);
     }
-    .sidebar.hide {
-      transform: translateX(-100%);
+    .topbar h2{
+      background:linear-gradient(90deg,var(--primary),var(--success));
+      -webkit-background-clip:text;
+      color:transparent;font-weight:600;font-size:1.5rem;
     }
-    .sidebar .close-btn {
-      font-size: 22px;
-      color: #f66;
-      cursor: pointer;
-      margin-bottom: 20px;
-      align-self: flex-end;
+    .clear-btn{
+      background:var(--secondary);color:#fff;
+      padding:6px 12px;border:none;border-radius:8px;
+      font-size:14px;cursor:pointer;
     }
-    .sidebar a {
-      text-decoration: none;
-      color: #6cf;
-      font-weight: bold;
+    .clear-btn:hover{background:#ff4040;}
+
+    /* Chat Area */
+    .chat-container{
+      padding:100px 20px 90px;
+      display:flex;flex-direction:column;
+      height:100vh;
     }
-    .main {
-      margin-left: 230px;
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      height: 100vh;
+    #chat-box{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:15px}
+
+    .msg{max-width:75%;padding:12px 16px;border-radius:15px;
+      font-size:15px;line-height:1.5;position:relative;white-space:pre-wrap}
+    .me{align-self:flex-end;background:linear-gradient(to right,var(--primary),var(--primary-dark));color:#000;border-bottom-right-radius:0}
+    .bot{align-self:flex-start;background:var(--card-bg);color:var(--text-lighter);border-bottom-left-radius:0}
+
+    /* Code block */
+    .code-wrapper{
+      align-self:flex-start;max-width:85%;
+      display:flex;flex-direction:column;gap:5px;
     }
-    .topbar {
-      background: #111;
-      padding: 15px 20px;
-      display: flex;
-      justify-content: space-between;
-      align-items: center;
+    .code-label{
+      font-size:13px;color:var(--primary);margin-left:5px;
     }
-    .topbar .toggle {
-      font-size: 24px;
-      cursor: pointer;
-      color: #6cf;
+    .code-container{
+      position:relative;
+      background:rgba(20,20,20,0.95);
+      border:1px solid var(--primary);
+      padding:12px;border-radius:10px;
+      font-family:monospace;white-space:pre-wrap;
+      overflow-x:auto;color:var(--success);
     }
-    #chat-box {
-      flex: 1;
-      overflow-y: auto;
-      padding: 20px;
-      display: flex;
-      flex-direction: column;
-      gap: 15px;
+    .copy-btn{
+      position:absolute;top:8px;right:10px;font-size:12px;
+      background:rgba(68,68,68,0.8);color:#fff;
+      padding:4px 8px;border-radius:5px;cursor:pointer;
     }
-    .msg {
-      max-width: 75%;
-      padding: 10px 15px;
-      border-radius: 15px;
-      font-size: 15px;
-      line-height: 1.5;
-      animation: slideIn 0.3s ease;
-      position: relative;
-      white-space: pre-wrap;
+    .copy-btn:hover{background:var(--primary);color:#000}
+
+    /* Input area */
+    .input-area{
+      display:flex;gap:10px;align-items:center;
+      padding:12px 15px;background:rgba(17,17,17,0.95);
+      position:fixed;bottom:0;left:0;right:0;
+      border-top:1px solid rgba(108,255,255,0.1);
     }
-    .me {
-      align-self: flex-end;
-      background: linear-gradient(to right, #6cf, #3cf);
-      color: #000;
-      border-bottom-right-radius: 0;
+    .input-area input[type="file"]{display:none}
+    .input-area label{
+      background:var(--primary);color:#000;padding:12px;
+      border-radius:10px;cursor:pointer;
+      display:flex;align-items:center;justify-content:center;
     }
-    .bot {
-      align-self: flex-start;
-      background: #222;
-      color: #fff;
-      border-bottom-left-radius: 0;
+    .input-area input[type="text"]{
+      flex:1;padding:12px 15px;font-size:15px;
+      border:none;border-radius:10px;
+      background:rgba(34,34,34,0.8);color:#fff;
     }
-    .input-area {
-      display: flex;
-      padding: 10px 20px;
-      gap: 10px;
-      background: #111;
-      align-items: center;
-    }
-    .input-area input[type="text"] {
-      flex: 1;
-      padding: 12px;
-      font-size: 15px;
-      border: none;
-      border-radius: 10px;
-      background: #222;
-      color: #fff;
-    }
-    .input-area button {
-      background: #6cf;
-      color: #000;
-      padding: 10px 14px;
-      font-weight: bold;
-      border: none;
-      border-radius: 10px;
-      cursor: pointer;
-    }
-    .copy-btn {
-      position: absolute;
-      top: 8px;
-      right: 10px;
-      font-size: 12px;
-      background: #444;
-      color: #fff;
-      padding: 4px 8px;
-      border-radius: 5px;
-      cursor: pointer;
-    }
-    pre {
-      background: #111;
-      padding: 10px;
-      border-radius: 10px;
-      overflow-x: auto;
-      color: #0f0;
-      font-family: monospace;
-    }
-    @keyframes slideIn {
-      from { transform: translateY(10px); opacity: 0; }
-      to { transform: translateY(0); opacity: 1; }
-    }
-    @media (max-width: 768px) {
-      .main { margin-left: 0; }
-      .sidebar { position: fixed; height: 100%; }
+    .input-area button{
+      background:var(--primary);color:#000;padding:12px 20px;
+      font-weight:600;border:none;border-radius:10px;cursor:pointer;
+      display:flex;align-items:center;gap:8px;
     }
   </style>
 </head>
 <body>
-  <div class="sidebar hide" id="sidebar">
-    <div class="close-btn" onclick="toggleSidebar()">×</div>
-    <a href="/dashboard.html">Dashboard</a>
-    <a href="/home.html">Bot Chat</a>
-    <a href="/chatroom.html">Chat Room</a>
-    <a href="/privatechat.html">Private Chat</a>
-    <a href="/history.html">Bot History</a>
-    <a href="/friends.html">Friends</a>
-    <a href="/login.html" onclick="logout()">Logout</a>
+  <!-- Topbar -->
+  <div class="topbar">
+    <h2>BotX Assistant</h2>
+    <button class="clear-btn" onclick="clearChat()">Clear Chat</button>
   </div>
-  <div class="main">
-    <div class="topbar">
-      <span class="toggle" onclick="toggleSidebar()">☰</span>
-      <h2>BotX Assistant</h2>
-    </div>
+
+  <!-- Chat -->
+  <div class="chat-container">
     <div id="chat-box"></div>
-    <div class="input-area">
-      <input type="text" id="msgInput" placeholder="Type a message..." onkeydown="if(event.key==='Enter') sendMessage()" />
-      <button onclick="sendMessage()">Send</button>
-    </div>
   </div>
 
-  <script>
-    const API_KEY = "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA";
-    const modelUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${API_KEY}`;
-    let memory = [];
+  <!-- Input -->
+  <div class="input-area">
+    <label for="fileInput"><i class="fas fa-paperclip"></i></label>
+    <input type="file" id="fileInput">
+    <input type="text" id="msgInput" placeholder="Type your message..." onkeydown="if(event.key==='Enter') sendMessage()">
+    <button onclick="sendMessage()"><i class="fas fa-paper-plane"></i> Send</button>
+  </div>
 
-    function toggleSidebar() {
-      document.getElementById('sidebar').classList.toggle('hide');
+  <!-- Gemini SDK -->
+  <script type="module">
+    import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
+
+    const API_KEY = "AIzaSyDdyDb0WR7cJBwT6Zj4Kbu9mV_f80Fy-zA"; 
+    const ai = new GoogleGenerativeAI(API_KEY);
+
+    let memory = JSON.parse(localStorage.getItem("chatMemory") || "[]");
+    const chatBox=document.getElementById("chat-box");
+    const msgInput=document.getElementById("msgInput");
+
+    // Normal msg
+    function appendMessage(sender,content,cls){
+      const msg=document.createElement("div");
+      msg.className=`msg ${cls}`;
+      msg.textContent=`${sender}: ${content}`;
+      chatBox.appendChild(msg);
+      chatBox.scrollTop=chatBox.scrollHeight;
     }
 
-    function logout() {
-      localStorage.removeItem("user");
+    // Code msg with separate container
+    function appendCode(content){
+      const wrap=document.createElement("div");
+      wrap.className="code-wrapper";
+
+      const label=document.createElement("div");
+      label.className="code-label";
+      label.innerText="💻 BotX shared code:";
+
+      const box=document.createElement("div");
+      box.className="code-container";
+      box.textContent=content;
+
+      const btn=document.createElement("div");
+      btn.className="copy-btn";btn.innerText="Copy";
+      btn.onclick=()=>{navigator.clipboard.writeText(content);btn.innerText="Copied!";setTimeout(()=>btn.innerText="Copy",1500);};
+
+      box.appendChild(btn);
+      wrap.appendChild(label);
+      wrap.appendChild(box);
+
+      chatBox.appendChild(wrap);
+      chatBox.scrollTop=chatBox.scrollHeight;
     }
 
-    function appendMessage(sender, content, cls, isPre = false) {
-      const msg = document.createElement("div");
-      msg.className = `msg ${cls}`;
-      if (isPre) {
-        const pre = document.createElement("pre");
-        pre.textContent = content;
-        const copyBtn = document.createElement("div");
-        copyBtn.className = "copy-btn";
-        copyBtn.innerText = "Copy";
-        copyBtn.onclick = () => {
-          navigator.clipboard.writeText(content);
-          copyBtn.innerText = "Copied!";
-          setTimeout(() => copyBtn.innerText = "Copy", 1500);
-        };
-        msg.appendChild(pre);
-        msg.appendChild(copyBtn);
-      } else {
-        msg.innerHTML = `<span>${sender}: </span><span id="typing"></span>`;
-        typeEffect(msg.querySelector("#typing"), content);
-      }
-      document.getElementById("chat-box").appendChild(msg);
-      document.getElementById("chat-box").scrollTop = document.getElementById("chat-box").scrollHeight;
+    function saveMemory(){
+      localStorage.setItem("chatMemory",JSON.stringify(memory));
     }
 
-    function detectHindi(text) {
-      return /[\u0900-\u097F]/.test(text);
+    // Clear Chat
+    function clearChat(){
+      memory=[];
+      saveMemory();
+      chatBox.innerHTML="";
+      appendMessage("BotX","Chat cleared ✅","bot");
     }
 
-    function sendMessage() {
-      const input = document.getElementById("msgInput");
-      const message = input.value.trim();
-      if (!message) return;
+    // Send msg
+    async function sendMessage(){
+      const message=msgInput.value.trim();
+      if(!message) return;
 
-      appendMessage("You", message, "me");
-      memory.push(`User: ${message}`);
-      input.value = "";
+      appendMessage("You",message,"me");
+      memory.push({sender:"You",content:message,cls:"me"});
+      saveMemory();
+      msgInput.value="";
 
-      let langMode = detectHindi(message) ? "Hinglish" : "English";
-      let prompt;
+      const fullPrompt = memory.map(m => `${m.sender}: ${m.content}`).join("\n");
 
-      if (["hi", "hello", "hey", "hii", "hola"].some(g => message.toLowerCase().includes(g))) {
-        prompt = langMode === "Hinglish"
-          ? "Haan boliye kya madad chahiye?"
-          : "Hi there! How can I assist you today?";
-        appendMessage("BotX", prompt, "bot");
-        return;
-      }
+      try {
+        const model = ai.getGenerativeModel({ model: "gemini-2.5-flash" });
+        const result = await model.generateContent(fullPrompt);
+        let reply = result.response.text();
 
-      const systemPrompt = langMode === "Hinglish"
-        ? `Tum ek Hinglish AI ho. Tumhare jawab short, clear aur friendly hone chahiye. Jab user kuch technical ya code bole toh use ekdum clearly <pre> block ke andar do taki usko copy kiya ja sake.`
-        : `You are an English AI assistant. Your replies should be short, clear, and friendly. For code or structured data, always reply inside <pre> tags so it can be copied easily.`;
+        // agar <pre> aaya toh code block banao
+        if(reply.includes("<pre>")){
+          const code = reply.match(/<pre>([\s\S]*?)<\/pre>/)?.[1];
+          const rest = reply.replace(/<pre>[\s\S]*?<\/pre>/,"").trim();
 
-      fetch(modelUrl, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: `${systemPrompt}\n${memory.join('\n')}` }] }]
-        })
-      })
-      .then(res => res.json())
-      .then(data => {
-        const fullReply = data?.candidates?.[0]?.content?.parts?.[0]?.text || "Sorry, I couldn't understand.";
-        memory.push(`BotX: ${fullReply}`);
-
-        if (fullReply.includes("<pre>")) {
-          const code = fullReply.match(/<pre>([\s\S]*?)<\/pre>/)?.[1];
-          const rest = fullReply.replace(/<pre>[\s\S]*?<\/pre>/, "").trim();
-          if (rest) appendMessage("BotX", rest, "bot");
-          if (code) appendMessage("BotX", code, "bot", true);
+          if(rest){
+            appendMessage("BotX",rest,"bot");
+            memory.push({sender:"BotX",content:rest,cls:"bot"});
+          }
+          if(code){
+            appendCode(code);
+            memory.push({sender:"BotX",content:code,type:"code"});
+          }
         } else {
-          appendMessage("BotX", fullReply, "bot");
+          appendMessage("BotX",reply,"bot");
+          memory.push({sender:"BotX",content:reply,cls:"bot"});
         }
-      })
-      .catch(() => {
-        appendMessage("BotX", "Error while getting response.", "bot");
-      });
-    }
 
-    function typeEffect(element, text, i = 0) {
-      if (i < text.length) {
-        element.innerHTML += text.charAt(i);
-        setTimeout(() => typeEffect(element, text, i + 1), 20);
+        saveMemory();
+      } catch(err){
+        console.error(err);
+        appendMessage("BotX","⚠️ Error: "+err.message,"bot");
       }
     }
+
+    // Render chat on load
+    (function renderChat(){
+      chatBox.innerHTML="";
+      memory.forEach(m=>{
+        if(m.type==="code"){
+          appendCode(m.content);
+        }else{
+          appendMessage(m.sender,m.content,m.cls);
+        }
+      });
+    })();
+
+    window.sendMessage = sendMessage;
+    window.clearChat = clearChat;
   </script>
 </body>
 </html>
