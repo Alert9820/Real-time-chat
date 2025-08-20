@@ -491,7 +491,13 @@
     localStorage.setItem("userEmail", email);
     localStorage.setItem("userBio", bio);
 
-    const uid = localStorage.getItem("userUid"); // 🔑 Stored UID fetch karna
+    // 🔑 Ensure UID always available
+    let uid = localStorage.getItem("userUid");
+    if (!uid) {
+      uid = "UID-" + Date.now(); // fallback (agar kahin se na mila ho)
+      localStorage.setItem("userUid", uid);
+    }
+
     updateUserInfo(name, uid);
 
     profilePopup.classList.remove("active");
@@ -532,15 +538,16 @@
   }
 
   // ✅ Load user info when page loads
-//  document.addEventListener("DOMContentLoaded", () => {
-    // Agar user data hi nahi hai toh redirect
-    //if (!localStorage.getItem("userName")) {
-      //window.location.href = "/login.html";
-     // return;
-    //}
-
+  document.addEventListener("DOMContentLoaded", () => {
     const userName = localStorage.getItem("userName") || "User";
-    const userUid = localStorage.getItem("userUid"); // 🔑 MongoDB signup se mila UID
+    let userUid = localStorage.getItem("userUid"); 
+
+    // Agar UID kahin set nahi hai toh ek baar generate karke store kar do
+    if (!userUid) {
+      userUid = "UID-" + Date.now();
+      localStorage.setItem("userUid", userUid);
+    }
+
     const userDp = localStorage.getItem("userDp") || "default.png";
 
     // Set values in form
