@@ -426,7 +426,9 @@
   <div class="toast" id="toast"></div>
 
   
-<script>
+
+  <script>
+  // ------- DOM refs -------
   const profilePopup = document.getElementById("profilePopup");
   const dp = document.getElementById("dp");
   const popupDp = document.getElementById("popupDp");
@@ -436,144 +438,155 @@
   const welcomeText = document.getElementById("welcome");
   const uidDisplay = document.getElementById("uidDisplay");
 
-  // ✅ Toggle Profile Popup
-  function toggleProfile() {
-    profilePopup.classList.toggle("active");
-  }
+  const DEFAULT_DP = "default.png";
+  const DEFAULT_UID = "000000";
 
-  // ✅ Logout Function
-  function logout() {
-    localStorage.clear();
-    showToast("Logged out successfully", "success");
-    setTimeout(() => {
-      window.location.href = "/login.html";
-    }, 1000);
-  }
-
-  // ✅ Profile Picture Upload
-  dpInput.onchange = function () {
-    const file = this.files[0];
-    if (file) {
-      if (file.size > 2 * 1024 * 1024) {
-        showToast("Image size should be less than 2MB", "error");
-        return;
-      }
-
-      const reader = new FileReader();
-      reader.onload = () => {
-        localStorage.setItem("userDp", reader.result);
-        updateProfilePicture(reader.result);
-        showToast("Profile picture updated", "success");
-      };
-      reader.readAsDataURL(file);
-    }
+  // ------- helpers -------
+  const safeParse = (str) => {
+    try { return JSON.parse(str); } catch { return null; }
   };
 
-  // ✅ Update profile picture everywhere
-  function updateProfilePicture(imageSrc) {
-    dp.src = imageSrc;
-    popupDp.src = imageSrc;
-  }
+  const getUser = () => safeParse(localStorage.getItem("user")) || {};
+  const setUser = (u) => localStorage.setItem("user", JSON.stringify(u || {}));
 
-  // ✅ Save Profile
-  function saveProfile() {
-    const name = document.getElementById("userName").value.trim();
-    const email = document.getElementById("userEmail").value.trim();
-    const bio = document.getElementById("userBio").value.trim();
-
-    if (!name) {
-      showToast("Please enter your name", "error");
-      return;
-    }
-
-    // Save all user data (but UID signup ke time already set hai)
-    localStorage.setItem("userName", name);
-    localStorage.setItem("userEmail", email);
-    localStorage.setItem("userBio", bio);
-
-    // 🔑 Ensure UID always available
-    let uid = localStorage.getItem("userUid");
-    if (!uid) {
-      uid = "UID-" + Date.now(); // fallback (agar kahin se na mila ho)
-      localStorage.setItem("userUid", uid);
-    }
-
-    updateUserInfo(name, uid);
-
-    profilePopup.classList.remove("active");
-    showToast("Profile saved successfully", "success");
-  }
-
-  // ✅ Update user info in UI
-  function updateUserInfo(name, uid) {
-    welcomeText.innerText = `Welcome, ${name || "User"}!`;
-    uidDisplay.innerText = `Your UID: ${uid || "N/A"}`;
-  }
-
-  // ✅ Delete Account
-  function deleteAccount() {
-    if (confirm("Are you sure you want to delete your account? This cannot be undone.")) {
-      localStorage.clear();
-      showToast("Account deleted successfully", "success");
-      setTimeout(() => {
-        window.location.href = "/login.html";
-      }, 1500);
-    }
-  }
-
-  // ✅ Show Toast Notification
   function showToast(message, type = "success") {
     toast.innerHTML = `<i class="fas fa-${type === "success" ? "check-circle" : "exclamation-circle"}"></i> ${message}`;
     toast.className = `toast ${type === "error" ? "error" : ""} show`;
-
-    setTimeout(() => {
-      toast.classList.remove("show");
-    }, 3000);
+    setTimeout(() => toast.classList.remove("show"), 3000);
   }
 
-  // ✅ Simulate Connection Status
   function updateConnectionStatus() {
     statusIndicator.style.backgroundColor = "var(--success)";
     statusIndicator.style.boxShadow = "0 0 10px var(--success)";
   }
 
-  // ✅ Load user info when page loads
-  document.addEventListener("DOMContentLoaded", () => {
-    const userName = localStorage.getItem("userName") || "User";
-    let userUid = localStorage.getItem("userUid"); 
+  function updateUserInfo(name, uid) {
+    welcomeText.innerText = `Welcome, ${name || "User"}!`;
+    uidDisplay.innerText = `Your UID: ${uid || DEFAULT_UID}`;
+  }
 
-    // Agar UID kahin set nahi hai toh ek baar generate karke store kar do
-    if (!userUid) {
-      userUid = "UID-" + Date.now();
-      localStorage.setItem("userUid", userUid);
+  function updateProfilePicture(src) {
+    const finalSrc = src || DEFAULT_DP;
+    dp.src = finalSrc;
+    popupDp.src = finalSrc;
+  }
+
+  // ------- UI actions -------
+  function toggleProfile() {
+    profilePopup.classList.toggle("active");
+  }
+
+  function logout() {
+    // optional: sirf user ko clear karna safer hai
+    localStorage.removeItem("user");
+    showToast("Logged out successfully", "success");
+    // no redirect requirement mentioned; agar chaho to yahan redirect add kar sakte ho
+  }
+
+  function saveProfile() {
+    const name = (document.getElementById("userName").value || "").trim();
+    const email = (document.getElementById("userEmail").value || "").trim();
+    const bio = (document.getElementById("userBio").value || "").trim();
+
+    const user = getUser();
+    // UID ko preserve karo — missing ho to DEFAULT_UID set karo
+    user.uid = user.uid || DEFAULT_UID;
+    user.name = name || user.name || "User";
+    user.email = email || user.email || "";
+    user.bio = bio || user.bio || "";
+    user.dp = dp.src || user.dp || DEFAULT_DP;
+
+    setUser(user);
+    updateUserInfo(user.name, user.uid);
+    updateProfilePicture(user.dp);
+
+    profilePopup.classList.remove("active");
+    showToast("Profile saved successfully", "success");
+  }
+
+  function deleteAccount() {
+    if (confirm("Are you sure you want to delete your account? This cannot be undone.")) {
+      localStorage.removeItem("user");
+      // UI ko default state par lao
+      updateUserInfo("User", DEFAULT_UID);
+      updateProfilePicture(DEFAULT_DP);
+      // form clear
+      document.getElementById("userName").value = "";
+      document.getElementById("userEmail").value = "";
+      document.getElementById("userBio").value = "";
+      profilePopup.classList.remove("active");
+      showToast("Account deleted successfully", "success");
+      // NOTE: koi redirect nahi (tumhari requirement ke according)
+    }
+  }
+
+  // DP upload
+  dpInput.onchange = function () {
+    const file = this.files && this.files[0];
+    if (!file) return;
+
+    if (file.size > 2 * 1024 * 1024) {
+      showToast("Image size should be less than 2MB", "error");
+      return;
     }
 
-    const userDp = localStorage.getItem("userDp") || "default.png";
+    const reader = new FileReader();
+    reader.onload = () => {
+      const dataUrl = reader.result;
+      updateProfilePicture(dataUrl);
 
-    // Set values in form
-    document.getElementById("userName").value = userName;
-    document.getElementById("userEmail").value = localStorage.getItem("userEmail") || "";
-    document.getElementById("userBio").value = localStorage.getItem("userBio") || "";
+      const user = getUser();
+      user.dp = dataUrl;
+      // UID preserve
+      user.uid = user.uid || DEFAULT_UID;
+      setUser(user);
 
-    // Update UI
-    updateUserInfo(userName, userUid);
-    updateProfilePicture(userDp);
+      showToast("Profile picture updated", "success");
+    };
+    reader.readAsDataURL(file);
+  };
 
-    // Initialize status indicator
-    updateConnectionStatus();
-
-    // Welcome toast
-    setTimeout(() => {
-      showToast(`Welcome back, ${userName}!`, "success");
-    }, 1000);
-  });
-
-  // ✅ Close popup when clicking outside
+  // Outside click -> close popup
   document.addEventListener("click", (e) => {
     if (!e.target.closest("#profilePopup") && !e.target.closest("#dp")) {
       profilePopup.classList.remove("active");
     }
   });
-</script>
+
+  // ------- Init on load -------
+  (function init() {
+    const user = getUser();
+
+    // If no UID present, DO NOT redirect — show 000000
+    const uid = user.uid || DEFAULT_UID;
+    const name = user.name || "User";
+    const dpSrc = user.dp || DEFAULT_DP;
+
+    // Prefill form fields
+    document.getElementById("userName").value = user.name || "";
+    document.getElementById("userEmail").value = user.email || "";
+    document.getElementById("userBio").value = user.bio || "";
+
+    // Paint UI
+    updateUserInfo(name, uid);
+    updateProfilePicture(dpSrc);
+    updateConnectionStatus();
+
+    // Welcome toast (subtle)
+    setTimeout(() => showToast(`Welcome back, ${name}!`, "success"), 600);
+
+    // Ensure user object at least has uid saved for future
+    if (!user.uid) {
+      user.uid = DEFAULT_UID;
+      setUser(user);
+    }
+  })();
+
+  // Expose needed functions globally (for inline onclicks)
+  window.toggleProfile = toggleProfile;
+  window.saveProfile = saveProfile;
+  window.deleteAccount = deleteAccount;
+  window.logout = logout;
+  </script>
 </body>
 </html>
