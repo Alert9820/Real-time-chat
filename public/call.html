@@ -1,324 +1,635 @@
 <!doctype html>
 <html lang="en">
 <head>
-  <meta charset="utf-8" />
-  <meta name="viewport" content="width=device-width,initial-scale=1" />
-  <title>Calls — Voice (Frontend only)</title>
-  <style>
-    :root{--accent:#4f46e5}
-    body{font-family:Inter,Arial,Helvetica,sans-serif;margin:0;background:#f5f7fb;color:#111}
-    .wrap{display:flex;height:100vh}
-    .left{width:320px;background:#fff;border-right:1px solid #e6e9ef;padding:16px;box-sizing:border-box}
-    .right{flex:1;padding:20px}
-    h2{margin:0 0 10px 0;font-size:18px}
-    .row{display:flex;gap:8px;margin-bottom:10px}
-    input[type=text]{flex:1;padding:8px;border-radius:6px;border:1px solid #d6d9e6}
-    button{padding:8px 10px;border-radius:6px;border:none;background:var(--accent);color:#fff;cursor:pointer}
-    button.alt{background:#e6e9ef;color:#111}
-    .small{font-size:13px;color:#666}
-    .list{margin-top:12px}
-    .contact{display:flex;align-items:center;justify-content:space-between;padding:8px;border-radius:8px;border:1px solid #f0f2f7;margin-bottom:8px;background:#fff}
-    .leftcol{display:flex;align-items:center;gap:10px}
-    .avatar{width:40px;height:40px;border-radius:50%;background:#ddd}
-    .meta{line-height:1}
-    .name{font-weight:600}
-    .online{font-size:12px;color:green}
-    .offline{font-size:12px;color:#999}
-    .callbtn{background:#10b981;padding:6px 10px;border-radius:6px;border:none;color:#fff;cursor:pointer}
-    audio{display:block;margin-top:10px;width:100%}
-    .statusBox{margin-top:12px;padding:10px;background:#fff;border-radius:8px;border:1px solid #f0f2f7}
-  </style>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Calls — Voice (Web)</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{--bg:#f6f8fb;--card:#ffffff;--accent:#4f46e5;--muted:#6b7280;--success:#10b981}
+  *{box-sizing:border-box}
+  body{font-family:Inter,system-ui,Arial,sans-serif;background:var(--bg);margin:0;color:#0f172a}
+  .app{display:flex;min-height:100vh}
+  .sidebar{width:340px;padding:20px;background:var(--card);border-right:1px solid #e6e9ef}
+  .main{flex:1;padding:24px}
+  h1{font-size:20px;margin:0 0 10px 0}
+  .me {font-size:13px;color:var(--muted);margin-bottom:12px}
+  .controls{display:flex;gap:8px;margin-bottom:12px}
+  .search{flex:1;padding:8px;border-radius:10px;border:1px solid #e6e9ef}
+  button{background:var(--accent);color:#fff;border:none;padding:8px 12px;border-radius:10px;cursor:pointer}
+  .list{margin-top:8px}
+  .contact{display:flex;align-items:center;justify-content:space-between;padding:8px;border-radius:10px;border:1px solid #f0f2f7;margin-bottom:8px;background:#fff}
+  .leftcol{display:flex;align-items:center;gap:12px}
+  .avatar{width:44px;height:44px;border-radius:50%;background:#eef2ff;display:inline-block;flex-shrink:0;align-items:center;justify-content:center;display:flex;color:var(--accent);font-weight:600}
+  .meta{display:flex;flex-direction:column}
+  .name{font-weight:600}
+  .status{font-size:12px;color:var(--muted)}
+  .call-btn{background:linear-gradient(90deg,var(--success),#06b6a4);border-radius:8px;padding:8px 10px;border:none;color:#fff;cursor:pointer}
+  .call-btn[disabled]{opacity:.5;cursor:not-allowed}
+  .right-panel{max-width:760px;margin-left:24px}
+  .card{background:var(--card);padding:16px;border-radius:12px;border:1px solid #eef2ff}
+  .small{font-size:13px;color:var(--muted)}
+  audio{width:100%;margin-top:8px}
+  .controls-bottom{display:flex;gap:8px;margin-top:10px}
+  .alt{background:#f3f4f6;color:#111}
+  /* incoming modal */
+  .modal-backdrop{position:fixed;left:0;top:0;width:100%;height:100%;background:rgba(2,6,23,0.45);display:none;align-items:center;justify-content:center;z-index:9999}
+  .modal{background:var(--card);padding:18px;border-radius:12px;min-width:320px;max-width:420px;border:1px solid #e6e9ef;text-align:center}
+  .modal h3{margin:0 0 6px 0}
+  .modal p{margin:0 0 12px 0;color:var(--muted)}
+  .modal .btns{display:flex;gap:8px;justify-content:center}
+  .btn-accept{background:var(--accent);color:#fff;padding:8px 12px;border-radius:10px;border:none}
+  .btn-decline{background:#ef4444;color:#fff;padding:8px 12px;border-radius:10px;border:none}
+  .ringing-tag{display:inline-block;padding:6px 8px;border-radius:999px;background:#fff;border:1px dashed #dbeafe;color:#2563eb;font-weight:600;margin-left:8px}
+  /* responsive */
+  @media(max-width:900px){.app{flex-direction:column}.sidebar{width:100%}.right-panel{margin:16px}}
+</style>
 </head>
 <body>
-  <div class="wrap">
-    <div class="left">
-      <h2>📞 Calls</h2>
+<div class="app">
+  <div class="sidebar">
+    <h1>Calls</h1>
+    <div class="me small">You: <span id="meName">—</span> <span id="meUid" class="small" style="color:var(--muted)"></span></div>
 
-      <div class="row">
-        <input id="userIdInput" placeholder="Your UID (e.g. 358489)" />
-        <button id="loadBtn">Load</button>
-      </div>
-      <div class="small">Uses: <code>/get-friends?uid=...</code> & <code>/get-users</code></div>
-
-      <div class="list" id="contactsList">
-        <div class="small">No contacts loaded.</div>
-      </div>
+    <div class="controls">
+      <input id="searchInput" class="search" placeholder="Search friends..." />
+      <button id="refreshBtn" title="Refresh friends">⟳</button>
     </div>
 
-    <div class="right">
-      <h2>Call panel</h2>
-      <div class="small">Current UID: <span id="currentUid">none</span></div>
-
-      <div class="statusBox">
-        <div style="display:flex;gap:8px;margin-bottom:8px">
-          <button id="hangupBtn" class="alt" disabled>Hangup</button>
-          <button id="muteBtn" class="alt" disabled>Mute</button>
-        </div>
-
-        <div class="small">Local audio (muted on this element):</div>
-        <audio id="localAudio" autoplay muted></audio>
-
-        <div class="small" style="margin-top:10px">Remote audio:</div>
-        <audio id="remoteAudio" autoplay></audio>
-
-        <div id="callInfo" class="small" style="margin-top:10px">Not in call.</div>
-      </div>
+    <div class="small">Contacts</div>
+    <div class="list" id="contactsList">
+      <div class="small" style="padding:12px">Loading friends…</div>
     </div>
   </div>
 
-  <!-- Socket.io client (served by your server) -->
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    /**************************************************************************
-     * CONFIG (edit only these if needed)
-     **************************************************************************/
-    const CONTACTS_API = '/get-friends';   // expects ?uid=<uid> and returns [ { name, online }, ... ]
-    const USERS_API = '/get-users';        // returns all users [{ uid, name, ... }, ...]
-    const SIGNAL_VIA_PRIVATE_MESSAGE = true; // use server's private-message + join-room
-    // If your socket server is on different URL, set SOCKET_URL to string.
-    const SOCKET_URL = undefined; // undefined => same origin
+  <div class="main">
+    <div class="right-panel">
+      <div class="card">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <div style="font-weight:700">Call panel</div>
+            <div class="small" id="callState">Not in call</div>
+          </div>
+          <div>
+            <button id="hangupBtn" class="alt" disabled>Hangup</button>
+            <button id="muteBtn" class="alt" disabled>Mute</button>
+          </div>
+        </div>
 
-    /**************************************************************************
-     * STATE
-     **************************************************************************/
-    let socket = null;
-    let pc = null;
-    let localStream = null;
-    let currentUid = null;
-    let currentPeerUid = null;
-    const stunConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+        <div style="margin-top:12px">
+          <div class="small">Local (muted here):</div>
+          <audio id="localAudio" autoplay muted></audio>
 
-    /**************************************************************************
-     * UI helpers
-     **************************************************************************/
-    const $ = id => document.getElementById(id);
-    $('loadBtn').addEventListener('click', initLoad);
+          <div class="small" style="margin-top:10px">Remote:</div>
+          <audio id="remoteAudio" autoplay></audio>
+        </div>
+      </div>
 
-    async function initLoad(){
-      const uid = $('userIdInput').value.trim();
-      if(!uid) return alert('Enter your UID first');
-      currentUid = uid;
-      $('currentUid').textContent = currentUid;
-      $('contactsList').innerHTML = 'Loading...';
-      try{
-        const friends = await fetchContacts(currentUid);
-        const users = await fetchUsers();
-        renderContacts(friends, users);
-        ensureSocket();
-      }catch(e){
-        console.error(e);
-        $('contactsList').innerHTML = '<div class="small">Error loading contacts. Check console.</div>';
+      <div style="margin-top:14px" class="small">
+        Tips: Both users must have this page open for immediate ringing. If you convert to mobile app later, integrate push (FCM / VoIP) so calls ring when app is closed.
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- incoming modal -->
+<div id="incomingModal" class="modal-backdrop">
+  <div class="modal">
+    <h3 id="incomingTitle">Incoming call</h3>
+    <p id="incomingFrom">...</p>
+    <div style="margin-bottom:12px">
+      <span id="incomingTimer" class="small" style="color:var(--muted)">00:00</span>
+      <span class="ringing-tag">Ringing</span>
+    </div>
+    <div class="btns">
+      <button id="acceptBtn" class="btn-accept">Accept</button>
+      <button id="declineBtn" class="btn-decline">Decline</button>
+    </div>
+  </div>
+</div>
+
+<!-- Ringtone (short audio file data URL) -->
+<audio id="ringtone" loop preload="auto">
+  <source src="data:audio/ogg;base64,T2dnUwACAAAAAAAAAABVDgAAAAAAAP//AAACAAACcQCAAAAAA" type="audio/ogg">
+  <!-- fallback beep will be generated if data URL invalid -->
+</audio>
+
+<script src="/socket.io/socket.io.js"></script>
+<script>
+/* ===========================
+   Config & small helpers
+   =========================== */
+const CONTACTS_API = '/get-friends';
+const USERS_API = '/get-users';
+const SIGNAL_VIA_PRIVATE_MESSAGE = true; // we use existing server's private-message channel
+const RING_TIMEOUT_MS = 30000; // auto-decline after 30s
+const ICE_CONFIG = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }; // add TURN here when ready
+
+const $ = id => document.getElementById(id);
+
+/* ===========================
+   App state
+   =========================== */
+let socket = null;
+let me = { uid: null, name: null };
+let usersCache = []; // from /get-users
+let contacts = [];   // from /get-friends
+let pc = null;
+let localStream = null;
+let currentPeerUid = null;
+let ringingTimer = null;
+let ringStartAt = null;
+let ringtoneAudio = $('ringtone');
+
+/* ===========================
+   Auto-detect current UID
+   =========================== */
+function detectCurrentUid() {
+  // Try several common injection points
+  if (window.__UID__) return window.__UID__;
+  if (window.CURRENT_USER_UID) return window.CURRENT_USER_UID;
+  if (window.CURRENT_USER && window.CURRENT_USER.uid) return window.CURRENT_USER.uid;
+  const ls = localStorage.getItem('uid') || sessionStorage.getItem('uid');
+  if (ls) return ls;
+  // cookie 'uid'
+  const cookieMatch = document.cookie.match(/(?:^|;\s*)uid=([^;]+)/);
+  if (cookieMatch) return decodeURIComponent(cookieMatch[1]);
+  return null;
+}
+
+/* Ask user if not auto-detected (will store to sessionStorage) */
+async function ensureMe() {
+  const uid = detectCurrentUid();
+  if (uid) {
+    me.uid = uid.toString();
+    // try to lookup name from /get-users later
+    return;
+  }
+  // Prompt user once
+  let answer = sessionStorage.getItem('asked-uid');
+  if (answer) {
+    // already asked before, ask again manually
+    me.uid = prompt('Enter your UID (used to auto-load friends):') || null;
+    if (me.uid) sessionStorage.setItem('uid', me.uid);
+    return;
+  }
+  const manual = prompt('Could not auto-detect your UID. Enter your UID (you can cancel):');
+  sessionStorage.setItem('asked-uid', '1');
+  if (manual) { me.uid = manual; sessionStorage.setItem('uid', manual); }
+}
+
+/* ===========================
+   Networking: fetch friends & users
+   =========================== */
+async function fetchUsers() {
+  try {
+    const res = await fetch(USERS_API, { credentials: 'include' });
+    if (!res.ok) throw new Error('fetch users failed');
+    usersCache = await res.json();
+  } catch (e) {
+    console.warn('Could not fetch /get-users', e);
+    usersCache = [];
+  }
+}
+
+async function fetchContacts() {
+  if (!me.uid) return;
+  try {
+    const res = await fetch(CONTACTS_API + '?uid=' + encodeURIComponent(me.uid), { credentials: 'include' });
+    if (!res.ok) throw new Error('fetch contacts failed');
+    contacts = await res.json();
+  } catch (e) {
+    console.warn('Could not fetch /get-friends', e);
+    contacts = [];
+  }
+}
+
+/* Resolve name -> uid mapping where possible */
+function nameToUid(name) {
+  if (!name) return null;
+  const lowered = name.toString().toLowerCase();
+  for (const u of usersCache) {
+    if (!u) continue;
+    if ((u.name || '').toString().toLowerCase() === lowered) return (u.uid || u.uid?.toString()) || null;
+  }
+  return null;
+}
+
+/* ===========================
+   UI: render contacts
+   =========================== */
+function renderContacts(filter='') {
+  const wrap = $('contactsList');
+  wrap.innerHTML = '';
+  if (!contacts || contacts.length === 0) {
+    wrap.innerHTML = '<div class="small" style="padding:12px">No friends found.</div>';
+    return;
+  }
+  const list = document.createElement('div');
+  contacts.forEach(f => {
+    const nm = f.name || f.uid || 'unknown';
+    if (filter && !nm.toLowerCase().includes(filter.toLowerCase())) return;
+    const row = document.createElement('div'); row.className = 'contact';
+    const left = document.createElement('div'); left.className = 'leftcol';
+    const avatar = document.createElement('div'); avatar.className='avatar'; avatar.textContent = nm.slice(0,2).toUpperCase();
+    const meta = document.createElement('div'); meta.className='meta';
+    const nameEl = document.createElement('div'); nameEl.className='name'; nameEl.textContent = nm;
+    const statusEl = document.createElement('div'); statusEl.className='status'; statusEl.textContent = f.online ? 'Online' : 'Offline';
+    meta.appendChild(nameEl); meta.appendChild(statusEl);
+    left.appendChild(avatar); left.appendChild(meta);
+
+    const actions = document.createElement('div');
+    const btn = document.createElement('button'); btn.className='call-btn';
+    btn.textContent = '📞 Call';
+    const resolvedUid = nameToUid(f.name);
+    if (!resolvedUid) {
+      btn.disabled = true;
+      btn.title = 'UID not resolved — ensure /get-users returns matching name';
+    } else if (resolvedUid === me.uid) {
+      btn.disabled = true;
+      btn.title = 'This is you';
+    } else {
+      btn.onclick = () => startCall(resolvedUid);
+    }
+    actions.appendChild(btn);
+
+    row.appendChild(left); row.appendChild(actions);
+    list.appendChild(row);
+  });
+  wrap.appendChild(list);
+}
+
+/* ===========================
+   Socket: ensure connection & handlers
+   =========================== */
+function ensureSocket() {
+  if (socket) return;
+  socket = io(); // same-origin socket.io
+
+  socket.on('connect', () => {
+    console.log('socket connected', socket.id);
+    // set readable name as uid for presence
+    socket.emit('set_name', me.uid || 'unknown');
+  });
+
+  // We rely on your server emitting "private-message" when someone sends to a room.
+  socket.on('private-message', async payload => {
+    if(!payload || !payload.text) return;
+    // payload.sender is the sender uid (as your server sets it)
+    let p = null;
+    try { p = JSON.parse(payload.text); } catch(e) { return; } // ignore non-json messages
+    if (!p || !p.__signal) return; // ignore non-signal messages
+
+    const sig = p.signal;
+    const fromUid = payload.sender;
+
+    if (!sig || !sig.type) return;
+
+    if (sig.type === 'ring') {
+      // incoming call ringing
+      // show incoming modal and play ringtone
+      // room = sig.room, callerName = sig.callerName
+      if (pc) {
+        // already in call — auto-decline with busy
+        const room = sig.room;
+        socket.emit('private-message', { room, sender: me.uid, text: JSON.stringify({ __signal:true, signal:{ type:'decline', reason:'busy' } }) });
+        return;
       }
-    }
-
-    async function fetchContacts(uid){
-      const res = await fetch(CONTACTS_API + '?uid=' + encodeURIComponent(uid), { credentials: 'include' });
-      if(!res.ok) throw new Error('Contacts fetch failed: ' + res.status);
-      return res.json(); // expected [{ name, online }, ...]
-    }
-
-    async function fetchUsers(){
-      const res = await fetch(USERS_API, { credentials: 'include' });
-      if(!res.ok) throw new Error('Users fetch failed: ' + res.status);
-      return res.json(); // expected full user docs with uid and name
-    }
-
-    function renderContacts(friends, users){
-      // Build name->uid map (best-effort)
-      const nameToUid = {};
-      users.forEach(u => { if(u.name) nameToUid[u.name.toLowerCase()] = u.uid || u.uid?.toString(); });
-
-      const wrap = document.createElement('div');
-      friends.forEach(f => {
-        const row = document.createElement('div');
-        row.className = 'contact';
-
-        const left = document.createElement('div'); left.className='leftcol';
-        const avatar = document.createElement('div'); avatar.className='avatar';
-        const meta = document.createElement('div'); meta.className='meta';
-        const nm = document.createElement('div'); nm.className='name'; nm.textContent = f.name || 'unknown';
-        const st = document.createElement('div'); st.className = f.online ? 'online' : 'offline'; st.textContent = f.online ? 'Online' : 'Offline';
-        meta.appendChild(nm); meta.appendChild(st);
-        left.appendChild(avatar); left.appendChild(meta);
-
-        const actions = document.createElement('div');
-        const callBtn = document.createElement('button'); callBtn.className='callbtn';
-        callBtn.textContent = '📞 Call';
-        callBtn.onclick = () => {
-          const friendName = f.name;
-          const friendUid = nameToUid[ (friendName||'').toLowerCase() ];
-          if(!friendUid) return alert('Cannot resolve UID for ' + friendName + '. Make sure /get-users has matching name.');
-          startCall(friendUid);
-        };
-        actions.appendChild(callBtn);
-
-        row.appendChild(left);
-        row.appendChild(actions);
-        wrap.appendChild(row);
-      });
-
-      $('contactsList').innerHTML = '';
-      $('contactsList').appendChild(wrap);
-    }
-
-    /**************************************************************************
-     * Socket initialization + handlers
-     **************************************************************************/
-    function ensureSocket(){
-      if(socket) return;
-      socket = (typeof SOCKET_URL === 'string' && SOCKET_URL) ? io(SOCKET_URL) : io();
-
-      socket.on('connect', () => {
-        console.log('socket connected', socket.id);
-        // set name for presence (optional)
-        socket.emit('set_name', currentUid);
-      });
-
-      // We reuse your server's private-message channel for signaling.
-      socket.on('private-message', async payload => {
-        // payload: { sender, text, ... } from server
-        try{
-          if(!payload || !payload.text) return;
-          let p;
-          try { p = JSON.parse(payload.text); } catch(e){ return; }
-          // Only act on messages that carry our special signal marker
-          if(!p || !p.__signal) return;
-
-          const sig = p.signal;
-          if(!sig) return;
-
-          // Ignorer for signals from self
-          // Remote peer's uid is available as payload.sender (which your server sets as sender param)
-          const fromUid = payload.sender;
-
-          if(sig.type === 'offer'){
-            // incoming offer: join same room then answer
-            currentPeerUid = fromUid;
-            await startLocalAndCreatePC();
-            await pc.setRemoteDescription(new RTCSessionDescription(sig.sdp));
-            const answer = await pc.createAnswer();
-            await pc.setLocalDescription(answer);
-
-            // send answer back via private-message
-            const room = createRoomId(currentUid, currentPeerUid);
-            socket.emit('private-message', { room, sender: currentUid, text: JSON.stringify({ __signal:true, signal: { type:'answer', sdp: pc.localDescription } }) });
-            updateCallInfo('Answered call from ' + fromUid);
-            $('hangupBtn').disabled = false;
-            $('muteBtn').disabled = false;
-          } else if(sig.type === 'answer'){
-            // remote accepted our offer
-            await pc.setRemoteDescription(new RTCSessionDescription(sig.sdp));
-            updateCallInfo('Call connected with ' + fromUid);
-          } else if(sig.type === 'candidate'){
-            if(pc) {
-              try { await pc.addIceCandidate(new RTCIceCandidate(sig.candidate)); }
-              catch(e){ console.warn('candidate add error', e); }
-            }
-          }
-        } catch(e){ console.error('private-message handle error', e); }
-      });
-
-      socket.on('disconnect', () => console.log('socket disconnected'));
-    }
-
-    /**************************************************************************
-     * Call flow (WebRTC)
-     **************************************************************************/
-    function createRoomId(a, b){
-      // deterministic room id (strings)
-      return [a, b].sort().join('_');
-    }
-
-    async function startCall(friendUid){
-      if(!currentUid) return alert('Load your UID first');
-      if(currentPeerUid) return alert('Already in call. Hangup first.');
-
-      currentPeerUid = friendUid;
-      // join the room on server-side so private messages route correctly
-      const room = createRoomId(currentUid, currentPeerUid);
-      socket.emit('join-room', room);
-
-      await startLocalAndCreatePC();
-
-      // create offer
-      const offer = await pc.createOffer();
-      await pc.setLocalDescription(offer);
-
-      // send offer via private-message to room
-      socket.emit('private-message', { room, sender: currentUid, text: JSON.stringify({ __signal:true, signal: { type:'offer', sdp: pc.localDescription } }) });
-
-      updateCallInfo('Calling ' + friendUid + ' ...');
-      $('hangupBtn').disabled = false;
-      $('muteBtn').disabled = false;
-    }
-
-    async function startLocalAndCreatePC(){
-      if(!localStream){
-        try {
-          localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-          $('localAudio').srcObject = localStream;
-        } catch(e) {
-          return alert('Microphone permission required: ' + e.message);
-        }
+      currentPeerUid = fromUid;
+      showIncomingModal(sig.callerName || fromUid, fromUid, sig.room);
+    } else if (sig.type === 'offer') {
+      // sometimes another flow may send offer directly (we support it)
+      currentPeerUid = fromUid;
+      await handleIncomingOffer(sig.sdp, fromUid, sig.room);
+    } else if (sig.type === 'answer') {
+      if (pc && sig.sdp) {
+        await pc.setRemoteDescription(new RTCSessionDescription(sig.sdp));
+        updateCallState('Connected with ' + fromUid);
       }
-
-      pc = new RTCPeerConnection(stunConfig);
-      // add local tracks
-      localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-
-      // remote tracks
-      pc.ontrack = ev => {
-        $('remoteAudio').srcObject = ev.streams[0];
-      };
-
-      // ICE candidates: send via private-message as they appear
-      pc.onicecandidate = ev => {
-        if(ev.candidate && currentPeerUid){
-          const room = createRoomId(currentUid, currentPeerUid);
-          socket.emit('private-message', { room, sender: currentUid, text: JSON.stringify({ __signal:true, signal: { type:'candidate', candidate: ev.candidate } }) });
-        }
-      };
-
-      pc.onconnectionstatechange = () => {
-        console.log('pc state', pc.connectionState);
-        if(pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed'){
-          endCall();
-        } else if(pc.connectionState === 'connected'){
-          updateCallInfo('Connected with ' + currentPeerUid);
-        }
-      };
-
-      // Hangup and mute handlers
-      $('hangupBtn').onclick = () => endCall();
-      $('muteBtn').onclick = () => {
-        if(!localStream) return;
-        const enabled = localStream.getAudioTracks()[0].enabled;
-        localStream.getAudioTracks().forEach(t => t.enabled = !enabled);
-        $('muteBtn').textContent = enabled ? 'Unmute' : 'Mute';
-      };
+    } else if (sig.type === 'candidate') {
+      if (pc && sig.candidate) {
+        try { await pc.addIceCandidate(new RTCIceCandidate(sig.candidate)); }
+        catch(e){ console.warn('candidate add error', e); }
+      }
+    } else if (sig.type === 'decline') {
+      // remote declined
+      stopRinging();
+      updateCallState('Call declined by remote' + (sig.reason ? ' — ' + sig.reason : ''));
+      cleanupCall();
+    } else if (sig.type === 'end') {
+      // remote ended call
+      updateCallState('Call ended by peer');
+      cleanupCall();
     }
+  });
 
-    function updateCallInfo(txt){
-      $('callInfo').textContent = txt;
+  socket.on('disconnect', () => console.log('socket disconnected'));
+}
+
+/* ===========================
+   Call UI: Incoming modal
+   =========================== */
+function showIncomingModal(callerName, callerUid, room) {
+  $('incomingTitle').textContent = 'Incoming call';
+  $('incomingFrom').textContent = (callerName || callerUid) + ' is calling';
+  $('incomingModal').style.display = 'flex';
+  ringStartAt = Date.now();
+  updateIncomingTimer();
+  ringtoneAudio.play().catch(()=>{ console.warn('ring play blocked'); });
+  // auto-decline after timeout
+  ringingTimer = setTimeout(() => {
+    hideIncomingModal();
+    // send decline
+    socket.emit('private-message', { room, sender: me.uid, text: JSON.stringify({ __signal:true, signal:{ type:'decline', reason:'timeout' } }) });
+  }, RING_TIMEOUT_MS);
+}
+
+/* stop ring */
+function hideIncomingModal() {
+  $('incomingModal').style.display = 'none';
+  stopRinging();
+}
+
+/* update timer */
+let incomingInterval = null;
+function updateIncomingTimer(){
+  if(incomingInterval) clearInterval(incomingInterval);
+  incomingInterval = setInterval(() => {
+    if(!ringStartAt) return;
+    const s = Math.floor((Date.now() - ringStartAt)/1000);
+    const mm = String(Math.floor(s/60)).padStart(2,'0');
+    const ss = String(s%60).padStart(2,'0');
+    $('incomingTimer').textContent = mm+':'+ss;
+  }, 500);
+}
+
+function stopRinging() {
+  ringStartAt = null;
+  if (incomingInterval) { clearInterval(incomingInterval); incomingInterval = null; }
+  if (ringingTimer) { clearTimeout(ringingTimer); ringingTimer = null; }
+  try { ringtoneAudio.pause(); ringtoneAudio.currentTime = 0; } catch(e){}
+}
+
+/* incoming modal button handlers */
+$('acceptBtn').addEventListener('click', async () => {
+  // Accept: join room, create pc, answer
+  const room = createRoomId(me.uid, currentPeerUid);
+  hideIncomingModal();
+  await startLocalAndCreatePC();
+  // set remote offer will be handled if previously sent; but we rely on 'offer' flow: remote may send 'offer' later
+  // If caller used 'ring' only then they will send offer after callee joins — but to be robust, if offer not yet arrived, we wait.
+  // Send "accepted" signal to caller to indicate readiness (optional)
+  socket.emit('private-message', { room, sender: me.uid, text: JSON.stringify({ __signal:true, signal:{ type:'accepted' } }) });
+  $('hangupBtn').disabled = false;
+  $('muteBtn').disabled = false;
+  updateCallState('In call (connecting)...');
+});
+
+/* decline */
+$('declineBtn').addEventListener('click', () => {
+  const room = createRoomId(me.uid, currentPeerUid);
+  socket.emit('private-message', { room, sender: me.uid, text: JSON.stringify({ __signal:true, signal:{ type:'decline', reason:'user' } }) });
+  hideIncomingModal();
+  currentPeerUid = null;
+});
+
+/* ===========================
+   Call flow: start call (caller)
+   =========================== */
+async function startCall(friendUid) {
+  if (!me.uid) return alert('Missing your UID');
+  if (pc) return alert('Already in call. Hang up first.');
+
+  currentPeerUid = friendUid;
+  const room = createRoomId(me.uid, friendUid);
+  ensureSocket();
+  // join the room on server so private-message delivered
+  socket.emit('join-room', room);
+
+  // 1) Send a 'ring' signal to invite callee
+  socket.emit('private-message', {
+    room,
+    sender: me.uid,
+    text: JSON.stringify({ __signal:true, signal: { type:'ring', callerName: me.name || me.uid, room } })
+  });
+
+  updateCallState('Ringing ' + friendUid + ' ...');
+  // play local ringtone for caller too
+  ringtoneAudio.play().catch(()=>{});
+
+  // Caller will then create offer and send once callee responds with 'accepted' or if callee doesn't send accepted but we can send offer immediately.
+  // We'll create PC now and create offer — even if recipient hasn't accepted, it's okay; when they join room they'll receive offer.
+  await startLocalAndCreatePC();
+
+  // Create offer and send as signal
+  const offer = await pc.createOffer();
+  await pc.setLocalDescription(offer);
+
+  socket.emit('private-message', {
+    room,
+    sender: me.uid,
+    text: JSON.stringify({ __signal:true, signal: { type:'offer', sdp: pc.localDescription } })
+  });
+
+  // If not answered within timeout, caller should stop ringing
+  ringingTimer = setTimeout(() => {
+    updateCallState('No answer — call timed out');
+    // send decline/end to room
+    socket.emit('private-message', { room, sender: me.uid, text: JSON.stringify({ __signal:true, signal: { type:'decline', reason:'noanswer' } }) });
+    cleanupCall();
+  }, RING_TIMEOUT_MS);
+
+  $('hangupBtn').disabled = false;
+  $('muteBtn').disabled = false;
+}
+
+/* ===========================
+   Handle incoming offer (callee)
+   =========================== */
+async function handleIncomingOffer(sdp, fromUid, room) {
+  // If user accepted modal, we created pc and localStream already; if not, prompt? Here we'll auto-create and answer.
+  // If pc doesn't exist, start local and create pc
+  if (!pc) {
+    await startLocalAndCreatePC();
+  }
+  try {
+    await pc.setRemoteDescription(new RTCSessionDescription(sdp));
+  } catch(e){ console.warn('setRemoteDescription error', e); }
+
+  const answer = await pc.createAnswer();
+  await pc.setLocalDescription(answer);
+
+  socket.emit('private-message', {
+    room,
+    sender: me.uid,
+    text: JSON.stringify({ __signal:true, signal: { type:'answer', sdp: pc.localDescription } })
+  });
+
+  updateCallState('Connected (answer sent)');
+}
+
+/* ===========================
+   Create PC & local stream
+   =========================== */
+async function startLocalAndCreatePC() {
+  if (!localStream) {
+    try {
+      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+      $('localAudio').srcObject = localStream;
+    } catch (e) {
+      alert('Microphone access required: ' + (e.message || e));
+      throw e;
     }
+  }
 
-    function endCall(){
-      updateCallInfo('Not in call.');
-      currentPeerUid = null;
-      if(pc){ try { pc.close(); } catch(e){} pc = null; }
-      if(localStream){ localStream.getTracks().forEach(t => t.stop()); localStream = null; }
-      $('hangupBtn').disabled = true;
-      $('muteBtn').disabled = true;
-      $('muteBtn').textContent = 'Mute';
-      $('localAudio').srcObject = null;
-      $('remoteAudio').srcObject = null;
+  pc = new RTCPeerConnection(ICE_CONFIG);
+
+  // add local tracks
+  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+  // remote track
+  pc.ontrack = ev => {
+    $('remoteAudio').srcObject = ev.streams[0];
+  };
+
+  // ice
+  pc.onicecandidate = ev => {
+    if (ev.candidate && currentPeerUid) {
+      const room = createRoomId(me.uid, currentPeerUid);
+      socket.emit('private-message', { room, sender: me.uid, text: JSON.stringify({ __signal:true, signal: { type:'candidate', candidate: ev.candidate } }) });
     }
+  };
 
-    // cleanup before leaving
-    window.addEventListener('beforeunload', () => {
-      if(socket) socket.close();
-      if(pc) pc.close();
-    });
-  </script>
+  pc.onconnectionstatechange = () => {
+    console.log('pc state', pc.connectionState);
+    if (pc.connectionState === 'connected') {
+      stopRinging();
+      updateCallState('In call with ' + currentPeerUid);
+    } else if (['disconnected','failed','closed'].includes(pc.connectionState)) {
+      updateCallState('Call ended');
+      cleanupCall();
+    }
+  };
+
+  // timeout or other events handled elsewhere
+}
+
+/* ===========================
+   Hangup / cleanup
+   =========================== */
+$('hangupBtn').addEventListener('click', () => {
+  if (!currentPeerUid) return;
+  const room = createRoomId(me.uid, currentPeerUid);
+  // send end to peer
+  if (socket && socket.connected) {
+    socket.emit('private-message', { room, sender: me.uid, text: JSON.stringify({ __signal:true, signal: { type:'end' } }) });
+  }
+  cleanupCall();
+});
+
+function cleanupCall() {
+  stopRinging();
+  if (pc) { try { pc.close(); } catch(e){} pc = null; }
+  if (localStream) {
+    try { localStream.getTracks().forEach(t => t.stop()); } catch(e){}
+    localStream = null;
+  }
+  $('localAudio').srcObject = null;
+  $('remoteAudio').srcObject = null;
+  $('hangupBtn').disabled = true;
+  $('muteBtn').disabled = true;
+  currentPeerUid = null;
+}
+
+/* ===========================
+   Utility: room id
+   =========================== */
+function createRoomId(a,b){
+  return [a,b].sort().join('_');
+}
+
+/* ===========================
+   Call status helpers
+   =========================== */
+function updateCallState(txt){
+  $('callState').textContent = txt;
+}
+
+/* ===========================
+   Init flow
+   =========================== */
+async function initApp() {
+  await ensureMe();
+  if (!me.uid) {
+    // user declined entry — leave UI in manual mode
+    $('meName').textContent = 'unknown';
+    $('meUid').textContent = '';
+    $('contactsList').innerHTML = '<div class="small" style="padding:12px">No UID available. Put uid into sessionStorage key "uid" or set window.__UID__ before loading.</div>';
+    return;
+  }
+  // try fetch /get-users to resolve name
+  await fetchUsers();
+  const meUser = usersCache.find(u => (u.uid || u.uid?.toString()) === me.uid || (u.name && u.name === me.uid));
+  me.name = meUser?.name || me.uid;
+  $('meName').textContent = me.name;
+  $('meUid').textContent = me.uid ? ('UID: ' + me.uid) : '';
+
+  // fetch contacts
+  await fetchContacts();
+  renderContacts();
+
+  // wire search & refresh
+  $('searchInput').addEventListener('input', e => renderContacts(e.target.value));
+  $('refreshBtn').addEventListener('click', async () => {
+    await fetchUsers();
+    await fetchContacts();
+    renderContacts($('searchInput').value || '');
+  });
+
+  ensureSocket();
+}
+
+/* ===========================
+   Helper: fetchUsers wrapper (expose usersCache)
+   =========================== */
+async function fetchUsers() {
+  try {
+    const res = await fetch(USERS_API, { credentials: 'include' });
+    if (!res.ok) throw new Error('fetch users failed');
+    window.usersCache = await res.json();
+    // normalize
+    usersCache = window.usersCache || [];
+  } catch (e) {
+    console.warn('Could not fetch /get-users', e);
+    usersCache = [];
+  }
+}
+
+/* ===========================
+   Mute toggle
+   =========================== */
+$('muteBtn').addEventListener('click', () => {
+  if (!localStream) return;
+  const track = localStream.getAudioTracks()[0];
+  if (!track) return;
+  track.enabled = !track.enabled;
+  $('muteBtn').textContent = track.enabled ? 'Mute' : 'Unmute';
+});
+
+/* ===========================
+   Wire incoming modal close on backdrop
+   =========================== */
+$('incomingModal').addEventListener('click', e => {
+  if (e.target === $('incomingModal')) {
+    // click backdrop -> decline
+    $('declineBtn').click();
+  }
+});
+
+/* ===========================
+   Start
+   =========================== */
+initApp();
+</script>
 </body>
 </html>
