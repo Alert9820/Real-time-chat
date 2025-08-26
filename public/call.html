@@ -1,0 +1,324 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>Calls — Voice (Frontend only)</title>
+  <style>
+    :root{--accent:#4f46e5}
+    body{font-family:Inter,Arial,Helvetica,sans-serif;margin:0;background:#f5f7fb;color:#111}
+    .wrap{display:flex;height:100vh}
+    .left{width:320px;background:#fff;border-right:1px solid #e6e9ef;padding:16px;box-sizing:border-box}
+    .right{flex:1;padding:20px}
+    h2{margin:0 0 10px 0;font-size:18px}
+    .row{display:flex;gap:8px;margin-bottom:10px}
+    input[type=text]{flex:1;padding:8px;border-radius:6px;border:1px solid #d6d9e6}
+    button{padding:8px 10px;border-radius:6px;border:none;background:var(--accent);color:#fff;cursor:pointer}
+    button.alt{background:#e6e9ef;color:#111}
+    .small{font-size:13px;color:#666}
+    .list{margin-top:12px}
+    .contact{display:flex;align-items:center;justify-content:space-between;padding:8px;border-radius:8px;border:1px solid #f0f2f7;margin-bottom:8px;background:#fff}
+    .leftcol{display:flex;align-items:center;gap:10px}
+    .avatar{width:40px;height:40px;border-radius:50%;background:#ddd}
+    .meta{line-height:1}
+    .name{font-weight:600}
+    .online{font-size:12px;color:green}
+    .offline{font-size:12px;color:#999}
+    .callbtn{background:#10b981;padding:6px 10px;border-radius:6px;border:none;color:#fff;cursor:pointer}
+    audio{display:block;margin-top:10px;width:100%}
+    .statusBox{margin-top:12px;padding:10px;background:#fff;border-radius:8px;border:1px solid #f0f2f7}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="left">
+      <h2>📞 Calls</h2>
+
+      <div class="row">
+        <input id="userIdInput" placeholder="Your UID (e.g. 358489)" />
+        <button id="loadBtn">Load</button>
+      </div>
+      <div class="small">Uses: <code>/get-friends?uid=...</code> & <code>/get-users</code></div>
+
+      <div class="list" id="contactsList">
+        <div class="small">No contacts loaded.</div>
+      </div>
+    </div>
+
+    <div class="right">
+      <h2>Call panel</h2>
+      <div class="small">Current UID: <span id="currentUid">none</span></div>
+
+      <div class="statusBox">
+        <div style="display:flex;gap:8px;margin-bottom:8px">
+          <button id="hangupBtn" class="alt" disabled>Hangup</button>
+          <button id="muteBtn" class="alt" disabled>Mute</button>
+        </div>
+
+        <div class="small">Local audio (muted on this element):</div>
+        <audio id="localAudio" autoplay muted></audio>
+
+        <div class="small" style="margin-top:10px">Remote audio:</div>
+        <audio id="remoteAudio" autoplay></audio>
+
+        <div id="callInfo" class="small" style="margin-top:10px">Not in call.</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Socket.io client (served by your server) -->
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    /**************************************************************************
+     * CONFIG (edit only these if needed)
+     **************************************************************************/
+    const CONTACTS_API = '/get-friends';   // expects ?uid=<uid> and returns [ { name, online }, ... ]
+    const USERS_API = '/get-users';        // returns all users [{ uid, name, ... }, ...]
+    const SIGNAL_VIA_PRIVATE_MESSAGE = true; // use server's private-message + join-room
+    // If your socket server is on different URL, set SOCKET_URL to string.
+    const SOCKET_URL = undefined; // undefined => same origin
+
+    /**************************************************************************
+     * STATE
+     **************************************************************************/
+    let socket = null;
+    let pc = null;
+    let localStream = null;
+    let currentUid = null;
+    let currentPeerUid = null;
+    const stunConfig = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+
+    /**************************************************************************
+     * UI helpers
+     **************************************************************************/
+    const $ = id => document.getElementById(id);
+    $('loadBtn').addEventListener('click', initLoad);
+
+    async function initLoad(){
+      const uid = $('userIdInput').value.trim();
+      if(!uid) return alert('Enter your UID first');
+      currentUid = uid;
+      $('currentUid').textContent = currentUid;
+      $('contactsList').innerHTML = 'Loading...';
+      try{
+        const friends = await fetchContacts(currentUid);
+        const users = await fetchUsers();
+        renderContacts(friends, users);
+        ensureSocket();
+      }catch(e){
+        console.error(e);
+        $('contactsList').innerHTML = '<div class="small">Error loading contacts. Check console.</div>';
+      }
+    }
+
+    async function fetchContacts(uid){
+      const res = await fetch(CONTACTS_API + '?uid=' + encodeURIComponent(uid), { credentials: 'include' });
+      if(!res.ok) throw new Error('Contacts fetch failed: ' + res.status);
+      return res.json(); // expected [{ name, online }, ...]
+    }
+
+    async function fetchUsers(){
+      const res = await fetch(USERS_API, { credentials: 'include' });
+      if(!res.ok) throw new Error('Users fetch failed: ' + res.status);
+      return res.json(); // expected full user docs with uid and name
+    }
+
+    function renderContacts(friends, users){
+      // Build name->uid map (best-effort)
+      const nameToUid = {};
+      users.forEach(u => { if(u.name) nameToUid[u.name.toLowerCase()] = u.uid || u.uid?.toString(); });
+
+      const wrap = document.createElement('div');
+      friends.forEach(f => {
+        const row = document.createElement('div');
+        row.className = 'contact';
+
+        const left = document.createElement('div'); left.className='leftcol';
+        const avatar = document.createElement('div'); avatar.className='avatar';
+        const meta = document.createElement('div'); meta.className='meta';
+        const nm = document.createElement('div'); nm.className='name'; nm.textContent = f.name || 'unknown';
+        const st = document.createElement('div'); st.className = f.online ? 'online' : 'offline'; st.textContent = f.online ? 'Online' : 'Offline';
+        meta.appendChild(nm); meta.appendChild(st);
+        left.appendChild(avatar); left.appendChild(meta);
+
+        const actions = document.createElement('div');
+        const callBtn = document.createElement('button'); callBtn.className='callbtn';
+        callBtn.textContent = '📞 Call';
+        callBtn.onclick = () => {
+          const friendName = f.name;
+          const friendUid = nameToUid[ (friendName||'').toLowerCase() ];
+          if(!friendUid) return alert('Cannot resolve UID for ' + friendName + '. Make sure /get-users has matching name.');
+          startCall(friendUid);
+        };
+        actions.appendChild(callBtn);
+
+        row.appendChild(left);
+        row.appendChild(actions);
+        wrap.appendChild(row);
+      });
+
+      $('contactsList').innerHTML = '';
+      $('contactsList').appendChild(wrap);
+    }
+
+    /**************************************************************************
+     * Socket initialization + handlers
+     **************************************************************************/
+    function ensureSocket(){
+      if(socket) return;
+      socket = (typeof SOCKET_URL === 'string' && SOCKET_URL) ? io(SOCKET_URL) : io();
+
+      socket.on('connect', () => {
+        console.log('socket connected', socket.id);
+        // set name for presence (optional)
+        socket.emit('set_name', currentUid);
+      });
+
+      // We reuse your server's private-message channel for signaling.
+      socket.on('private-message', async payload => {
+        // payload: { sender, text, ... } from server
+        try{
+          if(!payload || !payload.text) return;
+          let p;
+          try { p = JSON.parse(payload.text); } catch(e){ return; }
+          // Only act on messages that carry our special signal marker
+          if(!p || !p.__signal) return;
+
+          const sig = p.signal;
+          if(!sig) return;
+
+          // Ignorer for signals from self
+          // Remote peer's uid is available as payload.sender (which your server sets as sender param)
+          const fromUid = payload.sender;
+
+          if(sig.type === 'offer'){
+            // incoming offer: join same room then answer
+            currentPeerUid = fromUid;
+            await startLocalAndCreatePC();
+            await pc.setRemoteDescription(new RTCSessionDescription(sig.sdp));
+            const answer = await pc.createAnswer();
+            await pc.setLocalDescription(answer);
+
+            // send answer back via private-message
+            const room = createRoomId(currentUid, currentPeerUid);
+            socket.emit('private-message', { room, sender: currentUid, text: JSON.stringify({ __signal:true, signal: { type:'answer', sdp: pc.localDescription } }) });
+            updateCallInfo('Answered call from ' + fromUid);
+            $('hangupBtn').disabled = false;
+            $('muteBtn').disabled = false;
+          } else if(sig.type === 'answer'){
+            // remote accepted our offer
+            await pc.setRemoteDescription(new RTCSessionDescription(sig.sdp));
+            updateCallInfo('Call connected with ' + fromUid);
+          } else if(sig.type === 'candidate'){
+            if(pc) {
+              try { await pc.addIceCandidate(new RTCIceCandidate(sig.candidate)); }
+              catch(e){ console.warn('candidate add error', e); }
+            }
+          }
+        } catch(e){ console.error('private-message handle error', e); }
+      });
+
+      socket.on('disconnect', () => console.log('socket disconnected'));
+    }
+
+    /**************************************************************************
+     * Call flow (WebRTC)
+     **************************************************************************/
+    function createRoomId(a, b){
+      // deterministic room id (strings)
+      return [a, b].sort().join('_');
+    }
+
+    async function startCall(friendUid){
+      if(!currentUid) return alert('Load your UID first');
+      if(currentPeerUid) return alert('Already in call. Hangup first.');
+
+      currentPeerUid = friendUid;
+      // join the room on server-side so private messages route correctly
+      const room = createRoomId(currentUid, currentPeerUid);
+      socket.emit('join-room', room);
+
+      await startLocalAndCreatePC();
+
+      // create offer
+      const offer = await pc.createOffer();
+      await pc.setLocalDescription(offer);
+
+      // send offer via private-message to room
+      socket.emit('private-message', { room, sender: currentUid, text: JSON.stringify({ __signal:true, signal: { type:'offer', sdp: pc.localDescription } }) });
+
+      updateCallInfo('Calling ' + friendUid + ' ...');
+      $('hangupBtn').disabled = false;
+      $('muteBtn').disabled = false;
+    }
+
+    async function startLocalAndCreatePC(){
+      if(!localStream){
+        try {
+          localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+          $('localAudio').srcObject = localStream;
+        } catch(e) {
+          return alert('Microphone permission required: ' + e.message);
+        }
+      }
+
+      pc = new RTCPeerConnection(stunConfig);
+      // add local tracks
+      localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
+
+      // remote tracks
+      pc.ontrack = ev => {
+        $('remoteAudio').srcObject = ev.streams[0];
+      };
+
+      // ICE candidates: send via private-message as they appear
+      pc.onicecandidate = ev => {
+        if(ev.candidate && currentPeerUid){
+          const room = createRoomId(currentUid, currentPeerUid);
+          socket.emit('private-message', { room, sender: currentUid, text: JSON.stringify({ __signal:true, signal: { type:'candidate', candidate: ev.candidate } }) });
+        }
+      };
+
+      pc.onconnectionstatechange = () => {
+        console.log('pc state', pc.connectionState);
+        if(pc.connectionState === 'disconnected' || pc.connectionState === 'failed' || pc.connectionState === 'closed'){
+          endCall();
+        } else if(pc.connectionState === 'connected'){
+          updateCallInfo('Connected with ' + currentPeerUid);
+        }
+      };
+
+      // Hangup and mute handlers
+      $('hangupBtn').onclick = () => endCall();
+      $('muteBtn').onclick = () => {
+        if(!localStream) return;
+        const enabled = localStream.getAudioTracks()[0].enabled;
+        localStream.getAudioTracks().forEach(t => t.enabled = !enabled);
+        $('muteBtn').textContent = enabled ? 'Unmute' : 'Mute';
+      };
+    }
+
+    function updateCallInfo(txt){
+      $('callInfo').textContent = txt;
+    }
+
+    function endCall(){
+      updateCallInfo('Not in call.');
+      currentPeerUid = null;
+      if(pc){ try { pc.close(); } catch(e){} pc = null; }
+      if(localStream){ localStream.getTracks().forEach(t => t.stop()); localStream = null; }
+      $('hangupBtn').disabled = true;
+      $('muteBtn').disabled = true;
+      $('muteBtn').textContent = 'Mute';
+      $('localAudio').srcObject = null;
+      $('remoteAudio').srcObject = null;
+    }
+
+    // cleanup before leaving
+    window.addEventListener('beforeunload', () => {
+      if(socket) socket.close();
+      if(pc) pc.close();
+    });
+  </script>
+</body>
+</html>
