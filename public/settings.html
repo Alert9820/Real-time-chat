@@ -1,0 +1,491 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Settings - Chat App</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #6e8efb, #a777e3);
+            color: #333;
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            padding: 20px;
+        }
+
+        .settings-container {
+            width: 100%;
+            max-width: 800px;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            overflow: hidden;
+        }
+
+        .settings-header {
+            background: #4f46e5;
+            color: white;
+            padding: 25px;
+            text-align: center;
+        }
+
+        .settings-header h1 {
+            font-size: 28px;
+            font-weight: 600;
+            margin-bottom: 5px;
+        }
+
+        .settings-header p {
+            opacity: 0.9;
+        }
+
+        .settings-content {
+            padding: 30px;
+        }
+
+        .settings-section {
+            margin-bottom: 30px;
+            padding-bottom: 25px;
+            border-bottom: 1px solid #eee;
+        }
+
+        .settings-section:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+
+        .section-title {
+            font-size: 20px;
+            font-weight: 600;
+            margin-bottom: 20px;
+            color: #4f46e5;
+            display: flex;
+            align-items: center;
+        }
+
+        .section-title i {
+            margin-right: 12px;
+            font-size: 22px;
+        }
+
+        .input-group {
+            margin-bottom: 20px;
+        }
+
+        .input-group label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 500;
+            color: #555;
+        }
+
+        .input-group input {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+
+        .btn {
+            padding: 14px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn i {
+            margin-right: 8px;
+        }
+
+        .btn-primary {
+            background: #4f46e5;
+            color: white;
+            width: 100%;
+        }
+
+        .btn-primary:hover {
+            background: #4338ca;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #ef4444;
+            color: white;
+            width: 100%;
+        }
+
+        .btn-danger:hover {
+            background: #dc2626;
+            transform: translateY(-2px);
+        }
+
+        .btn-secondary {
+            background: #6b7280;
+            color: white;
+            width: 100%;
+        }
+
+        .btn-secondary:hover {
+            background: #4b5563;
+            transform: translateY(-2px);
+        }
+
+        .toggle-group {
+            display: flex;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .toggle {
+            position: relative;
+            display: inline-block;
+            width: 60px;
+            height: 30px;
+            margin-right: 15px;
+        }
+
+        .toggle input {
+            opacity: 0;
+            width: 0;
+            height: 0;
+        }
+
+        .toggle-slider {
+            position: absolute;
+            cursor: pointer;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: #ccc;
+            transition: .4s;
+            border-radius: 34px;
+        }
+
+        .toggle-slider:before {
+            position: absolute;
+            content: "";
+            height: 22px;
+            width: 22px;
+            left: 4px;
+            bottom: 4px;
+            background-color: white;
+            transition: .4s;
+            border-radius: 50%;
+        }
+
+        input:checked + .toggle-slider {
+            background-color: #4f46e5;
+        }
+
+        input:checked + .toggle-slider:before {
+            transform: translateX(30px);
+        }
+
+        .toggle-label {
+            font-weight: 500;
+        }
+
+        .toggle-desc {
+            font-size: 14px;
+            color: #666;
+            margin-top: 3px;
+        }
+
+        select {
+            width: 100%;
+            padding: 14px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            background: white;
+            margin-top: 8px;
+        }
+
+        select:focus {
+            outline: none;
+            border-color: #4f46e5;
+            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+        }
+
+        .blocked-user {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 15px;
+            background: #f9fafb;
+            border-radius: 8px;
+            margin-bottom: 10px;
+        }
+
+        .blocked-user-info {
+            display: flex;
+            align-items: center;
+        }
+
+        .user-avatar {
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: #4f46e5;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 600;
+            margin-right: 15px;
+        }
+
+        .unblock-btn {
+            background: #4f46e5;
+            color: white;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: background 0.3s;
+        }
+
+        .unblock-btn:hover {
+            background: #4338ca;
+        }
+
+        .no-blocked {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+            font-style: italic;
+        }
+
+        @media (max-width: 600px) {
+            .settings-container {
+                border-radius: 12px;
+            }
+            
+            .settings-header {
+                padding: 20px;
+            }
+            
+            .settings-content {
+                padding: 20px;
+            }
+            
+            .section-title {
+                font-size: 18px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="settings-container">
+        <div class="settings-header">
+            <h1><i class="fas fa-cog"></i> Settings</h1>
+            <p>Manage your account preferences</p>
+        </div>
+        
+        <div class="settings-content">
+            <!-- Change Password Section -->
+            <div class="settings-section">
+                <h2 class="section-title"><i class="fas fa-lock"></i> Change Password</h2>
+                <div class="input-group">
+                    <label for="oldPassword">Old Password</label>
+                    <input type="password" id="oldPassword" placeholder="Enter your current password">
+                </div>
+                <div class="input-group">
+                    <label for="newPassword">New Password</label>
+                    <input type="password" id="newPassword" placeholder="Enter your new password">
+                </div>
+                <button class="btn btn-primary"><i class="fas fa-key"></i> Update Password</button>
+            </div>
+            
+            <!-- Delete Account Section -->
+            <div class="settings-section">
+                <h2 class="section-title"><i class="fas fa-exclamation-triangle"></i> Delete Account</h2>
+                <p style="margin-bottom: 20px; color: #666;">Once you delete your account, there is no going back. Please be certain.</p>
+                <button class="btn btn-danger"><i class="fas fa-trash-alt"></i> Delete Account</button>
+            </div>
+            
+            <!-- Privacy Settings Section -->
+            <div class="settings-section">
+                <h2 class="section-title"><i class="fas fa-shield-alt"></i> Privacy Settings</h2>
+                
+                <div class="toggle-group">
+                    <label class="toggle">
+                        <input type="checkbox" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <div>
+                        <div class="toggle-label">Show Last Seen</div>
+                        <div class="toggle-desc">Others will see when you were last active</div>
+                    </div>
+                </div>
+                
+                <div class="toggle-group">
+                    <label class="toggle">
+                        <input type="checkbox" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <div>
+                        <div class="toggle-label">Read Receipts</div>
+                        <div class="toggle-desc">Show blue tick marks for read messages</div>
+                    </div>
+                </div>
+                
+                <div class="input-group">
+                    <label for="whoCanMsg">Who Can Message Me?</label>
+                    <select id="whoCanMsg">
+                        <option value="everyone">Everyone</option>
+                        <option value="friends">Only Friends</option>
+                        <option value="nobody">Nobody</option>
+                    </select>
+                </div>
+            </div>
+            
+            <!-- App Preferences Section -->
+            <div class="settings-section">
+                <h2 class="section-title"><i class="fas fa-sliders-h"></i> App Preferences</h2>
+                
+                <div class="toggle-group">
+                    <label class="toggle">
+                        <input type="checkbox" checked>
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <div>
+                        <div class="toggle-label">Notifications</div>
+                        <div class="toggle-desc">Receive notifications for new messages</div>
+                    </div>
+                </div>
+                
+                <div class="toggle-group">
+                    <label class="toggle">
+                        <input type="checkbox">
+                        <span class="toggle-slider"></span>
+                    </label>
+                    <div>
+                        <div class="toggle-label">Dark Mode</div>
+                        <div class="toggle-desc">Switch to dark theme</div>
+                    </div>
+                </div>
+            </div>
+            
+            <!-- Blocked Users Section -->
+            <div class="settings-section">
+                <h2 class="section-title"><i class="fas fa-ban"></i> Blocked Users</h2>
+                
+                <div class="blocked-user">
+                    <div class="blocked-user-info">
+                        <div class="user-avatar">J</div>
+                        <div>
+                            <div class="toggle-label">John Doe</div>
+                            <div class="toggle-desc">+1 (234) 567-8901</div>
+                        </div>
+                    </div>
+                    <button class="unblock-btn">Unblock</button>
+                </div>
+                
+                <div class="blocked-user">
+                    <div class="blocked-user-info">
+                        <div class="user-avatar">S</div>
+                        <div>
+                            <div class="toggle-label">Sarah Johnson</div>
+                            <div class="toggle-desc">+1 (345) 678-9012</div>
+                        </div>
+                    </div>
+                    <button class="unblock-btn">Unblock</button>
+                </div>
+                
+                <div class="no-blocked">No other blocked users</div>
+            </div>
+            
+            <!-- Logout Button -->
+            <button class="btn btn-secondary"><i class="fas fa-sign-out-alt"></i> Logout</button>
+        </div>
+    </div>
+
+    <script>
+        // Simple interactivity for the settings page
+        document.addEventListener('DOMContentLoaded', function() {
+            // Toggle dark mode functionality
+            const darkModeToggle = document.querySelectorAll('.toggle input')[3];
+            
+            darkModeToggle.addEventListener('change', function() {
+                if(this.checked) {
+                    document.body.style.background = 'linear-gradient(135deg, #4b5563, #1f2937)';
+                } else {
+                    document.body.style.background = 'linear-gradient(135deg, #6e8efb, #a777e3)';
+                }
+            });
+            
+            // Add confirmation for delete account
+            const deleteBtn = document.querySelector('.btn-danger');
+            deleteBtn.addEventListener('click', function() {
+                if(confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
+                    alert('Account deletion process initiated.');
+                }
+            });
+            
+            // Add functionality to unblock buttons
+            const unblockButtons = document.querySelectorAll('.unblock-btn');
+            unblockButtons.forEach(button => {
+                button.addEventListener('click', function() {
+                    this.closest('.blocked-user').style.opacity = '0';
+                    setTimeout(() => {
+                        this.closest('.blocked-user').remove();
+                    }, 300);
+                });
+            });
+            
+            // Update password button
+            const updatePassBtn = document.querySelector('.btn-primary');
+            updatePassBtn.addEventListener('click', function() {
+                const oldPass = document.getElementById('oldPassword').value;
+                const newPass = document.getElementById('newPassword').value;
+                
+                if(!oldPass || !newPass) {
+                    alert('Please fill in both password fields');
+                    return;
+                }
+                
+                alert('Password updated successfully!');
+                document.getElementById('oldPassword').value = '';
+                document.getElementById('newPassword').value = '';
+            });
+            
+            // Logout button
+            const logoutBtn = document.querySelector('.btn-secondary');
+            logoutBtn.addEventListener('click', function() {
+                if(confirm('Are you sure you want to logout?')) {
+                    alert('You have been logged out.');
+                    // In a real app, this would redirect to login page
+                }
+            });
+        });
+    </script>
+</body>
+  </html>
