@@ -5,102 +5,188 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Private Chat</title>
   <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
   <style>
-    body { margin: 0; font-family: 'Segoe UI', sans-serif; background: #0f0f0f; color: #f2f2f2; height: 100vh; display: flex; flex-direction: column; }
-    .topbar { background: #1a1a1a; padding: 14px; display: flex; justify-content: space-between; align-items: center; border-bottom: 1px solid #333; }
-    .topbar h3 { margin: 0; font-size: 18px; }
-    .status { font-size: 12px; color: #0f0; }
-    #chat-box { flex: 1; overflow-y: auto; padding: 16px; display: flex; flex-direction: column; gap: 10px; }
-    .message { max-width: 70%; padding: 10px; border-radius: 8px; word-wrap: break-word; }
-    .me { align-self: flex-end; background: #0047ab; color: white; }
-    .other { align-self: flex-start; background: #333; }
-    .reply { font-size: 12px; background: rgba(255,255,255,0.1); padding: 5px; border-radius: 4px; margin-bottom: 4px; }
-    .reaction { text-align: center; font-size: 16px; margin-top: 5px; }
-    .input-area { background: #1a1a1a; padding: 10px; display: flex; gap: 10px; align-items: center; }
-    input[type="text"] { flex: 1; background: #222; color: white; padding: 10px; border-radius: 6px; border: none; }
-    button, label { background: #0055ff; color: white; border: none; padding: 10px; border-radius: 6px; cursor: pointer; }
-    #typing { text-align: center; font-size: 12px; font-style: italic; color: #aaa; margin: 4px 0; }
-    label { display: flex; align-items: center; cursor: pointer; }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #111;
+      color: #fff;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    .topbar {
+      background: #121212;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 15px 20px;
+    }
+    .toggle { font-size: 24px; color: #6cf; cursor: pointer; }
+    .sidebar {
+      width: 230px; background: #121212;
+      position: fixed; top: 0; left: 0; height: 100%;
+      padding: 20px; display: flex; flex-direction: column; gap: 15px;
+      transform: translateX(-100%); transition: transform 0.3s ease; z-index: 10;
+    }
+    .sidebar.active { transform: translateX(0); }
+    .sidebar .close-btn { font-size: 22px; color: #f66; align-self: flex-end; cursor: pointer; }
+    .sidebar a { text-decoration: none; color: #6cf; font-weight: bold; }
+    header {
+      padding: 10px;
+      text-align: center;
+      background: #1a1a1a;
+      border-bottom: 1px solid #333;
+    }
+    #chat-box {
+      flex: 1;
+      overflow-y: auto;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
+    }
+    .message {
+      margin: 8px; padding: 10px; border-radius: 10px; max-width: 70%;
+      word-wrap: break-word; position: relative; animation: fadein 0.3s ease;
+    }
+    .me { background: #6cf; color: #000; margin-left: auto; }
+    .other { background: #333; margin-right: auto; }
+    .reply { font-size: 12px; background: rgba(255,255,255,0.1);
+      padding: 5px; border-radius: 5px; margin-bottom: 4px; }
+    .reaction { font-size: 18px; margin-top: 4px; text-align: center; }
+    .input-area {
+      display: flex; padding: 10px; background: #222; gap: 8px; align-items: center;
+    }
+    input[type="text"] {
+      flex: 1; background: #333; color: #fff; padding: 10px;
+      border: none; border-radius: 8px;
+    }
+    button {
+      background: #6cf; border: none; padding: 10px 14px; border-radius: 8px;
+      color: #000; font-weight: bold; cursor: pointer;
+    }
+    .typing { font-size: 12px; text-align: center; font-style: italic; opacity: 0.6; }
+    input[type="file"] { display: none; }
+    label { cursor: pointer; }
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
 </head>
 <body>
   <div class="topbar">
-    <div>
-      <h3 id="receiver-name">Loading...</h3>
-      <div class="status" id="online-status">online</div>
-    </div>
-  </div>  
+    <div class="toggle" onclick="toggleSidebar()">☰</div>
+    <h2>Private Chat</h2>
+    <div></div>
+  </div>
+
+  <div class="sidebar" id="sidebar">
+    <div class="close-btn" onclick="toggleSidebar()">×</div>
+    <a href="/dashboard.html">Dashboard</a>
+    <a href="/home.html">Bot Assistant</a>
+    <a href="/chatroom.html">Chat Room</a>
+    <a href="/privatechat.html">Private Chat</a>
+    <a href="/history.html">Bot History</a>
+    <a href="/friends.html">Friends</a>
+    <a href="/login.html" onclick="logout()">Logout</a>
+  </div>
+
+  <header>
+    <h3 id="chatName"></h3>
+    <p id="chatUid" style="font-size:12px;opacity:0.7;"></p>
+  </header>
 
   <div id="chat-box"></div>
-  <div id="typing"></div>  
+  <div id="typing" class="typing"></div>
 
   <div class="input-area">
-    <input type="file" id="file-input" accept="image/*,application/pdf" hidden>
     <label for="file-input">📎</label>
+    <input type="file" id="file-input" accept="image/*,application/pdf" />
     <input type="text" id="msgInput" placeholder="Type a message..." />
     <button onclick="startVoice()">🎤</button>
     <button onclick="sendMsg()">Send</button>
-  </div>  
+  </div>
 
   <script>
     const socket = io("https://real-time-chat-1-pa6c.onrender.com");
-    const user = JSON.parse(localStorage.getItem("user"));
-    const sender = user?.name || "Guest";
-    const senderUid = String(user?.uid || "");  // ✅ ensure string
+    const userObj = JSON.parse(localStorage.getItem("user") || '{}');
+    const senderUid = userObj.uid || prompt("Enter your UID:");
+    const name = userObj.name || prompt("Enter your name:");
 
+    // load receiver from localStorage
     const receiver = localStorage.getItem("receiver");
-    const receiverUid = String(localStorage.getItem("receiverUid") || ""); // ✅ ensure string
+    const receiverUid = localStorage.getItem("receiverUid");
 
     if (!receiver || !receiverUid) {
-      alert("Please select a friend from your friend list!");
+      alert("No chat selected! Please go back and choose a friend.");
       window.location.href = "/home.html";
     }
 
-    // ✅ Fix: always string + sorted room ID
-    const room = [senderUid, receiverUid].sort().join("_");
+    document.getElementById("chatName").textContent = receiver;
+    document.getElementById("chatUid").textContent = "UID: " + receiverUid;
 
-    document.getElementById("receiver-name").innerText = receiver;
+    // unique room between two users
+    const room = [String(senderUid), String(receiverUid)].sort().join("_");
+    socket.emit("join_room", { room, name });
 
+    let replyTo = null;
     const chatBox = document.getElementById("chat-box");
     const msgInput = document.getElementById("msgInput");
     const typingDiv = document.getElementById("typing");
     const fileInput = document.getElementById("file-input");
 
-    let replyTo = null;
-
-    async function loadOldMessages() {
-      chatBox.innerHTML = "";
-      const res = await fetch(`https://real-time-chat-1-pa6c.onrender.com/get-room-messages?room=${room}`);
-      const msgs = await res.json();
-      msgs.forEach(m => addMessage(m.sender, m.text));
-    }
-
     function sendMsg() {
       const msg = msgInput.value.trim();
       if (!msg) return;
-
-      const fullMsg = replyTo ? `Reply to [${replyTo}]: ${msg}` : msg;
-      socket.emit("private-message", { room, sender, text: fullMsg });
-      msgInput.value = "";
+      const final = replyTo ? `Reply to [${replyTo}]: ${msg}` : msg;
+      socket.emit("message", { room, sender: name, text: final });
+      msgInput.value = '';
       replyTo = null;
     }
 
-    function addMessage(senderName, text) {
+    function startVoice() {
+      const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+      rec.lang = "en-IN";
+      rec.start();
+      rec.onresult = e => {
+        const transcript = e.results[0][0].transcript;
+        msgInput.value = transcript;
+        sendMsg();
+      };
+    }
+
+    fileInput.addEventListener('change', () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+      const reader = new FileReader();
+      reader.onload = () => {
+        if (file.type.startsWith("image/")) {
+          socket.emit("message", { room, sender: name, text: `[img]${reader.result}` });
+        } else {
+          socket.emit("message", { room, sender: name, text: `[file]${reader.result}` });
+        }
+      };
+      reader.readAsDataURL(file);
+    });
+
+    function addMessage(sender, text) {
       const div = document.createElement("div");
-      div.className = `message ${senderName === sender ? 'me' : 'other'}`;
+      div.className = `message ${sender === name ? 'me' : 'other'}`;
 
       if (text.startsWith("[img]")) {
         const img = document.createElement("img");
         img.src = text.replace("[img]", "");
-        img.style.maxWidth = "150px";
-        img.style.borderRadius = "8px";
+        img.style.maxWidth = "180px";
+        img.style.borderRadius = "10px";
         div.appendChild(img);
       } else if (text.startsWith("[file]")) {
         const link = document.createElement("a");
         link.href = text.replace("[file]", "");
         link.innerText = "Download File";
-        link.style.color = "#6cf";
         link.target = "_blank";
+        link.style.color = "#6cf";
         div.appendChild(link);
       } else if (text.includes("Reply to [")) {
         const parts = text.split("]:");
@@ -110,7 +196,7 @@
         div.appendChild(reply);
         div.innerHTML += parts[1];
       } else {
-        div.innerHTML += `<b>${senderName}:</b> ${text}`;
+        div.innerHTML += `<b>${sender}:</b> ${text}`;
       }
 
       div.addEventListener("contextmenu", (e) => {
@@ -120,7 +206,7 @@
 
       div.addEventListener("dblclick", () => {
         replyTo = text;
-        alert("Now replying to: " + text);
+        alert(`Now replying to: ${text}`);
       });
 
       chatBox.appendChild(div);
@@ -159,49 +245,28 @@
       div.appendChild(popup);
     }
 
-    fileInput.addEventListener('change', () => {
-      const file = fileInput.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        const prefix = file.type.startsWith("image/") ? "[img]" : "[file]";
-        socket.emit("private-message", { room, sender, text: prefix + reader.result });
-      };
-      reader.readAsDataURL(file);
+    socket.on("message", (data) => {
+      if (data.room === room) addMessage(data.sender, data.text);
     });
 
-    function startVoice() {
-      const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-      rec.lang = "en-IN";
-      rec.start();
-      rec.onresult = e => {
-        msgInput.value = e.results[0][0].transcript;
-        sendMsg();
-      };
-    }
-
-    // ✅ Typing Fix (simulate room-specific typing without server changes)
-    msgInput.addEventListener("input", () => {
-      socket.emit("typing", sender + "@" + room); // attach room info
-    });
-
-    socket.on("typing", data => {
-      if (data.endsWith("@" + room)) {
-        const name = data.split("@")[0];
-        typingDiv.innerText = `${name} is typing...`;
-        setTimeout(() => typingDiv.innerText = "", 2000);
+    socket.on("typing", (data) => {
+      if (data.room === room) {
+        typingDiv.textContent = `${data.user} is typing...`;
+        setTimeout(() => typingDiv.textContent = '', 1500);
       }
     });
 
-    // 🔌 Init
-    socket.emit("set_name", sender);
-    socket.emit("join-room", room);
-
-    socket.on("private-message", ({ sender, text }) => {
-      addMessage(sender, text);
+    msgInput.addEventListener("input", () => {
+      socket.emit("typing", { room, user: name });
     });
 
-    loadOldMessages();
+    function toggleSidebar() {
+      document.getElementById("sidebar").classList.toggle("active");
+    }
+
+    function logout() {
+      localStorage.clear();
+    }
   </script>
 </body>
 </html>
