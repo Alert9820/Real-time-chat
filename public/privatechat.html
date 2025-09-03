@@ -46,17 +46,17 @@
     const socket = io("https://real-time-chat-1-pa6c.onrender.com");
     const user = JSON.parse(localStorage.getItem("user"));
     const sender = user?.name || "Guest";
-    const senderUid = user?.uid || "";
+    const senderUid = String(user?.uid || "");  // ✅ ensure string
 
     const receiver = localStorage.getItem("receiver");
-    const receiverUid = localStorage.getItem("receiverUid");
+    const receiverUid = String(localStorage.getItem("receiverUid") || ""); // ✅ ensure string
 
-    // Agar direct open kare bina friend select kiye
     if (!receiver || !receiverUid) {
       alert("Please select a friend from your friend list!");
       window.location.href = "/home.html";
     }
 
+    // ✅ Fix: always string + sorted room ID
     const room = [senderUid, receiverUid].sort().join("_");
 
     document.getElementById("receiver-name").innerText = receiver;
@@ -69,7 +69,7 @@
     let replyTo = null;
 
     async function loadOldMessages() {
-      chatBox.innerHTML = ""; // 🔹 purane clear
+      chatBox.innerHTML = "";
       const res = await fetch(`https://real-time-chat-1-pa6c.onrender.com/get-room-messages?room=${room}`);
       const msgs = await res.json();
       msgs.forEach(m => addMessage(m.sender, m.text));
@@ -180,20 +180,25 @@
       };
     }
 
+    // ✅ Typing Fix (simulate room-specific typing without server changes)
+    msgInput.addEventListener("input", () => {
+      socket.emit("typing", sender + "@" + room); // attach room info
+    });
+
+    socket.on("typing", data => {
+      if (data.endsWith("@" + room)) {
+        const name = data.split("@")[0];
+        typingDiv.innerText = `${name} is typing...`;
+        setTimeout(() => typingDiv.innerText = "", 2000);
+      }
+    });
+
+    // 🔌 Init
     socket.emit("set_name", sender);
     socket.emit("join-room", room);
 
     socket.on("private-message", ({ sender, text }) => {
       addMessage(sender, text);
-    });
-
-    msgInput.addEventListener("input", () => {
-      socket.emit("typing", sender);
-    });
-
-    socket.on("typing", name => {
-      typingDiv.innerText = `${name} is typing...`;
-      setTimeout(() => typingDiv.innerText = "", 2000);
     });
 
     loadOldMessages();
