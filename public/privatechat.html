@@ -1,4 +1,5 @@
-<!DOCTYPE html><html lang="en">
+<!DOCTYPE html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
@@ -28,23 +29,38 @@
       <h3 id="receiver-name">Loading...</h3>
       <div class="status" id="online-status">online</div>
     </div>
-  </div>  <div id="chat-box"></div>
-  <div id="typing"></div>  <div class="input-area">
+  </div>  
+
+  <div id="chat-box"></div>
+  <div id="typing"></div>  
+
+  <div class="input-area">
     <input type="file" id="file-input" accept="image/*,application/pdf" hidden>
     <label for="file-input">📎</label>
     <input type="text" id="msgInput" placeholder="Type a message..." />
     <button onclick="startVoice()">🎤</button>
     <button onclick="sendMsg()">Send</button>
-  </div>  <script>
+  </div>  
+
+  <script>
     const socket = io("https://real-time-chat-1-pa6c.onrender.com");
     const user = JSON.parse(localStorage.getItem("user"));
+    const sender = user?.name || "Guest";
+    const senderUid = user?.uid || "";
+
     const receiver = localStorage.getItem("receiver");
     const receiverUid = localStorage.getItem("receiverUid");
-    const sender = user.name;
-    const senderUid = user.uid;
+
+    // Agar direct open kare bina friend select kiye
+    if (!receiver || !receiverUid) {
+      alert("Please select a friend from your friend list!");
+      window.location.href = "/home.html";
+    }
+
     const room = [senderUid, receiverUid].sort().join("_");
 
     document.getElementById("receiver-name").innerText = receiver;
+
     const chatBox = document.getElementById("chat-box");
     const msgInput = document.getElementById("msgInput");
     const typingDiv = document.getElementById("typing");
@@ -53,6 +69,7 @@
     let replyTo = null;
 
     async function loadOldMessages() {
+      chatBox.innerHTML = ""; // 🔹 purane clear
       const res = await fetch(`https://real-time-chat-1-pa6c.onrender.com/get-room-messages?room=${room}`);
       const msgs = await res.json();
       msgs.forEach(m => addMessage(m.sender, m.text));
@@ -165,6 +182,7 @@
 
     socket.emit("set_name", sender);
     socket.emit("join-room", room);
+
     socket.on("private-message", ({ sender, text }) => {
       addMessage(sender, text);
     });
@@ -179,5 +197,6 @@
     });
 
     loadOldMessages();
-  </script></body>
+  </script>
+</body>
 </html>
