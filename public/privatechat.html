@@ -46,7 +46,7 @@
   // ✅ Setup socket
   const socket = io();
 
-  let lastSentMessage = ""; // duplicate check ke liye
+  let lastSentMessage = ""; // Duplicate prevention
 
   // Send name+uid on connect
   socket.on("connect", () => {
@@ -74,12 +74,11 @@
     console.log(`👥 ${name} joined the room`);
   });
 
-  // ✅ Handle incoming messages
+  // ✅ Only show actual chat messages, ignore WebRTC / system signals
   socket.on("private-message", (data) => {
-    // Ignore WebRTC signals
-    if (data.__signal) return;
+    if (!data.sender || !data.text) return; // Ignore WebRTC signals
 
-    // Ignore if this is the same message we just sent locally
+    // Prevent showing duplicate message sent by self
     if (data.sender === currentUser.name && data.text === lastSentMessage) return;
 
     addMessage(data.sender, data.text);
@@ -103,8 +102,8 @@
     console.log("➡️ Sending private-message:", payload);
     socket.emit("private-message", payload);
 
+    lastSentMessage = text; // Store last sent message
     addMessage(currentUser.name, text, true);
-    lastSentMessage = text; // store last sent message
     document.getElementById("messageInput").value = "";
   }
 
@@ -116,6 +115,6 @@
     document.getElementById("chat").appendChild(div);
     document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
   }
-  </script>
+        </script>
 </body>
 </html>
