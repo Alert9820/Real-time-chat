@@ -1,168 +1,157 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
   <title>Private Chat</title>
-  <link rel="stylesheet" href="style.css">
-  <script src="/socket.io/socket.io.js"></script>
-</head>
-<body>
-  <div class="chat-container">
-    <!-- Topbar -->
-    <div class="chat-header">
-      <h2 id="chatWith">Private Chat</h2>
-      <button id="clearChatBtn">🗑️ Clear Chat</button>
-    </div>
-
-    <!-- Messages -->
-    <div id="messages" class="messages"></div>
-
-    <!-- Input -->
-    <div class="chat-input">
-      <input id="messageInput" type="text" placeholder="Type a message...">
-      <button id="sendBtn">Send</button>
-    </div>
-  </div>
-
-  <script>
-    const socket = io();
-
-    // Current user
-    const user = JSON.parse(localStorage.getItem("user"));
-    const receiverUid = localStorage.getItem("receiverUid");
-    const receiverName = localStorage.getItem("receiver");
-
-    // Room unique ID
-    const roomId = [user.uid, receiverUid].sort().join("_");
-
-    document.getElementById("chatWith").innerText = "Chat with " + receiverName;
-
-    const messagesDiv = document.getElementById("messages");
-    const input = document.getElementById("messageInput");
-    const sendBtn = document.getElementById("sendBtn");
-    const clearChatBtn = document.getElementById("clearChatBtn");
-
-    // Load history from localStorage
-    function loadHistory() {
-      const history = JSON.parse(localStorage.getItem("chat_" + roomId)) || [];
-      messagesDiv.innerHTML = "";
-      history.forEach(msg => addMessage(msg, msg.sender === user.uid));
-    }
-
-    // Save message to localStorage
-    function saveMessage(msgObj) {
-      let history = JSON.parse(localStorage.getItem("chat_" + roomId)) || [];
-      history.push(msgObj);
-      localStorage.setItem("chat_" + roomId, JSON.stringify(history));
-    }
-
-    // Add message to UI
-    function addMessage(msgObj, isOwn) {
-      const div = document.createElement("div");
-      div.className = isOwn ? "message own" : "message";
-      div.innerText = msgObj.text;
-      messagesDiv.appendChild(div);
-      messagesDiv.scrollTop = messagesDiv.scrollHeight;
-    }
-
-    // Send message
-    sendBtn.addEventListener("click", () => {
-      const text = input.value.trim();
-      if (!text) return;
-
-      const msgObj = { sender: user.uid, text };
-      addMessage(msgObj, true);
-      saveMessage(msgObj);
-
-      socket.emit("privateMessage", { roomId, msgObj, receiverUid });
-      input.value = "";
-    });
-
-    // Receive message
-    socket.on("privateMessage", ({ roomId: r, msgObj }) => {
-      if (r === roomId) {
-        addMessage(msgObj, false);
-        saveMessage(msgObj);
-      }
-    });
-
-    // Join private room
-    socket.emit("joinRoom", roomId);
-
-    // Clear chat
-    clearChatBtn.addEventListener("click", () => {
-      localStorage.removeItem("chat_" + roomId);
-      messagesDiv.innerHTML = "";
-    });
-
-    // Initial load
-    loadHistory();
-  </script>
-
+  <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
+  <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
   <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
     body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      font-family: 'Poppins', sans-serif;
+      background: #111;
+      color: #fff;
       height: 100vh;
-      margin: 0;
-      background: #f0f0f0;
-    }
-    .chat-container {
-      width: 400px;
-      height: 600px;
-      background: #fff;
       display: flex;
       flex-direction: column;
-      border-radius: 10px;
-      overflow: hidden;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
-    .chat-header {
-      background: #007bff;
-      color: #fff;
-      padding: 10px;
+    .topbar {
+      background: #121212;
       display: flex;
       justify-content: space-between;
       align-items: center;
+      padding: 15px 20px;
     }
-    .messages {
+    .topbar h2 { color: #6cf; }
+    #chat-box {
       flex: 1;
-      padding: 10px;
       overflow-y: auto;
-      background: #f9f9f9;
+      padding: 10px;
+      display: flex;
+      flex-direction: column;
     }
     .message {
-      background: #eee;
-      margin: 5px 0;
-      padding: 8px 12px;
-      border-radius: 15px;
+      margin: 8px;
+      padding: 10px;
+      border-radius: 10px;
       max-width: 70%;
+      word-wrap: break-word;
+      position: relative;
+      animation: fadein 0.3s ease;
     }
-    .message.own {
-      background: #007bff;
-      color: #fff;
+    .me {
+      background: #6cf;
+      color: #000;
       margin-left: auto;
     }
-    .chat-input {
+    .other {
+      background: #333;
+      margin-right: auto;
+    }
+    .input-area {
       display: flex;
-      border-top: 1px solid #ddd;
-    }
-    .chat-input input {
-      flex: 1;
-      border: none;
       padding: 10px;
-      font-size: 16px;
+      background: #222;
+      gap: 8px;
+      align-items: center;
     }
-    .chat-input button {
-      background: #007bff;
+    input[type="text"] {
+      flex: 1;
+      background: #333;
       color: #fff;
+      padding: 10px;
       border: none;
-      padding: 10px 15px;
+      border-radius: 8px;
+    }
+    button {
+      background: #6cf;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      color: #000;
+      font-weight: bold;
       cursor: pointer;
     }
+    @keyframes fadein {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
   </style>
+</head>
+<body>
+  <div class="topbar">
+    <h2 id="chat-title">Private Chat</h2>
+    <button onclick="clearChat()">🗑 Clear</button>
+  </div>
+
+  <div id="chat-box"></div>
+
+  <div class="input-area">
+    <input type="text" id="msgInput" placeholder="Type a message..." />
+    <button onclick="sendMsg()">Send</button>
+  </div>
+
+<script>
+  const socket = io("https://real-time-chat-1-pa6c.onrender.com");
+
+  // 🧑 User info
+  const me = JSON.parse(localStorage.getItem("user") || "{}");
+  if (!me.uid) {
+    alert("Login first!");
+    window.location.href = "/login.html";
+  }
+
+  // 👥 Friend UID (from query param ?uid=xxxxx)
+  const params = new URLSearchParams(window.location.search);
+  const friendUid = params.get("uid");
+  const friendName = params.get("name") || "Friend";
+  document.getElementById("chat-title").innerText = "Chat with " + friendName;
+
+  // 🔑 Unique Room ID
+  const roomId = [me.uid, friendUid].sort().join("_");
+
+  // ✨ Join the room
+  socket.emit("set_name", me.name);
+  socket.emit("join-room", roomId);
+
+  const chatBox = document.getElementById("chat-box");
+  const msgInput = document.getElementById("msgInput");
+
+  // 🔄 Load old messages from Mongo
+  fetch(`/get-room-messages?room=${roomId}`)
+    .then(res => res.json())
+    .then(data => {
+      data.forEach(m => addMessage(m.sender, m.text));
+    });
+
+  // ✉️ Send message
+  function sendMsg() {
+    const text = msgInput.value.trim();
+    if (!text) return;
+
+    socket.emit("private-message", { room: roomId, sender: me.name, text });
+    msgInput.value = "";
+  }
+
+  // 📩 Receive private message
+  socket.on("private-message", data => {
+    addMessage(data.sender, data.text);
+  });
+
+  // 🖊️ Add message to UI
+  function addMessage(sender, text) {
+    const div = document.createElement("div");
+    div.className = `message ${sender === me.name ? "me" : "other"}`;
+    div.innerHTML = `<b>${sender}:</b> ${text}`;
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  // 🗑 Clear chat (local UI only)
+  function clearChat() {
+    chatBox.innerHTML = "";
+  }
+</script>
 </body>
 </html>
