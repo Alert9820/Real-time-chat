@@ -1,120 +1,88 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Private Chat</title>
-  <script src="https://cdn.socket.io/4.7.2/socket.io.min.js"></script>
   <style>
-    body { font-family: Arial, sans-serif; margin: 0; padding: 0; }
-    #chat { height: 80vh; overflow-y: auto; border: 1px solid #ccc; padding: 10px; }
-    .msg { margin: 5px 0; }
-    .mine { color: blue; }
-    .other { color: green; }
-    #inputArea { display: flex; margin-top: 10px; }
-    #inputArea input { flex: 1; padding: 5px; }
-    #inputArea button { padding: 5px 10px; }
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
+    #chat { flex: 1; overflow-y: auto; padding: 10px; background: #fff; }
+    .msg { margin: 5px 0; padding: 8px 12px; border-radius: 10px; max-width: 70%; }
+    .mine { background: #dcf8c6; margin-left: auto; }
+    .other { background: #eee; margin-right: auto; }
+    #inputArea { display: flex; padding: 10px; background: #ddd; }
+    #messageInput { flex: 1; padding: 8px; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; }
+    #sendBtn { padding: 8px 16px; margin-left: 5px; font-size: 16px; border-radius: 5px; border: none; background: #4caf50; color: white; cursor: pointer; }
+    #sendBtn:hover { background: #45a049; }
   </style>
 </head>
 <body>
-  <h2>Private Chat</h2>
+
   <div id="chat"></div>
+
   <div id="inputArea">
-    <input id="messageInput" type="text" placeholder="Type message..." />
+    <input type="text" id="messageInput" placeholder="Type a message..." />
     <button id="sendBtn">Send</button>
   </div>
 
+  <script src="/socket.io/socket.io.js"></script>
   <script>
-  // ✅ Get current user from localStorage
-  const currentUser = JSON.parse(localStorage.getItem("user"));
-  if (!currentUser || !currentUser.uid || !currentUser.name) {
-    alert("❌ User not logged in. Redirecting...");
-    window.location.href = "login.html";
-  }
+    // ✅ Get current user
+    const currentUser = JSON.parse(localStorage.getItem("user"));
+    if (!currentUser || !currentUser.uid || !currentUser.name) {
+      alert("❌ User not logged in. Redirecting...");
+      window.location.href = "login.html";
+    }
 
-  // ✅ Friend UID from query param (?uid=...)
-  const params = new URLSearchParams(window.location.search);
-  const friendUid = params.get("uid");
+    // ✅ Friend UID
+    const params = new URLSearchParams(window.location.search);
+    const friendUid = params.get("uid");
+    if (!friendUid) {
+      alert("❌ Friend UID missing in URL!");
+      throw new Error("Friend UID missing");
+    }
 
-  if (!friendUid) {
-    alert("❌ Friend UID missing in URL!");
-    throw new Error("Friend UID missing");
-  }
+    const room = [currentUser.uid, friendUid].sort().join("_");
 
-  // ✅ Generate consistent room id
-  const room = [currentUser.uid, friendUid].sort().join("_");
+    // ✅ Socket setup
+    const socket = io();
 
-  // ✅ Setup socket
-  const socket = io();
+    socket.on("connect", () => {
+      console.log("Connected:", socket.id);
+      socket.emit("set_name", { uid: currentUser.uid, name: currentUser.name });
+      socket.emit("join-room", room);
 
-  let lastSentMessage = ""; // Duplicate prevention
+      fetch(`/get-room-messages?room=${room}`)
+        .then(res => res.json())
+        .then(msgs => msgs.forEach(m => addMessage(m.sender, m.text, m.sender === currentUser.name)))
+        .catch(err => console.error("Failed to load messages:", err));
+    });
 
-  // Send name+uid on connect
-  socket.on("connect", () => {
-    console.log("🔌 Connected to server:", socket.id);
-    socket.emit("set_name", { uid: currentUser.uid, name: currentUser.name });
+    socket.on("private-message", data => addMessage(data.sender, data.text, data.sender === currentUser.name));
+    socket.on("bot-reply", data => addMessage(data.sender, data.text));
 
-    console.log("📌 Joining room:", room);
-    socket.emit("join-room", room);
+    document.getElementById("sendBtn").addEventListener("click", sendMessage);
+    document.getElementById("messageInput").addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(); });
 
-    // Load old messages
-    fetch(`/get-room-messages?room=${room}`)
-      .then((res) => res.json())
-      .then((msgs) => {
-        console.log("📜 Old messages loaded:", msgs);
-        msgs.forEach((m) => addMessage(m.sender, m.text));
-      })
-      .catch((err) => console.error("❌ Failed to load messages", err));
-  });
+    function sendMessage() {
+      const text = document.getElementById("messageInput").value.trim();
+      if (!text) return;
 
-  socket.on("connect_error", (err) => {
-    console.error("❌ Socket connect error:", err);
-  });
+      const payload = { room, sender: currentUser.name, text };
+      socket.emit("private-message", payload);
 
-  socket.on("room-joined", (name) => {
-    console.log(`👥 ${name} joined the room`);
-  });
+      addMessage(currentUser.name, text, true);
+      document.getElementById("messageInput").value = "";
+    }
 
-  // ✅ Only show actual chat messages, ignore WebRTC / system signals
-  socket.on("private-message", (data) => {
-    if (!data.sender || !data.text) return; // Ignore WebRTC signals
+    function addMessage(sender, text, mine = false) {
+      const div = document.createElement("div");
+      div.className = "msg " + (mine ? "mine" : "other");
+      div.textContent = `${sender}: ${text}`;
+      document.getElementById("chat").appendChild(div);
+      document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+    }
+  </script>
 
-    // Prevent showing duplicate message sent by self
-    if (data.sender === currentUser.name && data.text === lastSentMessage) return;
-
-    addMessage(data.sender, data.text);
-  });
-
-  socket.on("disconnect", () => {
-    console.warn("⚠️ Disconnected from server");
-  });
-
-  // ✅ Send message
-  document.getElementById("sendBtn").addEventListener("click", sendMessage);
-  document.getElementById("messageInput").addEventListener("keypress", (e) => {
-    if (e.key === "Enter") sendMessage();
-  });
-
-  function sendMessage() {
-    const text = document.getElementById("messageInput").value.trim();
-    if (!text) return;
-
-    const payload = { room, sender: currentUser.name, text };
-    console.log("➡️ Sending private-message:", payload);
-    socket.emit("private-message", payload);
-
-    lastSentMessage = text; // Store last sent message
-    addMessage(currentUser.name, text, true);
-    document.getElementById("messageInput").value = "";
-  }
-
-  // ✅ Add message to chat
-  function addMessage(sender, text, mine = false) {
-    const div = document.createElement("div");
-    div.className = "msg " + (mine ? "mine" : "other");
-    div.textContent = `${sender}: ${text}`;
-    document.getElementById("chat").appendChild(div);
-    document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
-  }
-        </script>
 </body>
 </html>
