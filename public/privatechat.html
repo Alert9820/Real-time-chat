@@ -1,268 +1,168 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Private Chat</title>
-  <script src="https://cdn.socket.io/4.0.1/socket.io.min.js"></script>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
-  <style>
-    * { margin: 0; padding: 0; box-sizing: border-box; }
-    body {
-      font-family: 'Poppins', sans-serif;
-      background: #111;
-      color: #fff;
-      height: 100vh;
-      display: flex;
-      flex-direction: column;
+  <link rel="stylesheet" href="style.css">
+  <script src="/socket.io/socket.io.js"></script>
+</head>
+<body>
+  <div class="chat-container">
+    <!-- Topbar -->
+    <div class="chat-header">
+      <h2 id="chatWith">Private Chat</h2>
+      <button id="clearChatBtn">🗑️ Clear Chat</button>
+    </div>
+
+    <!-- Messages -->
+    <div id="messages" class="messages"></div>
+
+    <!-- Input -->
+    <div class="chat-input">
+      <input id="messageInput" type="text" placeholder="Type a message...">
+      <button id="sendBtn">Send</button>
+    </div>
+  </div>
+
+  <script>
+    const socket = io();
+
+    // Current user
+    const user = JSON.parse(localStorage.getItem("user"));
+    const receiverUid = localStorage.getItem("receiverUid");
+    const receiverName = localStorage.getItem("receiver");
+
+    // Room unique ID
+    const roomId = [user.uid, receiverUid].sort().join("_");
+
+    document.getElementById("chatWith").innerText = "Chat with " + receiverName;
+
+    const messagesDiv = document.getElementById("messages");
+    const input = document.getElementById("messageInput");
+    const sendBtn = document.getElementById("sendBtn");
+    const clearChatBtn = document.getElementById("clearChatBtn");
+
+    // Load history from localStorage
+    function loadHistory() {
+      const history = JSON.parse(localStorage.getItem("chat_" + roomId)) || [];
+      messagesDiv.innerHTML = "";
+      history.forEach(msg => addMessage(msg, msg.sender === user.uid));
     }
-    .topbar {
-      background: #121212;
+
+    // Save message to localStorage
+    function saveMessage(msgObj) {
+      let history = JSON.parse(localStorage.getItem("chat_" + roomId)) || [];
+      history.push(msgObj);
+      localStorage.setItem("chat_" + roomId, JSON.stringify(history));
+    }
+
+    // Add message to UI
+    function addMessage(msgObj, isOwn) {
+      const div = document.createElement("div");
+      div.className = isOwn ? "message own" : "message";
+      div.innerText = msgObj.text;
+      messagesDiv.appendChild(div);
+      messagesDiv.scrollTop = messagesDiv.scrollHeight;
+    }
+
+    // Send message
+    sendBtn.addEventListener("click", () => {
+      const text = input.value.trim();
+      if (!text) return;
+
+      const msgObj = { sender: user.uid, text };
+      addMessage(msgObj, true);
+      saveMessage(msgObj);
+
+      socket.emit("privateMessage", { roomId, msgObj, receiverUid });
+      input.value = "";
+    });
+
+    // Receive message
+    socket.on("privateMessage", ({ roomId: r, msgObj }) => {
+      if (r === roomId) {
+        addMessage(msgObj, false);
+        saveMessage(msgObj);
+      }
+    });
+
+    // Join private room
+    socket.emit("joinRoom", roomId);
+
+    // Clear chat
+    clearChatBtn.addEventListener("click", () => {
+      localStorage.removeItem("chat_" + roomId);
+      messagesDiv.innerHTML = "";
+    });
+
+    // Initial load
+    loadHistory();
+  </script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
       display: flex;
       justify-content: center;
       align-items: center;
-      padding: 15px 20px;
+      height: 100vh;
+      margin: 0;
+      background: #f0f0f0;
     }
-    #chat-box {
-      flex: 1;
-      overflow-y: auto;
-      padding: 10px;
+    .chat-container {
+      width: 400px;
+      height: 600px;
+      background: #fff;
       display: flex;
       flex-direction: column;
-    }
-    .message {
-      margin: 8px;
-      padding: 10px;
       border-radius: 10px;
-      max-width: 70%;
-      word-wrap: break-word;
-      position: relative;
-      animation: fadein 0.3s ease;
+      overflow: hidden;
+      box-shadow: 0 4px 10px rgba(0,0,0,0.2);
     }
-    .me {
-      background: #6cf;
-      color: #000;
-      margin-left: auto;
-    }
-    .other {
-      background: #333;
-      margin-right: auto;
-    }
-    .reply {
-      font-size: 12px;
-      background: rgba(255,255,255,0.1);
-      padding: 5px;
-      border-radius: 5px;
-      margin-bottom: 4px;
-    }
-    .reaction {
-      font-size: 18px;
-      margin-top: 4px;
-      text-align: center;
-    }
-    .input-area {
-      display: flex;
-      padding: 10px;
-      background: #222;
-      gap: 8px;
-      align-items: center;
-    }
-    input[type="text"] {
-      flex: 1;
-      background: #333;
+    .chat-header {
+      background: #007bff;
       color: #fff;
       padding: 10px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .messages {
+      flex: 1;
+      padding: 10px;
+      overflow-y: auto;
+      background: #f9f9f9;
+    }
+    .message {
+      background: #eee;
+      margin: 5px 0;
+      padding: 8px 12px;
+      border-radius: 15px;
+      max-width: 70%;
+    }
+    .message.own {
+      background: #007bff;
+      color: #fff;
+      margin-left: auto;
+    }
+    .chat-input {
+      display: flex;
+      border-top: 1px solid #ddd;
+    }
+    .chat-input input {
+      flex: 1;
       border: none;
-      border-radius: 8px;
+      padding: 10px;
+      font-size: 16px;
     }
-    button {
-      background: #6cf;
+    .chat-input button {
+      background: #007bff;
+      color: #fff;
       border: none;
-      padding: 10px 14px;
-      border-radius: 8px;
-      color: #000;
-      font-weight: bold;
+      padding: 10px 15px;
       cursor: pointer;
-    }
-    .typing {
-      font-size: 12px;
-      text-align: center;
-      font-style: italic;
-      opacity: 0.6;
-    }
-    input[type="file"] {
-      display: none;
-    }
-    label {
-      cursor: pointer;
-    }
-    @keyframes fadein {
-      from { opacity: 0; transform: translateY(10px); }
-      to { opacity: 1; transform: translateY(0); }
     }
   </style>
-</head>
-<body>
-  <div class="topbar">
-    <h2 id="chatWith">Private Chat</h2>
-  </div>
-
-  <div id="chat-box"></div>
-  <div id="typing" class="typing"></div>
-
-  <div class="input-area">
-    <label for="file-input">📎</label>
-    <input type="file" id="file-input" accept="image/*,application/pdf" />
-    <input type="text" id="msgInput" placeholder="Type a message..." />
-    <button onclick="startVoice()">🎤</button>
-    <button onclick="sendMsg()">Send</button>
-  </div>
-
-<script>
-  const socket = io("https://real-time-chat-1-pa6c.onrender.com");
-  const userObj = JSON.parse(localStorage.getItem("user") || '{}');
-  const friendObj = JSON.parse(localStorage.getItem("receiver") || '{}');
-
-  const name = userObj.name || prompt("Enter your name:");
-  const friendName = friendObj.name || "Friend";
-
-  document.getElementById("chatWith").textContent = `Chat with ${friendName}`;
-
-  // unique room banega dono ke UID se
-  const room = userObj.uid < friendObj.uid 
-    ? userObj.uid + "_" + friendObj.uid 
-    : friendObj.uid + "_" + userObj.uid;
-
-  socket.emit("join_room", { room, name });
-
-  let replyTo = null;
-
-  const chatBox = document.getElementById("chat-box");
-  const msgInput = document.getElementById("msgInput");
-  const typingDiv = document.getElementById("typing");
-  const fileInput = document.getElementById("file-input");
-
-  function sendMsg() {
-    const msg = msgInput.value.trim();
-    if (!msg) return;
-
-    const final = replyTo ? `Reply to [${replyTo}]: ${msg}` : msg;
-    socket.emit("private_message", { room, sender: name, text: final });
-    msgInput.value = '';
-    replyTo = null;
-  }
-
-  function startVoice() {
-    const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-    rec.lang = "en-IN";
-    rec.start();
-    rec.onresult = e => {
-      const transcript = e.results[0][0].transcript;
-      msgInput.value = transcript;
-      sendMsg();
-    };
-  }
-
-  fileInput.addEventListener('change', () => {
-    const file = fileInput.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      if (file.type.startsWith("image/")) {
-        socket.emit("private_message", { room, sender: name, text: `[img]${reader.result}` });
-      } else {
-        socket.emit("private_message", { room, sender: name, text: `[file]${reader.result}` });
-      }
-    };
-    reader.readAsDataURL(file);
-  });
-
-  function addMessage(sender, text) {
-    const div = document.createElement("div");
-    div.className = `message ${sender === name ? 'me' : 'other'}`;
-
-    if (text.startsWith("[img]")) {
-      const img = document.createElement("img");
-      img.src = text.replace("[img]", "");
-      img.style.maxWidth = "180px";
-      img.style.borderRadius = "10px";
-      div.appendChild(img);
-    } else if (text.startsWith("[file]")) {
-      const link = document.createElement("a");
-      link.href = text.replace("[file]", "");
-      link.innerText = "Download File";
-      link.target = "_blank";
-      link.style.color = "#6cf";
-      div.appendChild(link);
-    } else if (text.includes("Reply to [")) {
-      const parts = text.split("]:");
-      const reply = document.createElement("div");
-      reply.className = "reply";
-      reply.innerText = parts[0].replace("Reply to [", "Reply: ");
-      div.appendChild(reply);
-      div.innerHTML += parts[1];
-    } else {
-      div.innerHTML += `<b>${sender}:</b> ${text}`;
-    }
-
-    div.addEventListener("contextmenu", (e) => {
-      e.preventDefault();
-      showReaction(div);
-    });
-
-    div.addEventListener("dblclick", () => {
-      replyTo = text;
-      alert(`Now replying to: ${text}`);
-    });
-
-    chatBox.appendChild(div);
-    chatBox.scrollTop = chatBox.scrollHeight;
-  }
-
-  function showReaction(div) {
-    const emojis = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
-    const popup = document.createElement("div");
-    popup.style.position = "absolute";
-    popup.style.bottom = "30px";
-    popup.style.left = "50%";
-    popup.style.transform = "translateX(-50%)";
-    popup.style.background = "#222";
-    popup.style.padding = "5px 10px";
-    popup.style.borderRadius = "8px";
-    popup.style.display = "flex";
-    popup.style.gap = "5px";
-
-    emojis.forEach(emoji => {
-      const btn = document.createElement("button");
-      btn.innerText = emoji;
-      btn.style.background = "transparent";
-      btn.style.border = "none";
-      btn.style.fontSize = "18px";
-      btn.onclick = () => {
-        const react = document.createElement("div");
-        react.className = "reaction";
-        react.innerText = emoji;
-        div.appendChild(react);
-        popup.remove();
-      };
-      popup.appendChild(btn);
-    });
-
-    div.appendChild(popup);
-  }
-
-  socket.on("private_message", (data) => {
-    addMessage(data.sender, data.text);
-  });
-
-  socket.on("typing", (user) => {
-    typingDiv.textContent = `${user} is typing...`;
-    setTimeout(() => typingDiv.textContent = '', 1500);
-  });
-
-  msgInput.addEventListener("input", () => {
-    socket.emit("typing", name);
-  });
-</script>
 </body>
 </html>
