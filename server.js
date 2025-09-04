@@ -217,7 +217,6 @@ app.get("/get-friends", async (req, res) => {
       friends.map(async (f) => {
         const u = await userCollection.findOne({ uid: f.uid2 });
         return {
-          // return uid explicitly so frontend won't get undefined
           name: u?.name || f.uid2,
           uid: u?.uid || f.uid2,
           online: Object.values(users).some((x) => x?.uid === (u?.uid || f.uid2)),
@@ -261,38 +260,28 @@ app.post("/clear-room", async (req, res) => {
 });
 
 // 🧠 Socket.IO Logic
-// users map: socketId => { uid, name }
 const users = {};
 let botActive = false;
 
 io.on("connection", (socket) => {
   console.log("🔌 User connected:", socket.id);
 
-  // Expect set_name to receive either string or object { uid, name }
+  // set_name
   socket.on("set_name", (data) => {
     try {
-      if (!data) {
-        console.warn("set_name called with empty data from", socket.id);
-        return;
-      }
-      if (typeof data === "string") {
-        // legacy fallback: store name only (uid missing)
-        users[socket.id] = { uid: null, name: data };
-        console.log(`🟢 set_name (string) => ${data} for socket ${socket.id}`);
-      } else if (typeof data === "object") {
+      if (!data) return;
+      if (typeof data === "string") users[socket.id] = { uid: null, name: data };
+      else if (typeof data === "object") {
         const { uid, name } = data;
         users[socket.id] = { uid: uid || null, name: name || "Unknown" };
-        console.log(`🟢 set_name => ${name} (${uid}) for socket ${socket.id}`);
-      } else {
-        console.warn("set_name unknown data type from", socket.id, data);
       }
     } catch (err) {
       console.error("❌ set_name error:", err);
     }
   });
 
+  // typing
   socket.on("typing", (payload) => {
-    // payload can be { room, name } or just name (legacy)
     try {
       if (payload && typeof payload === "object" && payload.room) {
         socket.to(payload.room).emit("typing", payload.name || "Someone");
@@ -304,40 +293,27 @@ io.on("connection", (socket) => {
     }
   });
 
+  // join-room
   socket.on("join-room", (room) => {
     try {
-      if (!room) {
-        console.error("❌ join-room failed: missing room for socket", socket.id);
-        return;
-      }
+      if (!room) return;
       socket.join(room);
       const user = users[socket.id] || { name: "Unknown", uid: null };
-      console.log(`📌 Socket ${socket.id} (${user.name}/${user.uid}) joined room: ${room}`);
       socket.to(room).emit("room-joined", user.name);
     } catch (err) {
       console.error("❌ join-room error:", err);
     }
   });
 
-  // 🌍 Global Chat
+  // global message
   socket.on("message", async (text) => {
     try {
       const user = users[socket.id] || { name: "Unknown", uid: null };
       const sender = user.name;
-      console.log(`🌍 global message from ${sender}:`, text);
       io.emit("message", { sender, text });
 
-      if (text === ">>bot") {
-        botActive = true;
-        io.emit("message", { sender: "System", text: "Bot is now active." });
-        return;
-      }
-
-      if (text === "<<bot") {
-        botActive = false;
-        io.emit("message", { sender: "System", text: "Bot is now inactive." });
-        return;
-      }
+      if (text === ">>bot") { botActive = true; io.emit("message", { sender: "System", text: "Bot is now active." }); return; }
+      if (text === "<<bot") { botActive = false; io.emit("message", { sender: "System", text: "Bot is now inactive." }); return; }
 
       if (botActive && typeof text === "string" && text.toLowerCase().includes("bot")) {
         const clean = text.replace(/bot/gi, "").trim();
@@ -345,62 +321,37 @@ io.on("connection", (socket) => {
         io.emit("message", { sender: "BotX", text: reply });
         await historyCollection.insertOne({ name: sender, prompt: clean, reply });
       }
-    } catch (err) {
-      console.error("❌ global message handler error:", err);
-    }
+    } catch (err) { console.error("❌ global message handler error:", err); }
   });
 
-  // 🔒 Private Chat
+  // private-message
   socket.on("private-message", async (payload) => {
     try {
-      // expected payload: { room, sender, text }
-      if (!payload || typeof payload !== "object") {
-        console.error("❌ private-message invalid payload from", socket.id, payload);
-        return;
-      }
+      if (!payload || typeof payload !== "object") return;
       const { room, sender, text } = payload;
-      if (!room || !sender || !text) {
-        console.error("❌ private-message missing fields:", { room, sender, text, socket: socket.id });
-        return;
-      }
+      if (!room || !sender || !text) return;
 
-      console.log(`🔐 private-message in room ${room} from ${sender}: ${text}`);
-
-      // emit only to that room
       io.to(room).emit("private-message", { sender, text });
 
-      // Save to MongoDB (best-effort, non-blocking for emit)
-      try {
-        await privateMsgCollection.insertOne({
-          room,
-          sender,
-          text,
-          timestamp: new Date(),
-        });
-      } catch (dbErr) {
-        console.error("❌ failed to save private message:", dbErr);
+      // save
+      try { await privateMsgCollection.insertOne({ room, sender, text, timestamp: new Date() }); } 
+      catch (dbErr) { console.error("❌ failed to save private message:", dbErr); }
+
+      // bot reply
+      if (botActive && text.toLowerCase().includes("bot")) {
+        const prompt = text.replace(/bot/gi, "").trim();
+        const reply = await generateBotReply(prompt);
+        io.to(room).emit("bot-reply", { sender: "BotX", text: reply });
+        try { await historyCollection.insertOne({ name: sender, prompt, reply }); } 
+        catch (hErr) { console.error("❌ failed to save bot history:", hErr); }
       }
 
-      // Bot auto reply if active
-      if (botActive && typeof text === "string" && text.toLowerCase().includes("bot")) {
-  const prompt = text.replace(/bot/gi, "").trim();
-  const reply = await generateBotReply(prompt);
+    } catch (err) { console.error("❌ private-message error:", err); }
+  });
 
-  // ✅ Emit bot reply on a separate event
-  io.to(room).emit("bot-reply", { sender: "BotX", text: reply });
-
-  // Save bot history
-  try {
-    await historyCollection.insertOne({ name: sender, prompt, reply });
-  } catch (hErr) {
-    console.error("❌ failed to save bot history:", hErr);
-  }
-      }
-    });
-  
-
+  // disconnect
   socket.on("disconnect", () => {
-    console.log("❌ Disconnected:", socket.id, users[socket.id] ? `(${users[socket.id].name}/${users[socket.id].uid})` : "");
+    console.log("❌ Disconnected:", socket.id, users[socket.id]?.name || "");
     delete users[socket.id];
   });
 });
