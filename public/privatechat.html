@@ -24,89 +24,98 @@
   </div>
 
   <script>
-    // ✅ Get current user from localStorage
-    const currentUser = JSON.parse(localStorage.getItem("user"));
-    if (!currentUser || !currentUser.uid || !currentUser.name) {
-      alert("❌ User not logged in. Redirecting...");
-      window.location.href = "login.html";
-    }
+  // ✅ Get current user from localStorage
+  const currentUser = JSON.parse(localStorage.getItem("user"));
+  if (!currentUser || !currentUser.uid || !currentUser.name) {
+    alert("❌ User not logged in. Redirecting...");
+    window.location.href = "login.html";
+  }
 
-    // ✅ Friend UID from query param (?uid=...)
-    const params = new URLSearchParams(window.location.search);
-    const friendUid = params.get("uid");
+  // ✅ Friend UID from query param (?uid=...)
+  const params = new URLSearchParams(window.location.search);
+  const friendUid = params.get("uid");
 
-    if (!friendUid) {
-      alert("❌ Friend UID missing in URL!");
-      throw new Error("Friend UID missing");
-    }
+  if (!friendUid) {
+    alert("❌ Friend UID missing in URL!");
+    throw new Error("Friend UID missing");
+  }
 
-    // ✅ Generate consistent room id
-    const room = [currentUser.uid, friendUid].sort().join("_");
+  // ✅ Generate consistent room id
+  const room = [currentUser.uid, friendUid].sort().join("_");
 
-    // ✅ Setup socket
-    const socket = io();
+  // ✅ Setup socket
+  const socket = io();
 
-    // Send name+uid on connect
-    socket.on("connect", () => {
-      console.log("🔌 Connected to server:", socket.id);
-      socket.emit("set_name", { uid: currentUser.uid, name: currentUser.name });
+  let lastSentMessage = ""; // duplicate check ke liye
 
-      console.log("📌 Joining room:", room);
-      socket.emit("join-room", room);
+  // Send name+uid on connect
+  socket.on("connect", () => {
+    console.log("🔌 Connected to server:", socket.id);
+    socket.emit("set_name", { uid: currentUser.uid, name: currentUser.name });
 
-      // Load old messages
-      fetch(`/get-room-messages?room=${room}`)
-        .then((res) => res.json())
-        .then((msgs) => {
-          console.log("📜 Old messages loaded:", msgs);
-          msgs.forEach((m) => addMessage(m.sender, m.text));
-        })
-        .catch((err) => console.error("❌ Failed to load messages", err));
-    });
+    console.log("📌 Joining room:", room);
+    socket.emit("join-room", room);
 
-    socket.on("connect_error", (err) => {
-      console.error("❌ Socket connect error:", err);
-    });
+    // Load old messages
+    fetch(`/get-room-messages?room=${room}`)
+      .then((res) => res.json())
+      .then((msgs) => {
+        console.log("📜 Old messages loaded:", msgs);
+        msgs.forEach((m) => addMessage(m.sender, m.text));
+      })
+      .catch((err) => console.error("❌ Failed to load messages", err));
+  });
 
-    socket.on("room-joined", (name) => {
-      console.log(`👥 ${name} joined the room`);
-    });
+  socket.on("connect_error", (err) => {
+    console.error("❌ Socket connect error:", err);
+  });
 
-    socket.on("private-message", (data) => {
-      console.log("📩 Private message received:", data);
-      addMessage(data.sender, data.text);
-    });
+  socket.on("room-joined", (name) => {
+    console.log(`👥 ${name} joined the room`);
+  });
 
-    socket.on("disconnect", () => {
-      console.warn("⚠️ Disconnected from server");
-    });
+  // ✅ Handle incoming messages
+  socket.on("private-message", (data) => {
+    // Ignore WebRTC signals
+    if (data.__signal) return;
 
-    // ✅ Send message
-    document.getElementById("sendBtn").addEventListener("click", sendMessage);
-    document.getElementById("messageInput").addEventListener("keypress", (e) => {
-      if (e.key === "Enter") sendMessage();
-    });
+    // Ignore if this is the same message we just sent locally
+    if (data.sender === currentUser.name && data.text === lastSentMessage) return;
 
-    function sendMessage() {
-      const text = document.getElementById("messageInput").value.trim();
-      if (!text) return;
+    addMessage(data.sender, data.text);
+  });
 
-      const payload = { room, sender: currentUser.name, text };
-      console.log("➡️ Sending private-message:", payload);
-      socket.emit("private-message", payload);
+  socket.on("disconnect", () => {
+    console.warn("⚠️ Disconnected from server");
+  });
 
-      addMessage(currentUser.name, text, true);
-      document.getElementById("messageInput").value = "";
-    }
+  // ✅ Send message
+  document.getElementById("sendBtn").addEventListener("click", sendMessage);
+  document.getElementById("messageInput").addEventListener("keypress", (e) => {
+    if (e.key === "Enter") sendMessage();
+  });
 
-    // ✅ Add message to chat
-    function addMessage(sender, text, mine = false) {
-      const div = document.createElement("div");
-      div.className = "msg " + (mine ? "mine" : "other");
-      div.textContent = `${sender}: ${text}`;
-      document.getElementById("chat").appendChild(div);
-      document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
-    }
+  function sendMessage() {
+    const text = document.getElementById("messageInput").value.trim();
+    if (!text) return;
+
+    const payload = { room, sender: currentUser.name, text };
+    console.log("➡️ Sending private-message:", payload);
+    socket.emit("private-message", payload);
+
+    addMessage(currentUser.name, text, true);
+    lastSentMessage = text; // store last sent message
+    document.getElementById("messageInput").value = "";
+  }
+
+  // ✅ Add message to chat
+  function addMessage(sender, text, mine = false) {
+    const div = document.createElement("div");
+    div.className = "msg " + (mine ? "mine" : "other");
+    div.textContent = `${sender}: ${text}`;
+    document.getElementById("chat").appendChild(div);
+    document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+  }
   </script>
 </body>
 </html>
