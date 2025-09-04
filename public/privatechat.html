@@ -19,25 +19,9 @@
     .topbar {
       background: #121212;
       display: flex;
-      justify-content: space-between;
+      justify-content: center;
       align-items: center;
       padding: 15px 20px;
-    }
-    .toggle { font-size: 24px; color: #6cf; cursor: pointer; }
-    .sidebar {
-      width: 230px; background: #121212;
-      position: fixed; top: 0; left: 0; height: 100%;
-      padding: 20px; display: flex; flex-direction: column; gap: 15px;
-      transform: translateX(-100%); transition: transform 0.3s ease; z-index: 10;
-    }
-    .sidebar.active { transform: translateX(0); }
-    .sidebar .close-btn { font-size: 22px; color: #f66; align-self: flex-end; cursor: pointer; }
-    .sidebar a { text-decoration: none; color: #6cf; font-weight: bold; }
-    header {
-      padding: 10px;
-      text-align: center;
-      background: #1a1a1a;
-      border-bottom: 1px solid #333;
     }
     #chat-box {
       flex: 1;
@@ -47,28 +31,71 @@
       flex-direction: column;
     }
     .message {
-      margin: 8px; padding: 10px; border-radius: 10px; max-width: 70%;
-      word-wrap: break-word; position: relative; animation: fadein 0.3s ease;
+      margin: 8px;
+      padding: 10px;
+      border-radius: 10px;
+      max-width: 70%;
+      word-wrap: break-word;
+      position: relative;
+      animation: fadein 0.3s ease;
     }
-    .me { background: #6cf; color: #000; margin-left: auto; }
-    .other { background: #333; margin-right: auto; }
-    .reply { font-size: 12px; background: rgba(255,255,255,0.1);
-      padding: 5px; border-radius: 5px; margin-bottom: 4px; }
-    .reaction { font-size: 18px; margin-top: 4px; text-align: center; }
+    .me {
+      background: #6cf;
+      color: #000;
+      margin-left: auto;
+    }
+    .other {
+      background: #333;
+      margin-right: auto;
+    }
+    .reply {
+      font-size: 12px;
+      background: rgba(255,255,255,0.1);
+      padding: 5px;
+      border-radius: 5px;
+      margin-bottom: 4px;
+    }
+    .reaction {
+      font-size: 18px;
+      margin-top: 4px;
+      text-align: center;
+    }
     .input-area {
-      display: flex; padding: 10px; background: #222; gap: 8px; align-items: center;
+      display: flex;
+      padding: 10px;
+      background: #222;
+      gap: 8px;
+      align-items: center;
     }
     input[type="text"] {
-      flex: 1; background: #333; color: #fff; padding: 10px;
-      border: none; border-radius: 8px;
+      flex: 1;
+      background: #333;
+      color: #fff;
+      padding: 10px;
+      border: none;
+      border-radius: 8px;
     }
     button {
-      background: #6cf; border: none; padding: 10px 14px; border-radius: 8px;
-      color: #000; font-weight: bold; cursor: pointer;
+      background: #6cf;
+      border: none;
+      padding: 10px 14px;
+      border-radius: 8px;
+      color: #000;
+      font-weight: bold;
+      cursor: pointer;
     }
-    .typing { font-size: 12px; text-align: center; font-style: italic; opacity: 0.6; }
-    input[type="file"] { display: none; }
-    label { cursor: pointer; }
+    .typing {
+      font-size: 12px;
+      text-align: center;
+      font-style: italic;
+      opacity: 0.6;
+    }
+    input[type="file"] {
+      display: none;
+    }
+    label {
+      cursor: pointer;
+    }
     @keyframes fadein {
       from { opacity: 0; transform: translateY(10px); }
       to { opacity: 1; transform: translateY(0); }
@@ -77,26 +104,8 @@
 </head>
 <body>
   <div class="topbar">
-    <div class="toggle" onclick="toggleSidebar()">☰</div>
-    <h2>Private Chat</h2>
-    <div></div>
+    <h2 id="chatWith">Private Chat</h2>
   </div>
-
-  <div class="sidebar" id="sidebar">
-    <div class="close-btn" onclick="toggleSidebar()">×</div>
-    <a href="/dashboard.html">Dashboard</a>
-    <a href="/home.html">Bot Assistant</a>
-    <a href="/chatroom.html">Chat Room</a>
-    <a href="/privatechat.html">Private Chat</a>
-    <a href="/history.html">Bot History</a>
-    <a href="/friends.html">Friends</a>
-    <a href="/login.html" onclick="logout()">Logout</a>
-  </div>
-
-  <header>
-    <h3 id="chatName"></h3>
-    <p id="chatUid" style="font-size:12px;opacity:0.7;"></p>
-  </header>
 
   <div id="chat-box"></div>
   <div id="typing" class="typing"></div>
@@ -109,164 +118,151 @@
     <button onclick="sendMsg()">Send</button>
   </div>
 
-  <script>
-    const socket = io("https://real-time-chat-1-pa6c.onrender.com");
-    const userObj = JSON.parse(localStorage.getItem("user") || '{}');
-    const senderUid = userObj.uid || prompt("Enter your UID:");
-    const name = userObj.name || prompt("Enter your name:");
+<script>
+  const socket = io("https://real-time-chat-1-pa6c.onrender.com");
+  const userObj = JSON.parse(localStorage.getItem("user") || '{}');
+  const friendObj = JSON.parse(localStorage.getItem("receiver") || '{}');
 
-    // load receiver from localStorage
-    const receiver = localStorage.getItem("receiver");
-    const receiverUid = localStorage.getItem("receiverUid");
+  const name = userObj.name || prompt("Enter your name:");
+  const friendName = friendObj.name || "Friend";
 
-    if (!receiver || !receiverUid) {
-      alert("No chat selected! Please go back and choose a friend.");
-      window.location.href = "/home.html";
-    }
+  document.getElementById("chatWith").textContent = `Chat with ${friendName}`;
 
-    document.getElementById("chatName").textContent = receiver;
-    document.getElementById("chatUid").textContent = "UID: " + receiverUid;
+  // unique room banega dono ke UID se
+  const room = userObj.uid < friendObj.uid 
+    ? userObj.uid + "_" + friendObj.uid 
+    : friendObj.uid + "_" + userObj.uid;
 
-    // unique room between two users
-    const room = [String(senderUid), String(receiverUid)].sort().join("_");
-    socket.emit("join_room", { room, name });
+  socket.emit("join_room", { room, name });
 
-    let replyTo = null;
-    const chatBox = document.getElementById("chat-box");
-    const msgInput = document.getElementById("msgInput");
-    const typingDiv = document.getElementById("typing");
-    const fileInput = document.getElementById("file-input");
+  let replyTo = null;
 
-    function sendMsg() {
-      const msg = msgInput.value.trim();
-      if (!msg) return;
-      const final = replyTo ? `Reply to [${replyTo}]: ${msg}` : msg;
-      socket.emit("message", { room, sender: name, text: final });
-      msgInput.value = '';
-      replyTo = null;
-    }
+  const chatBox = document.getElementById("chat-box");
+  const msgInput = document.getElementById("msgInput");
+  const typingDiv = document.getElementById("typing");
+  const fileInput = document.getElementById("file-input");
 
-    function startVoice() {
-      const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
-      rec.lang = "en-IN";
-      rec.start();
-      rec.onresult = e => {
-        const transcript = e.results[0][0].transcript;
-        msgInput.value = transcript;
-        sendMsg();
-      };
-    }
+  function sendMsg() {
+    const msg = msgInput.value.trim();
+    if (!msg) return;
 
-    fileInput.addEventListener('change', () => {
-      const file = fileInput.files[0];
-      if (!file) return;
-      const reader = new FileReader();
-      reader.onload = () => {
-        if (file.type.startsWith("image/")) {
-          socket.emit("message", { room, sender: name, text: `[img]${reader.result}` });
-        } else {
-          socket.emit("message", { room, sender: name, text: `[file]${reader.result}` });
-        }
-      };
-      reader.readAsDataURL(file);
-    });
+    const final = replyTo ? `Reply to [${replyTo}]: ${msg}` : msg;
+    socket.emit("private_message", { room, sender: name, text: final });
+    msgInput.value = '';
+    replyTo = null;
+  }
 
-    function addMessage(sender, text) {
-      const div = document.createElement("div");
-      div.className = `message ${sender === name ? 'me' : 'other'}`;
+  function startVoice() {
+    const rec = new (window.SpeechRecognition || window.webkitSpeechRecognition)();
+    rec.lang = "en-IN";
+    rec.start();
+    rec.onresult = e => {
+      const transcript = e.results[0][0].transcript;
+      msgInput.value = transcript;
+      sendMsg();
+    };
+  }
 
-      if (text.startsWith("[img]")) {
-        const img = document.createElement("img");
-        img.src = text.replace("[img]", "");
-        img.style.maxWidth = "180px";
-        img.style.borderRadius = "10px";
-        div.appendChild(img);
-      } else if (text.startsWith("[file]")) {
-        const link = document.createElement("a");
-        link.href = text.replace("[file]", "");
-        link.innerText = "Download File";
-        link.target = "_blank";
-        link.style.color = "#6cf";
-        div.appendChild(link);
-      } else if (text.includes("Reply to [")) {
-        const parts = text.split("]:");
-        const reply = document.createElement("div");
-        reply.className = "reply";
-        reply.innerText = parts[0].replace("Reply to [", "Reply: ");
-        div.appendChild(reply);
-        div.innerHTML += parts[1];
+  fileInput.addEventListener('change', () => {
+    const file = fileInput.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (file.type.startsWith("image/")) {
+        socket.emit("private_message", { room, sender: name, text: `[img]${reader.result}` });
       } else {
-        div.innerHTML += `<b>${sender}:</b> ${text}`;
+        socket.emit("private_message", { room, sender: name, text: `[file]${reader.result}` });
       }
+    };
+    reader.readAsDataURL(file);
+  });
 
-      div.addEventListener("contextmenu", (e) => {
-        e.preventDefault();
-        showReaction(div);
-      });
+  function addMessage(sender, text) {
+    const div = document.createElement("div");
+    div.className = `message ${sender === name ? 'me' : 'other'}`;
 
-      div.addEventListener("dblclick", () => {
-        replyTo = text;
-        alert(`Now replying to: ${text}`);
-      });
-
-      chatBox.appendChild(div);
-      chatBox.scrollTop = chatBox.scrollHeight;
+    if (text.startsWith("[img]")) {
+      const img = document.createElement("img");
+      img.src = text.replace("[img]", "");
+      img.style.maxWidth = "180px";
+      img.style.borderRadius = "10px";
+      div.appendChild(img);
+    } else if (text.startsWith("[file]")) {
+      const link = document.createElement("a");
+      link.href = text.replace("[file]", "");
+      link.innerText = "Download File";
+      link.target = "_blank";
+      link.style.color = "#6cf";
+      div.appendChild(link);
+    } else if (text.includes("Reply to [")) {
+      const parts = text.split("]:");
+      const reply = document.createElement("div");
+      reply.className = "reply";
+      reply.innerText = parts[0].replace("Reply to [", "Reply: ");
+      div.appendChild(reply);
+      div.innerHTML += parts[1];
+    } else {
+      div.innerHTML += `<b>${sender}:</b> ${text}`;
     }
 
-    function showReaction(div) {
-      const emojis = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
-      const popup = document.createElement("div");
-      popup.style.position = "absolute";
-      popup.style.bottom = "30px";
-      popup.style.left = "50%";
-      popup.style.transform = "translateX(-50%)";
-      popup.style.background = "#222";
-      popup.style.padding = "5px 10px";
-      popup.style.borderRadius = "8px";
-      popup.style.display = "flex";
-      popup.style.gap = "5px";
-
-      emojis.forEach(emoji => {
-        const btn = document.createElement("button");
-        btn.innerText = emoji;
-        btn.style.background = "transparent";
-        btn.style.border = "none";
-        btn.style.fontSize = "18px";
-        btn.onclick = () => {
-          const react = document.createElement("div");
-          react.className = "reaction";
-          react.innerText = emoji;
-          div.appendChild(react);
-          popup.remove();
-        };
-        popup.appendChild(btn);
-      });
-
-      div.appendChild(popup);
-    }
-
-    socket.on("message", (data) => {
-      if (data.room === room) addMessage(data.sender, data.text);
+    div.addEventListener("contextmenu", (e) => {
+      e.preventDefault();
+      showReaction(div);
     });
 
-    socket.on("typing", (data) => {
-      if (data.room === room) {
-        typingDiv.textContent = `${data.user} is typing...`;
-        setTimeout(() => typingDiv.textContent = '', 1500);
-      }
+    div.addEventListener("dblclick", () => {
+      replyTo = text;
+      alert(`Now replying to: ${text}`);
     });
 
-    msgInput.addEventListener("input", () => {
-      socket.emit("typing", { room, user: name });
+    chatBox.appendChild(div);
+    chatBox.scrollTop = chatBox.scrollHeight;
+  }
+
+  function showReaction(div) {
+    const emojis = ["👍", "❤️", "😂", "😮", "😢", "🙏"];
+    const popup = document.createElement("div");
+    popup.style.position = "absolute";
+    popup.style.bottom = "30px";
+    popup.style.left = "50%";
+    popup.style.transform = "translateX(-50%)";
+    popup.style.background = "#222";
+    popup.style.padding = "5px 10px";
+    popup.style.borderRadius = "8px";
+    popup.style.display = "flex";
+    popup.style.gap = "5px";
+
+    emojis.forEach(emoji => {
+      const btn = document.createElement("button");
+      btn.innerText = emoji;
+      btn.style.background = "transparent";
+      btn.style.border = "none";
+      btn.style.fontSize = "18px";
+      btn.onclick = () => {
+        const react = document.createElement("div");
+        react.className = "reaction";
+        react.innerText = emoji;
+        div.appendChild(react);
+        popup.remove();
+      };
+      popup.appendChild(btn);
     });
 
-    function toggleSidebar() {
-      document.getElementById("sidebar").classList.toggle("active");
-    }
+    div.appendChild(popup);
+  }
 
-    function logout() {
-      localStorage.clear();
-    }
-  </script>
+  socket.on("private_message", (data) => {
+    addMessage(data.sender, data.text);
+  });
+
+  socket.on("typing", (user) => {
+    typingDiv.textContent = `${user} is typing...`;
+    setTimeout(() => typingDiv.textContent = '', 1500);
+  });
+
+  msgInput.addEventListener("input", () => {
+    socket.emit("typing", name);
+  });
+</script>
 </body>
 </html>
