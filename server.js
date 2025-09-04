@@ -1,4 +1,4 @@
-// ✅ FINAL MONGO-READY BACKEND (server.js) WITH PRIVATE CHAT + BOT + FRIEND SYSTEM
+// ✅ FINAL MONGO-READY BACKEND (server.js) WITH CLEAN PRIVATE CHAT + BOT + FRIEND SYSTEM
 import express from "express";
 import cors from "cors";
 import { Server } from "socket.io";
@@ -37,11 +37,7 @@ const client = new MongoClient(uri, {
 });
 
 const dbName = "ChatDB";
-let userCollection,
-  historyCollection,
-  requestCollection,
-  friendCollection,
-  privateMsgCollection;
+let userCollection, historyCollection, requestCollection, friendCollection, privateMsgCollection;
 
 client
   .connect()
@@ -51,7 +47,7 @@ client
     historyCollection = db.collection("bot_history");
     requestCollection = db.collection("friend_requests");
     friendCollection = db.collection("friends");
-    privateMsgCollection = db.collection("privateMessages"); // ✅ NEW
+    privateMsgCollection = db.collection("privateMessages");
     console.log("✅ MongoDB Connected");
   })
   .catch((err) => console.error("❌ Mongo Connection Error:", err));
@@ -76,9 +72,7 @@ async function generateBotReply(prompt) {
       }
     );
     const data = await res.json();
-    return (
-      data.candidates?.[0]?.content?.parts?.[0]?.text || "Bot confused hai."
-    );
+    return data.candidates?.[0]?.content?.parts?.[0]?.text || "Bot confused hai.";
   } catch (e) {
     console.error("❌ Bot error:", e);
     return "Bot reply failed.";
@@ -90,12 +84,10 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 
-// 📝 Register User
 app.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
-    if (!name || !email || !password)
-      return res.status(400).send("Fill all fields");
+    if (!name || !email || !password) return res.status(400).send("Fill all fields");
 
     const exist = await userCollection.findOne({ $or: [{ email }, { name }] });
     if (exist) return res.status(400).send("User already exists");
@@ -109,7 +101,6 @@ app.post("/register", async (req, res) => {
   }
 });
 
-// 🔑 Login
 app.post("/login", async (req, res) => {
   try {
     let email, password;
@@ -130,25 +121,20 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// ❌ Delete Account
 app.post("/delete-account", async (req, res) => {
   try {
     const { email } = req.body;
     if (!email) return res.status(400).send("Missing email");
 
     const result = await userCollection.deleteOne({ email });
-    if (result.deletedCount === 1) {
-      res.send("Account deleted successfully");
-    } else {
-      res.status(404).send("User not found");
-    }
+    if (result.deletedCount === 1) res.send("Account deleted successfully");
+    else res.status(404).send("User not found");
   } catch (e) {
     console.error("❌ Delete Account Error:", e);
     res.status(500).send("Server error");
   }
 });
 
-// 📜 Bot History
 app.get("/bot-history", async (req, res) => {
   try {
     const name = req.query.name;
@@ -160,7 +146,6 @@ app.get("/bot-history", async (req, res) => {
   }
 });
 
-// 👥 Get Users
 app.get("/get-users", async (req, res) => {
   try {
     const users = await userCollection.find().toArray();
@@ -171,16 +156,12 @@ app.get("/get-users", async (req, res) => {
   }
 });
 
-// 📨 Friend Request System
 app.post("/send-request", async (req, res) => {
   const { fromUid, toUid } = req.body;
   const toUser = await userCollection.findOne({ uid: toUid });
   if (!toUser) return res.status(404).send("UID not found");
 
-  const alreadySent = await requestCollection.findOne({
-    from: fromUid,
-    to: toUid,
-  });
+  const alreadySent = await requestCollection.findOne({ from: fromUid, to: toUid });
   if (alreadySent) return res.status(400).send("Request already sent");
 
   await requestCollection.insertOne({ from: fromUid, to: toUid });
@@ -230,15 +211,11 @@ app.get("/get-friends", async (req, res) => {
   }
 });
 
-// ✅ GET Saved Private Chat
 app.get("/get-room-messages", async (req, res) => {
   try {
     const { room } = req.query;
     if (!room) return res.status(400).send("Missing room");
-    const messages = await privateMsgCollection
-      .find({ room })
-      .sort({ timestamp: 1 })
-      .toArray();
+    const messages = await privateMsgCollection.find({ room }).sort({ timestamp: 1 }).toArray();
     res.json(messages);
   } catch (e) {
     console.error("❌ Message Fetch Error:", e);
@@ -246,7 +223,6 @@ app.get("/get-room-messages", async (req, res) => {
   }
 });
 
-// ❌ Clear Room Messages
 app.post("/clear-room", async (req, res) => {
   try {
     const { room } = req.body;
@@ -266,98 +242,71 @@ let botActive = false;
 io.on("connection", (socket) => {
   console.log("🔌 User connected:", socket.id);
 
-  // set_name
   socket.on("set_name", (data) => {
-    try {
-      if (!data) return;
-      if (typeof data === "string") users[socket.id] = { uid: null, name: data };
-      else if (typeof data === "object") {
-        const { uid, name } = data;
-        users[socket.id] = { uid: uid || null, name: name || "Unknown" };
-      }
-    } catch (err) {
-      console.error("❌ set_name error:", err);
-    }
+    if (!data) return;
+    if (typeof data === "string") users[socket.id] = { uid: null, name: data };
+    else if (typeof data === "object") users[socket.id] = { uid: data.uid || null, name: data.name || "Unknown" };
   });
 
-  // typing
   socket.on("typing", (payload) => {
-    try {
-      if (payload && typeof payload === "object" && payload.room) {
-        socket.to(payload.room).emit("typing", payload.name || "Someone");
-      } else {
-        socket.broadcast.emit("typing", payload || "Someone");
-      }
-    } catch (err) {
-      console.error("❌ typing error:", err);
-    }
+    if (payload?.room) socket.to(payload.room).emit("typing", payload.name || "Someone");
+    else socket.broadcast.emit("typing", payload || "Someone");
   });
 
-  // join-room
   socket.on("join-room", (room) => {
-    try {
-      if (!room) return;
-      socket.join(room);
-      const user = users[socket.id] || { name: "Unknown", uid: null };
-      socket.to(room).emit("room-joined", user.name);
-    } catch (err) {
-      console.error("❌ join-room error:", err);
+    if (!room) return;
+    socket.join(room);
+    const user = users[socket.id] || { name: "Unknown", uid: null };
+    socket.to(room).emit("room-joined", user.name);
+  });
+
+  // 🌍 Global Chat
+  socket.on("message", async (text) => {
+    const user = users[socket.id] || { name: "Unknown" };
+    const sender = user.name;
+    io.emit("message", { sender, text });
+
+    if (text === ">>bot") return (botActive = true);
+    if (text === "<<bot") return (botActive = false);
+
+    if (botActive && text?.toLowerCase().includes("bot")) {
+      const clean = text.replace(/bot/gi, "").trim();
+      const reply = await generateBotReply(clean || "Hello");
+      io.emit("message", { sender: "BotX", text: reply });
+      await historyCollection.insertOne({ name: sender, prompt: clean, reply });
     }
   });
 
-  // global message
-  socket.on("message", async (text) => {
-    try {
-      const user = users[socket.id] || { name: "Unknown", uid: null };
-      const sender = user.name;
-      io.emit("message", { sender, text });
-
-      if (text === ">>bot") { botActive = true; io.emit("message", { sender: "System", text: "Bot is now active." }); return; }
-      if (text === "<<bot") { botActive = false; io.emit("message", { sender: "System", text: "Bot is now inactive." }); return; }
-
-      if (botActive && typeof text === "string" && text.toLowerCase().includes("bot")) {
-        const clean = text.replace(/bot/gi, "").trim();
-        const reply = await generateBotReply(clean || "Hello");
-        io.emit("message", { sender: "BotX", text: reply });
-        await historyCollection.insertOne({ name: sender, prompt: clean, reply });
-      }
-    } catch (err) { console.error("❌ global message handler error:", err); }
-  });
-
-  // private-message
+  // 🔒 Private Chat
   socket.on("private-message", async (payload) => {
+    if (!payload || !payload.room || !payload.sender || !payload.text) return;
+
+    const { room, sender, text } = payload;
+    io.to(room).emit("private-message", { sender, text });
+
     try {
-      if (!payload || typeof payload !== "object") return;
-      const { room, sender, text } = payload;
-      if (!room || !sender || !text) return;
+      await privateMsgCollection.insertOne({ room, sender, text, timestamp: new Date() });
+    } catch (e) {
+      console.error("❌ failed to save private message:", e);
+    }
 
-      io.to(room).emit("private-message", { sender, text });
-
-      // save
-      try { await privateMsgCollection.insertOne({ room, sender, text, timestamp: new Date() }); } 
-      catch (dbErr) { console.error("❌ failed to save private message:", dbErr); }
-
-      // bot reply
-      if (botActive && text.toLowerCase().includes("bot")) {
-        const prompt = text.replace(/bot/gi, "").trim();
-        const reply = await generateBotReply(prompt);
-        io.to(room).emit("bot-reply", { sender: "BotX", text: reply });
-        try { await historyCollection.insertOne({ name: sender, prompt, reply }); } 
-        catch (hErr) { console.error("❌ failed to save bot history:", hErr); }
+    if (botActive && text.toLowerCase().includes("bot")) {
+      const prompt = text.replace(/bot/gi, "").trim();
+      const reply = await generateBotReply(prompt);
+      io.to(room).emit("bot-reply", { sender: "BotX", text: reply });
+      try {
+        await historyCollection.insertOne({ name: sender, prompt, reply });
+      } catch (e) {
+        console.error("❌ failed to save bot history:", e);
       }
-
-    } catch (err) { console.error("❌ private-message error:", err); }
+    }
   });
 
-  // disconnect
   socket.on("disconnect", () => {
-    console.log("❌ Disconnected:", socket.id, users[socket.id]?.name || "");
     delete users[socket.id];
   });
 });
 
 // 🚀 Start Server
 const PORT = process.env.PORT || 5000;
-server.listen(PORT, () => {
-  console.log(`🚀 Server running on http://localhost:${PORT}`);
-});
+server.listen(PORT, () => console.log(`🚀 Server running on http://localhost:${PORT}`));
