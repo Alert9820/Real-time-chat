@@ -383,19 +383,19 @@ io.on("connection", (socket) => {
 
       // Bot auto reply if active
       if (botActive && typeof text === "string" && text.toLowerCase().includes("bot")) {
-        const prompt = text.replace(/bot/gi, "").trim();
-        const reply = await generateBotReply(prompt);
-        io.to(room).emit("private-message", { sender: "BotX", text: reply });
-        try {
-          await historyCollection.insertOne({ name: sender, prompt, reply });
-        } catch (hErr) {
-          console.error("❌ failed to save bot history:", hErr);
-        }
+  const prompt = text.replace(/bot/gi, "").trim();
+  const reply = await generateBotReply(prompt);
+
+  // ✅ Emit bot reply on a separate event
+  io.to(room).emit("bot-reply", { sender: "BotX", text: reply });
+
+  // Save bot history
+  try {
+    await historyCollection.insertOne({ name: sender, prompt, reply });
+  } catch (hErr) {
+    console.error("❌ failed to save bot history:", hErr);
+  }
       }
-    } catch (err) {
-      console.error("❌ private-message handler error:", err);
-    }
-  });
 
   socket.on("disconnect", () => {
     console.log("❌ Disconnected:", socket.id, users[socket.id] ? `(${users[socket.id].name}/${users[socket.id].uid})` : "");
