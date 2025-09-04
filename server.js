@@ -239,6 +239,18 @@ app.get("/get-room-messages", async (req, res) => {
   }
 });
 
+// ❌ Clear Room Messages
+app.post("/clear-room", async (req, res) => {
+  try {
+    const { room } = req.body;
+    await privateMsgCollection.deleteMany({ room });
+    res.send("Room cleared");
+  } catch (e) {
+    console.error("❌ Clear Room Error:", e);
+    res.status(500).send("Error clearing room");
+  }
+});
+
 // 🧠 Socket.IO Logic
 const users = {};
 let botActive = false;
