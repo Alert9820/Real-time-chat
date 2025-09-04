@@ -1,102 +1,100 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no"/>
-  <title>Private Chat | BotX</title>
-  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <meta charset="UTF-8">
+  <title>Private Chat</title>
   <script src="/socket.io/socket.io.js"></script>
-
+  <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
   <style>
-    body {margin:0;padding:0;font-family:'Poppins',sans-serif;background:#0f0f0f;color:#fff;display:flex;flex-direction:column;height:100vh;}
-    header {padding:15px;background:#1c1c1c;display:flex;align-items:center;gap:10px;box-shadow:0 2px 5px rgba(0,0,0,0.4);}
-    header .back {cursor:pointer;font-size:20px;}
-    header h2 {margin:0;font-size:18px;}
-    #chat-box {flex:1;overflow-y:auto;padding:15px;display:flex;flex-direction:column;gap:10px;}
-    .msg {max-width:70%;padding:10px 14px;border-radius:12px;font-size:14px;line-height:1.4;word-wrap:break-word;}
-    .me {background:#4aa8ff;color:#fff;align-self:flex-end;border-bottom-right-radius:4px;}
-    .other {background:#242424;color:#ddd;align-self:flex-start;border-bottom-left-radius:4px;}
-    form {display:flex;padding:12px;background:#1c1c1c;}
-    form input {flex:1;padding:10px;border:none;border-radius:8px;background:#2a2a2a;color:#fff;}
-    form button {margin-left:10px;background:#4aa8ff;border:none;color:#fff;padding:10px 15px;border-radius:8px;cursor:pointer;}
-    form input:focus {outline:none;}
+    body { font-family: Arial, sans-serif; background:#f5f5f5; margin:0; }
+    #chat-container { width:100%; max-width:600px; margin:20px auto; background:#fff; border-radius:10px; box-shadow:0 0 10px rgba(0,0,0,0.1); overflow:hidden; }
+    #chat-header { background:#007bff; color:#fff; padding:15px; font-size:18px; }
+    #chat-messages { height:400px; overflow-y:auto; padding:10px; }
+    .msg { margin:5px 0; padding:8px 12px; border-radius:15px; max-width:75%; }
+    .me { background:#007bff; color:#fff; margin-left:auto; }
+    .other { background:#e5e5ea; color:#000; margin-right:auto; }
+    #chat-input { display:flex; border-top:1px solid #ccc; }
+    #chat-input input { flex:1; padding:10px; border:none; outline:none; }
+    #chat-input button { padding:10px 15px; background:#007bff; color:#fff; border:none; cursor:pointer; }
+    #chat-input button:hover { background:#0056b3; }
+    #clear-btn { background:red; color:white; border:none; padding:5px 10px; border-radius:5px; cursor:pointer; margin-left:10px; }
   </style>
 </head>
 <body>
-  <header>
-    <div class="back" onclick="goBack()"><i class="fas fa-arrow-left"></i></div>
-    <h2 id="chatWith">Chat</h2>
-  </header>
-
-  <div id="chat-box"></div>
-
-  <form id="chatForm">
-    <input type="text" id="msgInput" placeholder="Type a message..." autocomplete="off"/>
-    <button type="submit"><i class="fas fa-paper-plane"></i></button>
-  </form>
+  <div id="chat-container">
+    <div id="chat-header">
+      Private Chat - <span id="friend-name"></span>
+      <button id="clear-btn">Clear Chat</button>
+    </div>
+    <div id="chat-messages"></div>
+    <div id="chat-input">
+      <input id="message" type="text" placeholder="Type a message..." autocomplete="off" />
+      <button onclick="sendMessage()">Send</button>
+    </div>
+  </div>
 
   <script>
     const socket = io();
+    const uid = localStorage.getItem("uid");
+    const name = localStorage.getItem("name");
+    const friendUid = new URLSearchParams(window.location.search).get("uid");
+    const friendName = new URLSearchParams(window.location.search).get("name");
 
-    // 🟢 Current User + Friend from localStorage
-    const user = JSON.parse(localStorage.getItem("user") || "{}");
-    const myUid = user.uid;
-    const myName = user.name;
-    const friendUid = localStorage.getItem("receiverUid");
-    const friendName = localStorage.getItem("receiver");
-
-    if (!myUid || !friendUid) {
+    if (!uid || !friendUid) {
       alert("UID missing. Please login again.");
-      window.location.href = "/login.html";
+      window.location.href = "/";
     }
 
-    document.getElementById("chatWith").innerText = friendName || "Private Chat";
+    const room = [uid, friendUid].sort().join("_");
+    document.getElementById("friend-name").textContent = friendName;
 
-    // 🟢 Room ID (always same for both users)
-    const room = [myUid, friendUid].sort().join("_");
+    // ✅ Join Room
     socket.emit("join-room", room);
 
-    const chatBox = document.getElementById("chat-box");
-    const form = document.getElementById("chatForm");
-    const msgInput = document.getElementById("msgInput");
-
-    // 🔹 Load old messages
-    async function loadHistory() {
-      const res = await fetch(`/get-room-messages?room=${room}`);
-      const messages = await res.json();
-      messages.forEach(m => addMessage(m.sender, m.text, m.sender === myName));
-      chatBox.scrollTop = chatBox.scrollHeight;
+    // ✅ Load old messages from DB
+    async function loadMessages() {
+      try {
+        const res = await axios.get(`/get-room-messages?room=${room}`);
+        res.data.forEach(msg => addMessage(msg.sender === name ? "me" : "other", msg.text));
+      } catch (err) {
+        console.error("❌ Error loading messages", err);
+      }
     }
+    loadMessages();
 
-    loadHistory();
-
-    // 🔹 Add message to UI
-    function addMessage(sender, text, isMe=false) {
-      const div = document.createElement("div");
-      div.className = `msg ${isMe ? "me" : "other"}`;
-      div.textContent = text;
-      chatBox.appendChild(div);
-      chatBox.scrollTop = chatBox.scrollHeight;
-    }
-
-    // 🔹 Receive message
-    socket.on("private-message", ({ sender, text }) => {
-      addMessage(sender, text, sender === myName);
-    });
-
-    // 🔹 Send message
-    form.addEventListener("submit", e => {
-      e.preventDefault();
-      const text = msgInput.value.trim();
+    // ✅ Send Message
+    function sendMessage() {
+      const input = document.getElementById("message");
+      const text = input.value.trim();
       if (!text) return;
-      socket.emit("private-message", { room, sender: myName, text });
-      msgInput.value = "";
+      socket.emit("private-message", { room, sender: name, text });
+      input.value = "";
+    }
+
+    // ✅ Receive Message
+    socket.on("private-message", ({ sender, text }) => {
+      addMessage(sender === name ? "me" : "other", text);
     });
 
-    function goBack() {
-      window.location.href = "/home.html";
+    // ✅ Add Message to UI
+    function addMessage(type, text) {
+      const div = document.createElement("div");
+      div.className = `msg ${type}`;
+      div.textContent = text;
+      document.getElementById("chat-messages").appendChild(div);
+      document.getElementById("chat-messages").scrollTop = document.getElementById("chat-messages").scrollHeight;
     }
+
+    // ✅ Clear Chat (frontend + DB)
+    document.getElementById("clear-btn").addEventListener("click", async () => {
+      if (!confirm("Clear chat history?")) return;
+      try {
+        await axios.post("/clear-room", { room });
+        document.getElementById("chat-messages").innerHTML = "";
+      } catch (err) {
+        console.error("❌ Clear Error:", err);
+      }
+    });
   </script>
 </body>
 </html>
