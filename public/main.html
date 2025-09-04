@@ -173,7 +173,7 @@
     function openChatWith(name, uid) {
       localStorage.setItem("receiver", name);
       localStorage.setItem("receiverUid", uid);
-      location.href="/privatechat.html";
+      location.href=`/privatechat.html?uid=${uid}`;
     }
 
     document.addEventListener('DOMContentLoaded', loadFriends);
