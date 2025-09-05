@@ -270,11 +270,10 @@
   <div class="chat-container">
     <div class="chat-header">
       <div class="chat-user">
-        <div class="user-avatar" id="friendAvatar">F</div>
+        <div class="user-avatar" id="userAvatar">U</div>
         <div class="user-details">
-          <!-- FIXED: Now showing friend's name instead of user's name -->
-          <div class="user-name" id="friendName">Friend</div>
-          <div class="user-status" id="friendStatus">Online</div>
+          <div class="user-name" id="userName">User</div>
+          <div class="user-status" id="userStatus">Online</div>
         </div>
       </div>
       <div class="header-icons">
@@ -308,23 +307,21 @@
       window.location.href = "login.html";
     }
 
-    // ✅ Friend UID and Name - FIXED: Get friend name from URL
+    // ✅ Set user info in UI
+    document.getElementById('userName').textContent = currentUser.name;
+    document.getElementById('userAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
+
+    // ✅ Friend UID
     const params = new URLSearchParams(window.location.search);
     const friendUid = params.get("uid");
-    const friendName = params.get("name") || "Friend";
-    
     if (!friendUid) {
       alert("❌ Friend UID missing in URL!");
       throw new Error("Friend UID missing");
     }
 
-    // ✅ FIXED: Show friend's name instead of user's name
-    document.getElementById('friendName').textContent = friendName;
-    document.getElementById('friendAvatar').textContent = friendName.charAt(0).toUpperCase();
-
     const room = [currentUser.uid, friendUid].sort().join("_");
 
-    // ✅ Socket setup
+    // ✅ Socket setup - FIXED duplicate message issue
     const socket = io();
     let isSending = false;
     let botActive = false;
@@ -356,26 +353,18 @@
       }
     });
     
-    // ✅ FIXED: Better bot reply handling
     socket.on("bot-reply", data => {
-      if (data.room === room) {
-        // Show bot reply only if it's not the confused message
-        if (data.text !== "Bot confused hai." && data.text !== "Bot reply failed.") {
-          addMessage(data.sender, data.text, false, true);
-        } else {
-          addSystemMessage("Bot is temporarily unavailable. Please try again later.");
-        }
-      }
+      addMessage(data.sender, data.text, false, true);
     });
 
-    // Handle image messages
+    // NEW: Handle image messages
     socket.on("image-message", data => {
       if (data.room === room) {
         addImageMessage(data.sender, data.imageData, data.sender === currentUser.name);
       }
     });
 
-    // Typing indicator
+    // NEW: Typing indicator
     socket.on("typing", (data) => {
       if (data.room === room && data.sender !== currentUser.name) {
         const indicator = document.getElementById('typingIndicator');
@@ -389,13 +378,10 @@
       }
     });
 
-    // Bot status updates
+    // NEW: Bot status updates
     socket.on("message", (data) => {
       if (data.sender === "System" && data.text.includes("Bot")) {
         addSystemMessage(data.text);
-        // Update bot status based on system message
-        if (data.text.includes("active")) botActive = true;
-        if (data.text.includes("inactive")) botActive = false;
       }
     });
 
@@ -404,7 +390,7 @@
       if (e.key === "Enter") sendMessage(); 
     });
 
-    // Send message function
+    // ✅ FIXED: Send message function without duplication
     function sendMessage() {
       if (isSending) return;
       
@@ -424,6 +410,7 @@
       const payload = { room, sender: currentUser.name, text };
       socket.emit("private-message", payload);
       
+      // ✅ DON'T add message here - wait for server confirmation
       document.getElementById("messageInput").value = "";
       
       // Reset edit and reply modes
@@ -438,10 +425,11 @@
         replyToMessageId = null;
       }
       
+      // Reset sending flag after a short delay
       setTimeout(() => { isSending = false; }, 300);
     }
 
-    // Message display function
+    // ✅ Improved message display function with actions
     function addMessage(sender, text, mine = false, isBot = false) {
       const messageEl = document.createElement("div");
       messageEl.className = "message " + (mine ? "mine" : "other");
@@ -468,7 +456,7 @@
       document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
     }
 
-    // Add image message
+    // NEW: Add image message
     function addImageMessage(sender, imageData, mine = false) {
       const messageEl = document.createElement("div");
       messageEl.className = "message " + (mine ? "mine" : "other");
@@ -491,7 +479,7 @@
       document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
     }
 
-    // Add system message
+    // NEW: Add system message
     function addSystemMessage(text) {
       const messageEl = document.createElement("div");
       messageEl.className = "system-message";
@@ -501,26 +489,28 @@
       document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
     }
 
-    // Handle typing indicator
+    // NEW: Handle typing indicator
     function handleTyping() {
       if (socket && room) {
         socket.emit("typing", { room, sender: currentUser.name });
       }
     }
 
-    // Handle key press
+    // NEW: Handle key press
     function handleKeyPress(e) {
       if (e.key === 'Enter') {
         sendMessage();
       }
     }
 
-    // Toggle bot
+    // ✅ Additional functions for new features
     function toggleBot() {
       if (botActive) {
         socket.emit("message", "<<bot");
+        botActive = false;
       } else {
         socket.emit("message", ">>bot");
+        botActive = true;
       }
     }
 
@@ -540,7 +530,7 @@
       }
     }
 
-    // Reaction to message
+    // NEW: Reaction to message
     function reactToMessage(btn, reaction) {
       const messageEl = btn.closest('.message');
       let reactionContainer = messageEl.querySelector('.message-reaction');
@@ -554,7 +544,7 @@
       reactionContainer.textContent = `${reaction} (You)`;
     }
     
-    // Reply to message
+    // NEW: Reply to message
     function replyToMessage(btn) {
       const messageEl = btn.closest('.message');
       const sender = messageEl.dataset.sender;
@@ -565,7 +555,7 @@
       replyToMessageId = messageEl;
     }
     
-    // Edit message
+    // NEW: Edit message
     function editMessage(btn) {
       const messageEl = btn.closest('.message');
       const text = messageEl.dataset.text;
@@ -579,7 +569,7 @@
       editingMessageId = messageEl;
     }
     
-    // Delete message
+    // NEW: Delete message
     function deleteMessage(btn) {
       if (confirm("Delete this message?")) {
         const messageEl = btn.closest('.message');
@@ -587,7 +577,7 @@
       }
     }
     
-    // Handle file selection
+    // NEW: Handle file selection - FIXED for both users
     function handleFileSelect(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -612,10 +602,12 @@
         alert('Please select an image file');
       }
       
+      // Reset file input
       event.target.value = '';
     }
 
     function toggleEmojiPicker() {
+      // Simple emoji picker implementation
       const emojis = ['😀', '😂', '😍', '🥰', '😎', '🙏', '🔥', '👍', '❤️', '🎉'];
       const picker = document.createElement('div');
       picker.style.position = 'absolute';
@@ -643,6 +635,7 @@
       
       document.body.appendChild(picker);
       
+      // Remove picker when clicking outside
       setTimeout(() => {
         const clickHandler = (e) => {
           if (!picker.contains(e.target)) {
