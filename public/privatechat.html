@@ -182,7 +182,7 @@
       vertical-align: middle;
     }
 
-    /* NEW: Message actions styles */
+    /* Message actions styles */
     .message-actions {
       position: absolute;
       top: 0;
@@ -242,7 +242,7 @@
     
     .media-preview {
       margin-top: 10px;
-      max-width: 200px;
+      max-width: 300px;
       border-radius: 5px;
       overflow: hidden;
     }
@@ -250,6 +250,19 @@
     .media-preview img {
       width: 100%;
       height: auto;
+      border-radius: 5px;
+    }
+
+    .bot-message {
+      font-style: italic;
+      color: #a0a0a0;
+    }
+
+    .system-message {
+      text-align: center;
+      color: #888;
+      font-style: italic;
+      margin: 10px 0;
     }
   </style>
 </head>
@@ -278,7 +291,7 @@
       <div class="input-action" onclick="toggleEmojiPicker()"><i class="far fa-smile"></i></div>
       <div class="input-action" onclick="document.getElementById('fileInput').click()">
         <i class="fas fa-paperclip"></i>
-        <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect(event)">
+        <input type="file" id="fileInput" style="display: none;" onchange="handleFileSelect(event)" accept="image/*">
       </div>
       <input type="text" id="messageInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)" oninput="handleTyping()">
       <button id="sendBtn"><i class="fas fa-paper-plane"></i></button>
@@ -326,7 +339,7 @@
         .then(msgs => msgs.forEach(m => {
           // ✅ Filter out WebRTC signals
           if (!m.text.includes('__signal')) {
-            addMessage(m.sender, m.text, m.sender === currentUser.name);
+            addMessage(m.sender, m.text, m.sender === currentUser.name, m.sender === 'BotX');
           }
         }))
         .catch(err => console.error("Failed to load messages:", err));
@@ -344,6 +357,13 @@
       addMessage(data.sender, data.text, false, true);
     });
 
+    // NEW: Handle image messages
+    socket.on("image-message", data => {
+      if (data.room === room) {
+        addImageMessage(data.sender, data.imageData, data.sender === currentUser.name);
+      }
+    });
+
     // NEW: Typing indicator
     socket.on("typing", (data) => {
       if (data.room === room && data.sender !== currentUser.name) {
@@ -355,6 +375,13 @@
         window.typingTimeout = setTimeout(() => {
           indicator.style.display = 'none';
         }, 2000);
+      }
+    });
+
+    // NEW: Bot status updates
+    socket.on("message", (data) => {
+      if (data.sender === "System" && data.text.includes("Bot")) {
+        addSystemMessage(data.text);
       }
     });
 
@@ -371,6 +398,14 @@
       if (!text) return;
 
       isSending = true;
+      
+      // Handle bot commands in global chat (not private)
+      if (text === ">>bot" || text === "<<bot") {
+        socket.emit("message", text);
+        document.getElementById("messageInput").value = "";
+        isSending = false;
+        return;
+      }
       
       const payload = { room, sender: currentUser.name, text };
       socket.emit("private-message", payload);
@@ -406,16 +441,49 @@
       messageEl.innerHTML = `
         ${!mine ? `<div class="message-sender">${sender} ${isBot ? '<span class="bot-indicator">BOT</span>' : ''}</div>` : ''}
         <div class="message-content">
-          <div class="message-text">${text}</div>
+          <div class="message-text ${isBot ? 'bot-message' : ''}">${text}</div>
           <div class="message-meta">${timestamp} ${mine ? '<i class="fas fa-check-double" style="color: #00af9c; margin-left: 3px;"></i>' : ''}</div>
         </div>
         <div class="message-actions">
           <div class="action-btn reaction-btn" onclick="reactToMessage(this, '😊')">😊</div>
           <div class="action-btn" onclick="replyToMessage(this)"><i class="fas fa-reply"></i></div>
-          ${mine ? `<div class="action-btn" onclick="editMessage(this)"><i class="fas fa-edit"></i></div>
+          ${mine && !isBot ? `<div class="action-btn" onclick="editMessage(this)"><i class="fas fa-edit"></i></div>
           <div class="action-btn" onclick="deleteMessage(this)"><i class="fas fa-trash"></i></div>` : ''}
         </div>
       `;
+      
+      document.getElementById("chat").appendChild(messageEl);
+      document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+    }
+
+    // NEW: Add image message
+    function addImageMessage(sender, imageData, mine = false) {
+      const messageEl = document.createElement("div");
+      messageEl.className = "message " + (mine ? "mine" : "other");
+      
+      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      messageEl.innerHTML = `
+        ${!mine ? `<div class="message-sender">${sender}</div>` : ''}
+        <div class="message-content">
+          <div class="media-preview"><img src="${imageData}" alt="Shared image"></div>
+          <div class="message-meta">${timestamp} ${mine ? '<i class="fas fa-check-double" style="color: #00af9c; margin-left: 3px;"></i>' : ''}</div>
+        </div>
+        <div class="message-actions">
+          <div class="action-btn reaction-btn" onclick="reactToMessage(this, '😊')">😊</div>
+          <div class="action-btn" onclick="replyToMessage(this)"><i class="fas fa-reply"></i></div>
+        </div>
+      `;
+      
+      document.getElementById("chat").appendChild(messageEl);
+      document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+    }
+
+    // NEW: Add system message
+    function addSystemMessage(text) {
+      const messageEl = document.createElement("div");
+      messageEl.className = "system-message";
+      messageEl.textContent = text;
       
       document.getElementById("chat").appendChild(messageEl);
       document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
@@ -438,12 +506,10 @@
     // ✅ Additional functions for new features
     function toggleBot() {
       if (botActive) {
-        socket.emit("private-message", { room, sender: currentUser.name, text: "<<bot" });
-        addMessage("System", "Bot deactivation requested...", false);
+        socket.emit("message", "<<bot");
         botActive = false;
       } else {
-        socket.emit("private-message", { room, sender: currentUser.name, text: ">>bot" });
-        addMessage("System", "Bot activation requested...", false);
+        socket.emit("message", ">>bot");
         botActive = true;
       }
     }
@@ -458,7 +524,7 @@
         .then(response => response.text())
         .then(result => {
           document.getElementById("chat").innerHTML = '<div class="typing-indicator" id="typingIndicator"></div>';
-          addMessage("System", "Chat cleared successfully", false);
+          addSystemMessage("Chat cleared successfully");
         })
         .catch(error => console.error('Error clearing chat:', error));
       }
@@ -511,7 +577,7 @@
       }
     }
     
-    // NEW: Handle file selection
+    // NEW: Handle file selection - FIXED for both users
     function handleFileSelect(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -519,28 +585,17 @@
       if (file.type.startsWith('image/')) {
         const reader = new FileReader();
         reader.onload = function(e) {
-          const chatContainer = document.getElementById('chat');
-          const messageEl = document.createElement('div');
-          messageEl.className = 'message mine';
+          const imageData = e.target.result;
           
-          const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+          // Show image immediately for sender
+          addImageMessage(currentUser.name, imageData, true);
           
-          messageEl.innerHTML = `
-            <div class="message-content">
-              <div class="message-text">Photo shared</div>
-              <div class="media-preview"><img src="${e.target.result}" alt="Shared image"></div>
-              <div class="message-meta">${timestamp} <i class="fas fa-check-double" style="color: #00af9c; margin-left: 3px;"></i></div>
-            </div>
-          `;
-          
-          chatContainer.appendChild(messageEl);
-          chatContainer.scrollTop = chatContainer.scrollHeight;
-          
-          // Also send a message about the photo
-          if (room) {
-            const payload = { room, sender: currentUser.name, text: "Shared a photo" };
-            socket.emit("private-message", payload);
-          }
+          // Send image to other user via socket
+          socket.emit("image-message", {
+            room: room,
+            sender: currentUser.name,
+            imageData: imageData
+          });
         };
         reader.readAsDataURL(file);
       } else {
@@ -552,7 +607,44 @@
     }
 
     function toggleEmojiPicker() {
-      alert("Emoji picker will be implemented here");
+      // Simple emoji picker implementation
+      const emojis = ['😀', '😂', '😍', '🥰', '😎', '🙏', '🔥', '👍', '❤️', '🎉'];
+      const picker = document.createElement('div');
+      picker.style.position = 'absolute';
+      picker.style.bottom = '60px';
+      picker.style.right = '20px';
+      picker.style.background = '#222';
+      picker.style.borderRadius = '10px';
+      picker.style.padding = '10px';
+      picker.style.display = 'grid';
+      picker.style.gridTemplateColumns = 'repeat(5, 1fr)';
+      picker.style.gap = '5px';
+      picker.style.zIndex = '1000';
+      
+      emojis.forEach(emoji => {
+        const span = document.createElement('span');
+        span.textContent = emoji;
+        span.style.cursor = 'pointer';
+        span.style.fontSize = '20px';
+        span.onclick = () => {
+          document.getElementById('messageInput').value += emoji;
+          document.body.removeChild(picker);
+        };
+        picker.appendChild(span);
+      });
+      
+      document.body.appendChild(picker);
+      
+      // Remove picker when clicking outside
+      setTimeout(() => {
+        const clickHandler = (e) => {
+          if (!picker.contains(e.target)) {
+            document.body.removeChild(picker);
+            document.removeEventListener('click', clickHandler);
+          }
+        };
+        document.addEventListener('click', clickHandler);
+      }, 100);
     }
   </script>
 </body>
