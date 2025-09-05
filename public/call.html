@@ -1,616 +1,644 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="utf-8"/>
-<meta name="viewport" content="width=device-width,initial-scale=1"/>
-<title>Phone-style Voice Calls (Frontend)</title>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
-<style>
-  :root{--bg:#0f172a;--card:#0f172a;--accent:#0ea5a4;--muted:#94a3b8;--white:#fff}
-  *{box-sizing:border-box}
-  body{font-family:Inter,system-ui,Arial,sans-serif;margin:0;background:#0b1020;color:var(--white);-webkit-font-smoothing:antialiased}
-  .app{max-width:420px;margin:0 auto;padding:12px}
-  header{display:flex;align-items:center;gap:12px;margin-bottom:12px}
-  .me-box{flex:1}
-  .me-name{font-weight:700;font-size:18px}
-  .me-uid{font-size:12px;color:var(--muted)}
-  .card{background:linear-gradient(180deg,#071025,#09122b);border-radius:12px;padding:12px;border:1px solid rgba(255,255,255,0.04)}
-  .contacts{margin-top:12px}
-  .contact{display:flex;align-items:center;justify-content:space-between;padding:12px;border-radius:10px;background:rgba(255,255,255,0.02);margin-bottom:10px}
-  .left{display:flex;align-items:center;gap:12px}
-  .avatar{width:56px;height:56px;border-radius:50%;background:#072838;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:20px}
-  .meta{display:flex;flex-direction:column}
-  .name{font-weight:700}
-  .status{font-size:12px;color:var(--muted);margin-top:4px}
-  .call-btn{background:linear-gradient(90deg,#06b6d4,#06b6a4);border:0;padding:8px 12px;border-radius:10px;color:#042;cursor:pointer;font-weight:700}
-  .call-btn[disabled]{opacity:.5;cursor:not-allowed}
-  /* outgoing / active call screen */
-  .call-screen{position:fixed;left:0;top:0;width:100%;height:100%;display:none;align-items:center;justify-content:center;z-index:999;background:linear-gradient(180deg,rgba(2,6,23,0.9),rgba(2,6,23,0.95))}
-  .call-panel{background:linear-gradient(180deg,#071025,#071025);padding:20px;border-radius:14px;text-align:center;color:var(--white);width:92%;max-width:420px}
-  .callee-name{font-size:22px;font-weight:700;margin-bottom:6px}
-  .call-sub{color:var(--muted);margin-bottom:16px}
-  .big-btn{display:inline-block;padding:14px 18px;border-radius:999px;border:0;font-weight:700;cursor:pointer}
-  .btn-hang{background:#ef4444;color:#fff}
-  .btn-cancel{background:#1f2937;color:#fff}
-  .btn-accept{background:#10b981;color:#fff}
-  .btn-decline{background:#ef4444;color:#fff}
-  .small{font-size:13px;color:var(--muted)}
-  .audio-hide{display:none}
-  /* responsive */
-  @media (min-width:760px){ .app{margin-top:20px} }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Voice Calls</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0a0a0a;
+      color: #e6e6e6;
+      height: 100vh;
+    }
+    
+    .container {
+      max-width: 100%;
+      margin: 0 auto;
+      padding: 20px;
+    }
+    
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 20px;
+      padding-bottom: 10px;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    
+    .back-btn {
+      background: none;
+      border: none;
+      color: #00af9c;
+      font-size: 18px;
+      cursor: pointer;
+    }
+    
+    .friends-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    
+    .friend-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 15px;
+      background: #1a1a1a;
+      border-radius: 10px;
+      cursor: pointer;
+      transition: background 0.3s;
+    }
+    
+    .friend-item:hover {
+      background: #252525;
+    }
+    
+    .friend-info {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+    }
+    
+    .friend-avatar {
+      width: 50px;
+      height: 50px;
+      border-radius: 50%;
+      background: #3a3a3a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: bold;
+      color: #00af9c;
+      font-size: 20px;
+    }
+    
+    .friend-details {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .friend-name {
+      font-weight: 600;
+      font-size: 16px;
+    }
+    
+    .friend-status {
+      font-size: 13px;
+      color: #888;
+    }
+    
+    .online {
+      color: #00af9c;
+    }
+    
+    .offline {
+      color: #888;
+    }
+    
+    .call-btn {
+      background: #00af9c;
+      border: none;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      color: white;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: background 0.3s;
+    }
+    
+    .call-btn:hover {
+      background: #008f7e;
+    }
+    
+    /* Call Screen Styles */
+    .call-screen {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #0a0a0a;
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 30px;
+      z-index: 1000;
+    }
+    
+    .caller-info {
+      text-align: center;
+      margin-top: 50px;
+    }
+    
+    .caller-avatar {
+      width: 100px;
+      height: 100px;
+      border-radius: 50%;
+      background: #3a3a3a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 40px;
+      color: #00af9c;
+      margin: 0 auto 20px;
+    }
+    
+    .caller-name {
+      font-size: 24px;
+      font-weight: 600;
+      margin-bottom: 10px;
+    }
+    
+    .call-status {
+      font-size: 16px;
+      color: #888;
+      margin-bottom: 5px;
+    }
+    
+    .call-timer {
+      font-size: 16px;
+      color: #00af9c;
+      font-weight: 600;
+    }
+    
+    .call-controls {
+      display: flex;
+      justify-content: center;
+      gap: 30px;
+      margin-bottom: 50px;
+    }
+    
+    .control-btn {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 8px;
+      background: none;
+      border: none;
+      color: #e6e6e6;
+      cursor: pointer;
+    }
+    
+    .control-icon {
+      width: 60px;
+      height: 60px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 20px;
+    }
+    
+    .mute-btn .control-icon {
+      background: #2a2a2a;
+    }
+    
+    .speaker-btn .control-icon {
+      background: #2a2a2a;
+    }
+    
+    .end-call-btn .control-icon {
+      background: #ff3b30;
+    }
+    
+    .control-label {
+      font-size: 14px;
+    }
+    
+    .incoming-call {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: #0a0a0a;
+      display: none;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 30px;
+      z-index: 1000;
+    }
+    
+    .call-actions {
+      display: flex;
+      justify-content: center;
+      gap: 50px;
+      margin-bottom: 50px;
+    }
+    
+    .accept-call {
+      background: #00af9c;
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      color: white;
+      cursor: pointer;
+    }
+    
+    .reject-call {
+      background: #ff3b30;
+      width: 70px;
+      height: 70px;
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      border: none;
+      color: white;
+      cursor: pointer;
+    }
+  </style>
 </head>
 <body>
-  <div class="app">
-    <header>
-      <div class="me-box">
-        <div class="me-name" id="meName">—</div>
-        <div class="me-uid small" id="meUid">UID: —</div>
-      </div>
-      <div>
-        <button id="refreshBtn" title="Refresh">⟳</button>
-      </div>
-    </header>
-
-    <div class="card">
-      <div class="small">Search</div>
-      <input id="search" placeholder="Search contacts" style="width:100%;padding:10px;border-radius:8px;margin-top:8px;border:1px solid rgba(255,255,255,0.04);background:transparent;color:var(--white)"/>
-      <div class="small" style="margin-top:12px">Contacts</div>
-      <div class="contacts" id="contactsList">
-        <div class="small" style="padding:12px;color:var(--muted)">Loading contacts…</div>
-      </div>
+  <div class="container">
+    <div class="header">
+      <button class="back-btn" onclick="goBack()">
+        <i class="fas fa-arrow-left"></i>
+      </button>
+      <h2>Voice Calls</h2>
+      <div style="width: 40px;"></div> <!-- For spacing -->
+    </div>
+    
+    <div class="friends-list" id="friendsList">
+      <!-- Friends will be loaded here -->
     </div>
   </div>
 
-  <!-- Call screen overlay (outgoing + incoming + in-call) -->
-  <div id="callScreen" class="call-screen">
-    <div class="call-panel" id="callPanel">
-      <div id="callStateName" class="callee-name">Calling...</div>
-      <div id="callStateSub" class="call-sub small">Connecting</div>
-
-      <div id="callControls" style="margin-top:14px">
-        <!-- buttons will be toggled by JS -->
-        <button id="acceptBtn" class="big-btn btn-accept" style="display:none;margin-right:12px">Accept</button>
-        <button id="declineBtn" class="big-btn btn-decline" style="display:none;margin-right:12px">Decline</button>
-
-        <button id="cancelBtn" class="big-btn btn-cancel" style="display:none;margin-right:12px">Cancel</button>
-        <button id="endBtn" class="big-btn btn-hang" style="display:none">End</button>
-      </div>
-
-      <div style="margin-top:16px">
-        <div class="small" id="callTimer">00:00</div>
-      </div>
+  <!-- Call Screen -->
+  <div class="call-screen" id="callScreen">
+    <div class="caller-info">
+      <div class="caller-avatar" id="callerAvatar">R</div>
+      <div class="caller-name" id="callerName">Rahul Sharma</div>
+      <div class="call-status" id="callStatus">Calling...</div>
+      <div class="call-timer" id="callTimer">00:00</div>
+    </div>
+    
+    <div class="call-controls">
+      <button class="control-btn mute-btn" onclick="toggleMute()">
+        <div class="control-icon">
+          <i class="fas fa-microphone"></i>
+        </div>
+        <span class="control-label">Mute</span>
+      </button>
+      
+      <button class="control-btn speaker-btn" onclick="toggleSpeaker()">
+        <div class="control-icon">
+          <i class="fas fa-volume-up"></i>
+        </div>
+        <span class="control-label">Speaker</span>
+      </button>
+      
+      <button class="control-btn end-call-btn" onclick="endCall()">
+        <div class="control-icon">
+          <i class="fas fa-phone"></i>
+        </div>
+        <span class="control-label">End Call</span>
+      </button>
     </div>
   </div>
 
-  <!-- Audio elements (local muted, remote audible) -->
-  <audio id="localAudio" class="audio-hide" autoplay muted></audio>
-  <audio id="remoteAudio" autoplay></audio>
-  <audio id="ringtone" loop>
-    <!-- very short beep fallback if real audio not provided -->
-    <source src="data:audio/ogg;base64,T2dnUwACAAAAAAAAAABVDgAAAAAAAP//AAACAAACcQCAAAAAA" type="audio/ogg">
-  </audio>
+  <!-- Incoming Call Screen -->
+  <div class="incoming-call" id="incomingCall">
+    <div class="caller-info">
+      <div class="caller-avatar" id="incomingCallerAvatar">S</div>
+      <div class="caller-name" id="incomingCallerName">Sneha Patel</div>
+      <div class="call-status">Incoming Voice Call</div>
+    </div>
+    
+    <div class="call-actions">
+      <button class="reject-call" onclick="rejectIncomingCall()">
+        <i class="fas fa-phone"></i>
+      </button>
+      <button class="accept-call" onclick="acceptIncomingCall()">
+        <i class="fas fa-phone"></i>
+      </button>
+    </div>
+  </div>
 
-<script src="/socket.io/socket.io.js"></script>
-<script>
-/* -----------------------
-   CONFIG
-   ----------------------- */
-const CONTACTS_API = '/get-friends';
-const USERS_API = '/get-users';
-const SIGNAL_VIA_PRIVATE = true; // use private-message signaling
-const RING_TIMEOUT = 30000; // 30s
-const POLL_INTERVAL = 4000; // presence poll every 4s
-const ICE_SERVERS = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] }; // add TURN later if needed
+  <script src="/socket.io/socket.io.js"></script>
+  <script>
+    let socket = null;
+    let currentUser = null;
+    let peerConnection = null;
+    let localStream = null;
+    let callTimer = null;
+    let callStartTime = null;
+    let isMuted = false;
+    let isSpeakerOn = false;
+    let currentCall = null;
 
-/* -----------------------
-   STATE
-   ----------------------- */
-let socket = null;
-let me = { uid: null, name: null };
-let usersCache = [];
-let contacts = [];
-let pc = null;
-let localStream = null;
-let currentPeer = null; // uid of current peer
-let ringTimer = null;
-let callStartTs = null;
-let callTimerInterval = null;
+    // Initialize the call page
+    function initCallPage() {
+      // Get current user
+      currentUser = JSON.parse(localStorage.getItem("user"));
+      if (!currentUser || !currentUser.uid || !currentUser.name) {
+        alert("❌ User not logged in. Redirecting...");
+        window.location.href = "login.html";
+        return;
+      }
 
-/* -----------------------
-   DOM refs
-   ----------------------- */
-const $ = id => document.getElementById(id);
-const contactsList = $('contactsList');
-const meNameEl = $('meName');
-const meUidEl = $('meUid');
-const searchEl = $('search');
-const refreshBtn = $('refreshBtn');
-const callScreen = $('callScreen');
-const callPanel = $('callPanel');
-const callStateName = $('callStateName');
-const callStateSub = $('callStateSub');
-const acceptBtn = $('acceptBtn');
-const declineBtn = $('declineBtn');
-const cancelBtn = $('cancelBtn');
-const endBtn = $('endBtn');
-const callTimer = $('callTimer');
-const localAudio = $('localAudio');
-const remoteAudio = $('remoteAudio');
-const ringtone = $('ringtone');
+      // Initialize socket connection
+      socket = io();
+      
+      // Set up socket event listeners for calling
+      socket.on("connect", () => {
+        console.log("Connected to server for calling");
+        socket.emit("set_name", { uid: currentUser.uid, name: currentUser.name });
+        loadFriends();
+      });
 
-/* -----------------------
-   Helpers: detect uid (auto)
-   ----------------------- */
-function detectUid() {
-  if (window.__UID__) return window.__UID__;
-  if (window.CURRENT_USER_UID) return window.CURRENT_USER_UID;
-  if (window.CURRENT_USER && window.CURRENT_USER.uid) return window.CURRENT_USER.uid;
-  const ls = sessionStorage.getItem('uid') || localStorage.getItem('uid');
-  if (ls) return ls;
-  const match = document.cookie.match(/(?:^|;\s*)uid=([^;]+)/);
-  if (match) return decodeURIComponent(match[1]);
-  return null;
-}
-async function promptForUid() {
-  const uid = prompt('Enter your UID for testing (will be stored in sessionStorage):');
-  if (uid) sessionStorage.setItem('uid', uid);
-  return uid;
-}
+      // Handle incoming call
+      socket.on("incoming-call", (data) => {
+        showIncomingCall(data.callerId, data.callerName);
+      });
 
-/* -----------------------
-   Networking: fetch users & contacts
-   ----------------------- */
-async function loadUsers() {
-  try {
-    const res = await fetch(USERS_API, { credentials: 'include' });
-    if (!res.ok) throw new Error('users fetch failed');
-    usersCache = await res.json();
-  } catch (e) {
-    console.warn('Could not fetch users', e);
-    usersCache = [];
-  }
-}
-async function loadContacts() {
-  if (!me.uid) return;
-  try {
-    const res = await fetch(CONTACTS_API + '?uid=' + encodeURIComponent(me.uid), { credentials: 'include' });
-    if (!res.ok) throw new Error('contacts fetch failed');
-    contacts = await res.json();
-  } catch (e) {
-    console.warn('Could not fetch contacts', e);
-    contacts = [];
-  }
-}
+      // Handle call accepted
+      socket.on("call-accepted", (data) => {
+        startCall(data.callerId);
+      });
 
-/* name->uid helper */
-function resolveNameToUid(name) {
-  if (!name) return null;
-  const lower = name.toString().toLowerCase();
-  for (const u of usersCache) {
-    if (!u) continue;
-    if ((u.name || '').toString().toLowerCase() === lower) return (u.uid || u.uid?.toString());
-  }
-  return null;
-}
+      // Handle call rejected
+      socket.on("call-rejected", () => {
+        endCall();
+        alert("Call rejected");
+      });
 
-/* -----------------------
-   Render contacts (phone-friendly)
-   ----------------------- */
-function renderContacts(filter='') {
-  contactsList.innerHTML = '';
-  if (!contacts || contacts.length === 0) {
-    contactsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">No friends found.</div>';
-    return;
-  }
-  const frag = document.createDocumentFragment();
-  contacts.forEach(c => {
-    const name = c.name || c.uid || 'unknown';
-    if (filter && !name.toLowerCase().includes(filter.toLowerCase())) return;
-    const row = document.createElement('div'); row.className = 'contact';
-    const left = document.createElement('div'); left.className = 'left';
-    const avatar = document.createElement('div'); avatar.className = 'avatar'; avatar.textContent = name.slice(0,2).toUpperCase();
-    const meta = document.createElement('div'); meta.className = 'meta';
-    const nm = document.createElement('div'); nm.className='name'; nm.textContent = name;
-    const st = document.createElement('div'); st.className='status'; st.textContent = c.online ? 'Online' : 'Offline';
-    meta.appendChild(nm); meta.appendChild(st);
-    left.appendChild(avatar); left.appendChild(meta);
+      // Handle call ended
+      socket.on("call-ended", () => {
+        endCall();
+        alert("Call ended by other user");
+      });
 
-    const btn = document.createElement('button'); btn.className = 'call-btn';
-    btn.textContent = 'Call';
-    btn.disabled = !c.name; // we require name mapping to resolve uid via /get-users
-    btn.onclick = async () => {
-      const uid = resolveNameToUid(c.name);
-      if (!uid) { alert('Cannot resolve UID for ' + c.name + '. Make sure /get-users returns matching name'); return; }
-      if (uid === me.uid) { alert('This is you'); return; }
-      await startCall(uid);
-    };
+      // WebRTC signaling
+      socket.on("offer", async (data) => {
+        if (peerConnection) {
+          await peerConnection.setRemoteDescription(data.offer);
+          const answer = await peerConnection.createAnswer();
+          await peerConnection.setLocalDescription(answer);
+          socket.emit("answer", { 
+            answer: answer, 
+            to: data.from 
+          });
+        }
+      });
 
-    row.appendChild(left); row.appendChild(btn);
-    frag.appendChild(row);
-  });
-  contactsList.appendChild(frag);
-}
+      socket.on("answer", async (data) => {
+        if (peerConnection) {
+          await peerConnection.setRemoteDescription(data.answer);
+        }
+      });
 
-/* -----------------------
-   Socket & signaling (using private-message)
-   ----------------------- */
-function ensureSocket() {
-  if (socket) return;
-  socket = io(); // same origin
-
-  socket.on('connect', () => {
-    console.log('[socket] connected', socket.id);
-    // let server know name -> server sets users[socket.id] = name
-    socket.emit('set_name', me.uid || me.name || 'unknown');
-  });
-
-  socket.on('private-message', async payload => {
-    // payload: { room, sender, text }
-    if (!payload || !payload.text) return;
-    let parsed;
-    try { parsed = JSON.parse(payload.text); } catch(e) { return; }
-    if (!parsed || !parsed.__signal) return;
-    const sig = parsed.signal;
-    const from = payload.sender;
-
-    console.log('[signal] received', sig && sig.type, 'from', from);
-
-    if (sig.type === 'ring') {
-      // incoming call invitation
-      // ensure this is for me (room contains my uid) - server placed message to room already
-      // Show incoming modal (callee)
-      currentPeer = from;
-      showCallScreen({ mode: 'incoming', peerUid: from, peerName: sig.callerName || from, room: sig.room });
-      return;
+      socket.on("ice-candidate", async (data) => {
+        if (peerConnection) {
+          await peerConnection.addIceCandidate(data.candidate);
+        }
+      });
     }
 
-    if (sig.type === 'offer') {
-      // incoming SDP offer
-      currentPeer = from;
-      // create local & pc if not present
-      await ensureLocalAndPC();
+    // Load friends list
+    async function loadFriends() {
       try {
-        await pc.setRemoteDescription(new RTCSessionDescription(sig.sdp));
-      } catch(e){ console.warn('setRemote error', e); }
-      const answer = await pc.createAnswer();
-      await pc.setLocalDescription(answer);
-      // send answer back
-      socket.emit('private-message', { room: sig.room, sender: me.uid, text: JSON.stringify({ __signal:true, signal:{ type:'answer', sdp: pc.localDescription } }) });
-      console.log('[signal] sent answer');
-      return;
+        const response = await fetch(`/get-friends?uid=${currentUser.uid}`);
+        const friends = await response.json();
+        
+        const friendsList = document.getElementById('friendsList');
+        friendsList.innerHTML = '';
+        
+        friends.forEach(friend => {
+          const friendItem = document.createElement('div');
+          friendItem.className = 'friend-item';
+          
+          friendItem.innerHTML = `
+            <div class="friend-info">
+              <div class="friend-avatar">${friend.name.charAt(0).toUpperCase()}</div>
+              <div class="friend-details">
+                <div class="friend-name">${friend.name}</div>
+                <div class="friend-status ${friend.online ? 'online' : 'offline'}">
+                  ${friend.online ? 'Online' : 'Offline'}
+                </div>
+              </div>
+            </div>
+            <button class="call-btn" onclick="startCalling('${friend.uid}', '${friend.name}')">
+              <i class="fas fa-phone"></i>
+            </button>
+          `;
+          
+          friendsList.appendChild(friendItem);
+        });
+      } catch (error) {
+        console.error("Failed to load friends:", error);
+      }
     }
 
-    if (sig.type === 'answer') {
-      // remote accepted and sent answer
-      if (!pc) { console.warn('Answer but no PC'); return; }
+    // Start calling a friend
+    async function startCalling(friendUid, friendName) {
       try {
-        await pc.setRemoteDescription(new RTCSessionDescription(sig.sdp));
-        console.log('[pc] remote description set (answer)');
-      } catch (e) { console.warn('setRemote answer error', e); }
-      return;
+        // Get user media
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: true,
+          video: false 
+        });
+        
+        // Initialize WebRTC
+        await initWebRTC();
+        
+        // Show call screen
+        document.getElementById('callerAvatar').textContent = friendName.charAt(0).toUpperCase();
+        document.getElementById('callerName').textContent = friendName;
+        document.getElementById('callStatus').textContent = 'Calling...';
+        document.getElementById('callScreen').style.display = 'flex';
+        
+        // Send call request
+        socket.emit("call-request", {
+          to: friendUid,
+          callerId: currentUser.uid,
+          callerName: currentUser.name
+        });
+        
+        currentCall = {
+          friendUid: friendUid,
+          friendName: friendName
+        };
+        
+      } catch (error) {
+        console.error("Error starting call:", error);
+        alert("Error accessing microphone. Please check permissions.");
+      }
     }
 
-    if (sig.type === 'candidate') {
-      if (!pc) { console.warn('candidate but no pc'); return; }
+    // Initialize WebRTC connection
+    async function initWebRTC() {
+      const configuration = {
+        iceServers: [
+          { urls: 'stun:stun.l.google.com:19302' },
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
+      };
+      
+      peerConnection = new RTCPeerConnection(configuration);
+      
+      // Add local stream
+      localStream.getTracks().forEach(track => {
+        peerConnection.addTrack(track, localStream);
+      });
+      
+      // Handle remote stream
+      peerConnection.ontrack = (event) => {
+        const remoteAudio = new Audio();
+        remoteAudio.srcObject = event.streams[0];
+        remoteAudio.play();
+      };
+      
+      // Handle ICE candidates
+      peerConnection.onicecandidate = (event) => {
+        if (event.candidate) {
+          socket.emit("ice-candidate", {
+            candidate: event.candidate,
+            to: currentCall.friendUid
+          });
+        }
+      };
+    }
+
+    // Show incoming call screen
+    function showIncomingCall(callerId, callerName) {
+      document.getElementById('incomingCallerAvatar').textContent = callerName.charAt(0).toUpperCase();
+      document.getElementById('incomingCallerName').textContent = callerName;
+      document.getElementById('incomingCall').style.display = 'flex';
+      
+      currentCall = {
+        friendUid: callerId,
+        friendName: callerName,
+        isIncoming: true
+      };
+    }
+
+    // Accept incoming call
+    async function acceptIncomingCall() {
       try {
-        await pc.addIceCandidate(new RTCIceCandidate(sig.candidate));
-        // console.log('[pc] candidate added');
-      } catch(e){ console.warn('addIceCandidate fail', e); }
-      return;
+        localStream = await navigator.mediaDevices.getUserMedia({ 
+          audio: true,
+          video: false 
+        });
+        
+        await initWebRTC();
+        
+        document.getElementById('incomingCall').style.display = 'none';
+        document.getElementById('callerAvatar').textContent = currentCall.friendName.charAt(0).toUpperCase();
+        document.getElementById('callerName').textContent = currentCall.friendName;
+        document.getElementById('callStatus').textContent = 'Connected';
+        document.getElementById('callScreen').style.display = 'flex';
+        
+        // Create and send offer
+        const offer = await peerConnection.createOffer();
+        await peerConnection.setLocalDescription(offer);
+        
+        socket.emit("answer", {
+          answer: offer,
+          to: currentCall.friendUid
+        });
+        
+        startCallTimer();
+        
+      } catch (error) {
+        console.error("Error accepting call:", error);
+      }
     }
 
-    if (sig.type === 'decline') {
-      // other side declined
-      stopRingtone();
-      updateCallText('Call declined by remote' + (sig.reason ? ' — ' + sig.reason : ''));
-      cleanupCall();
-      return;
+    // Reject incoming call
+    function rejectIncomingCall() {
+      socket.emit("call-rejected", { to: currentCall.friendUid });
+      document.getElementById('incomingCall').style.display = 'none';
+      currentCall = null;
     }
 
-    if (sig.type === 'end') {
-      // remote ended call
-      updateCallText('Call ended by peer');
-      cleanupCall();
-      return;
+    // Start call timer
+    function startCallTimer() {
+      callStartTime = new Date();
+      callTimer = setInterval(() => {
+        const now = new Date();
+        const diff = now - callStartTime;
+        const minutes = Math.floor(diff / 60000);
+        const seconds = Math.floor((diff % 60000) / 1000);
+        document.getElementById('callTimer').textContent = 
+          `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+      }, 1000);
     }
 
-    if (sig.type === 'accepted') {
-      // callee acknowledged readiness — we may already have sent offer; ignore or log
-      console.log('[signal] callee accepted');
-      return;
+    // End current call
+    function endCall() {
+      if (callTimer) {
+        clearInterval(callTimer);
+        callTimer = null;
+      }
+      
+      if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+      }
+      
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+      }
+      
+      document.getElementById('callScreen').style.display = 'none';
+      
+      if (currentCall) {
+        socket.emit("call-ended", { to: currentCall.friendUid });
+        currentCall = null;
+      }
     }
 
-  });
-
-  socket.on('disconnect', () => console.log('[socket] disconnected'));
-}
-
-/* -----------------------
-   Call UI state machine
-   ----------------------- */
-function showCallScreen({ mode, peerUid, peerName, room }) {
-  callScreen.style.display = 'flex';
-  // reset
-  acceptBtn.style.display = declineBtn.style.display = cancelBtn.style.display = endBtn.style.display = 'none';
-  if (mode === 'outgoing') {
-    callStateName.textContent = peerName || peerUid || 'Calling';
-    callStateSub.textContent = 'Calling...';
-    cancelBtn.style.display = 'inline-block';
-    startRingtone(); // caller hears ring
-    startCallTimer(); // show call timer counting from 0 as ringing
-  } else if (mode === 'incoming') {
-    callStateName.textContent = peerName || peerUid || 'Incoming';
-    callStateSub.textContent = 'Incoming call';
-    acceptBtn.style.display = 'inline-block';
-    declineBtn.style.display = 'inline-block';
-    startRingtone(); // callee hears ringtone
-    startCallTimer();
-  } else if (mode === 'incall') {
-    callStateName.textContent = peerName || peerUid || 'In call';
-    callStateSub.textContent = 'Connected';
-    endBtn.style.display = 'inline-block';
-    stopRingtone();
-    startCallTimer(true); // start connected timer
-  }
-}
-
-function hideCallScreen() {
-  callScreen.style.display = 'none';
-  stopCallTimer();
-}
-
-function updateCallText(txt) {
-  callStateSub.textContent = txt;
-}
-
-/* ringtone helpers */
-function startRingtone() {
-  ringtone.play().catch(()=>{ console.warn('ring play blocked'); });
-}
-function stopRingtone() {
-  try { ringtone.pause(); ringtone.currentTime = 0; } catch(e){}
-}
-
-/* call timer */
-function startCallTimer(connected=false) {
-  stopCallTimer();
-  callStartTs = Date.now();
-  callTimerInterval = setInterval(() => {
-    const s = Math.floor((Date.now() - callStartTs)/1000);
-    const mm = String(Math.floor(s/60)).padStart(2,'0');
-    const ss = String(s % 60).padStart(2,'0');
-    callTimer.textContent = mm + ':' + ss;
-  }, 500);
-}
-function stopCallTimer(){
-  if (callTimerInterval) clearInterval(callTimerInterval);
-  callTimerInterval = null;
-  callTimer.textContent = '00:00';
-}
-
-/* -----------------------
-   Outgoing: startCall flow (caller)
-   ----------------------- */
-async function startCall(friendUid) {
-  if (!me.uid) return alert('Your UID missing');
-  if (pc) return alert('Already in call');
-  currentPeer = friendUid;
-  ensureSocket();
-  const room = createRoomId(me.uid, friendUid);
-
-  // join room on server
-  socket.emit('join-room', room);
-
-  // show outgoing UI
-  showCallScreen({ mode: 'outgoing', peerUid: friendUid, peerName: friendUid, room });
-
-  // send 'ring' to notify callee & invite
-  socket.emit('private-message', { room, sender: me.uid, text: JSON.stringify({ __signal:true, signal:{ type:'ring', callerName: me.name || me.uid, room } }) });
-
-  // create local stream & pc
-  await ensureLocalAndPC();
-
-  // create offer
-  const offer = await pc.createOffer();
-  await pc.setLocalDescription(offer);
-
-  // send offer
-  socket.emit('private-message', { room, sender: me.uid, text: JSON.stringify({ __signal:true, signal:{ type:'offer', sdp: pc.localDescription } }) });
-
-  // if no answer within RING_TIMEOUT, auto cancel
-  ringTimer = setTimeout(() => {
-    updateCallText('No answer');
-    socket.emit('private-message', { room, sender: me.uid, text: JSON.stringify({ __signal:true, signal:{ type:'decline', reason:'noanswer' } }) });
-    cleanupCall();
-  }, RING_TIMEOUT);
-}
-
-/* -----------------------
-   Callee Accept/Decline handlers
-   ----------------------- */
-acceptBtn.addEventListener('click', async () => {
-  // user pressed accept -> create local stream and pc; we'll wait for offer to arrive or if offer already arrived it was handled
-  stopRingtone();
-  updateCallText('Accepted — connecting');
-  acceptBtn.style.display = declineBtn.style.display = 'none';
-  // send accepted signal (optional)
-  const room = createRoomId(me.uid, currentPeer);
-  socket.emit('private-message', { room, sender: me.uid, text: JSON.stringify({ __signal:true, signal:{ type:'accepted' } }) });
-  // We expect server to forward the offer to us; if offer already arrived, it was handled in signal 'offer' branch.
-  // Enable hangup
-  endBtn.style.display = 'inline-block';
-});
-
-declineBtn.addEventListener('click', () => {
-  const room = createRoomId(me.uid, currentPeer);
-  socket.emit('private-message', { room, sender: me.uid, text: JSON.stringify({ __signal:true, signal:{ type:'decline', reason:'user' } }) });
-  stopRingtone();
-  hideCallScreen();
-  currentPeer = null;
-});
-
-/* cancel (caller cancels before accepted) */
-cancelBtn.addEventListener('click', () => {
-  const room = createRoomId(me.uid, currentPeer);
-  socket.emit('private-message', { room, sender: me.uid, text: JSON.stringify({ __signal:true, signal:{ type:'decline', reason:'cancelled' } }) });
-  cleanupCall();
-});
-
-/* end (in-call) */
-endBtn.addEventListener('click', () => {
-  const room = createRoomId(me.uid, currentPeer);
-  socket.emit('private-message', { room, sender: me.uid, text: JSON.stringify({ __signal:true, signal:{ type:'end' } }) });
-  cleanupCall();
-});
-
-/* -----------------------
-   Ensure local stream and create RTCPeerConnection
-   ----------------------- */
-async function ensureLocalAndPC() {
-  if (!localStream) {
-    try {
-      localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-      localAudio.srcObject = localStream;
-    } catch (e) {
-      alert('Microphone access required: ' + (e.message || e));
-      throw e;
+    // Toggle mute
+    function toggleMute() {
+      if (localStream) {
+        const audioTracks = localStream.getAudioTracks();
+        audioTracks.forEach(track => {
+          track.enabled = !track.enabled;
+        });
+        isMuted = !track.enabled;
+        
+        const muteIcon = document.querySelector('.mute-btn i');
+        if (isMuted) {
+          muteIcon.className = 'fas fa-microphone-slash';
+        } else {
+          muteIcon.className = 'fas fa-microphone';
+        }
+      }
     }
-  }
-  if (pc) return;
-  pc = new RTCPeerConnection(ICE_SERVERS);
 
-  // add tracks
-  localStream.getTracks().forEach(t => pc.addTrack(t, localStream));
-
-  // remote
-  pc.ontrack = ev => {
-    remoteAudio.srcObject = ev.streams[0];
-    console.log('[pc] remote stream attached');
-    // switch UI to in-call
-    showCallScreen({ mode: 'incall', peerUid: currentPeer, peerName: resolveName(currentPeer) });
-    updateCallText('Connected');
-  };
-
-  // ice candidate -> send via private-message
-  pc.onicecandidate = ev => {
-    if (ev.candidate && currentPeer) {
-      const room = createRoomId(me.uid, currentPeer);
-      socket.emit('private-message', { room, sender: me.uid, text: JSON.stringify({ __signal:true, signal:{ type:'candidate', candidate: ev.candidate } }) });
+    // Toggle speaker (mobile devices)
+    function toggleSpeaker() {
+      // This would need device-specific implementation
+      isSpeakerOn = !isSpeakerOn;
+      alert("Speaker function would need device-specific implementation");
     }
-  };
 
-  pc.onconnectionstatechange = () => {
-    console.log('[pc] state', pc.connectionState);
-    if (pc.connectionState === 'connected') {
-      // connection established
-      stopRingtone();
-      clearTimeout(ringTimer);
-      showCallScreen({ mode: 'incall', peerUid: currentPeer, peerName: resolveName(currentPeer) });
+    // Go back to previous page
+    function goBack() {
+      window.history.back();
     }
-    if (['failed','disconnected','closed'].includes(pc.connectionState)) {
-      cleanupCall();
-    }
-  };
-}
 
-/* -----------------------
-   Cleanup call
-   ----------------------- */
-function cleanupCall() {
-  stopRingtone();
-  clearTimeout(ringTimer);
-  ringTimer = null;
-  if (pc) { try { pc.close(); } catch(e){} pc = null; }
-  if (localStream) {
-    try { localStream.getTracks().forEach(t => t.stop()); } catch(e){}
-    localStream = null;
-    localAudio.srcObject = null;
-  }
-  remoteAudio.srcObject = null;
-  currentPeer = null;
-  hideCallScreen();
-}
-
-/* -----------------------
-   Utility: resolve name from usersCache
-   ----------------------- */
-function resolveName(uid) {
-  const u = usersCache.find(x => (x.uid && x.uid.toString()) === uid.toString());
-  if (u) return u.name || uid;
-  return uid;
-}
-
-/* -----------------------
-   Room id util
-   ----------------------- */
-function createRoomId(a,b) {
-  return [a,b].sort().join('_');
-}
-
-/* -----------------------
-   Presence polling & refresh
-   ----------------------- */
-async function refreshAll() {
-  await loadUsers();
-  await loadContacts();
-  // server's /get-friends returns "online" computed already
-  renderContacts(searchEl.value || '');
-}
-
-/* poll presence periodically */
-let pollInterval = null;
-function startPolling() {
-  if (pollInterval) return;
-  pollInterval = setInterval(() => {
-    refreshAll().catch(e=>console.warn('poll error', e));
-  }, POLL_INTERVAL);
-}
-function stopPolling() {
-  if (pollInterval) clearInterval(pollInterval);
-  pollInterval = null;
-}
-
-/* -----------------------
-   Init & wiring
-   ----------------------- */
-async function init() {
-  // detect uid
-  let uid = detectUid();
-  if (!uid) uid = await promptForUid();
-  if (!uid) {
-    meNameEl.textContent = 'Unknown';
-    meUidEl.textContent = 'UID: —';
-    contactsList.innerHTML = '<div class="small" style="padding:12px;color:var(--muted)">No UID set. Please set sessionStorage uid for testing.</div>';
-    return;
-  }
-  me.uid = uid.toString();
-  me.name = me.uid;
-  meNameEl.textContent = me.name;
-  meUidEl.textContent = 'UID: ' + me.uid;
-
-  // fetch initial data
-  await refreshAll();
-
-  // wire events
-  searchEl.addEventListener('input', () => renderContacts(searchEl.value));
-  refreshBtn.addEventListener('click', () => refreshAll());
-
-  // setup socket and presence
-  ensureSocket();
-  startPolling();
-}
-
-/* -----------------------
-   Expose debug loader for manual testing
-   ----------------------- */
-window._debug = { start: init, reload: refreshAll };
-
-/* -----------------------
-   Start
-   ----------------------- */
-init();
-
-</script>
+    // Initialize the page
+    document.addEventListener('DOMContentLoaded', initCallPage);
+  </script>
 </body>
 </html>
