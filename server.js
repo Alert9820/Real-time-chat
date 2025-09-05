@@ -485,6 +485,31 @@ io.on("connection", (socket) => {
     
     delete users[socket.id];
   });
+  // 📞 NEW: Call timer synchronization
+socket.on("call-timer-sync", (data) => {
+  if (data.to && data.callerId) {
+    const recipient = Object.values(users).find(user => user.uid === data.to);
+    if (recipient && recipient.socketId) {
+      io.to(recipient.socketId).emit("call-timer-update", {
+        callerId: data.callerId,
+        timestamp: data.timestamp
+      });
+    }
+  }
+});
+
+// 📞 NEW: Call connected event
+socket.on("call-connected", (data) => {
+  if (data.to && data.callerId) {
+    const recipient = Object.values(users).find(user => user.uid === data.to);
+    if (recipient && recipient.socketId) {
+      io.to(recipient.socketId).emit("call-connected", {
+        callerId: data.callerId,
+        timestamp: data.timestamp
+      });
+    }
+  }
+});
 });
 
 // 🚀 Start Server
