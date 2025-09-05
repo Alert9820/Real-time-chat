@@ -4,25 +4,211 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Private Chat</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <style>
-    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; display: flex; flex-direction: column; height: 100vh; }
-    #chat { flex: 1; overflow-y: auto; padding: 10px; background: #fff; }
-    .msg { margin: 5px 0; padding: 8px 12px; border-radius: 10px; max-width: 70%; }
-    .mine { background: #dcf8c6; margin-left: auto; }
-    .other { background: #eee; margin-right: auto; }
-    #inputArea { display: flex; padding: 10px; background: #ddd; }
-    #messageInput { flex: 1; padding: 8px; font-size: 16px; border-radius: 5px; border: 1px solid #ccc; }
-    #sendBtn { padding: 8px 16px; margin-left: 5px; font-size: 16px; border-radius: 5px; border: none; background: #4caf50; color: white; cursor: pointer; }
-    #sendBtn:hover { background: #45a049; }
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+    
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: #0a0a0a;
+      color: #e6e6e6;
+      height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+    
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      background: #0a0a0a;
+    }
+    
+    .chat-header {
+      padding: 12px 20px;
+      background: #1a1a1a;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid #2a2a2a;
+    }
+    
+    .chat-user {
+      display: flex;
+      align-items: center;
+    }
+    
+    .user-avatar {
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: #3a3a3a;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-right: 10px;
+      font-weight: bold;
+      color: #00af9c;
+    }
+    
+    .header-icons {
+      display: flex;
+      gap: 15px;
+    }
+    
+    .icon-btn {
+      background: none;
+      border: none;
+      color: #a0a0a0;
+      cursor: pointer;
+      font-size: 18px;
+    }
+    
+    .icon-btn:hover {
+      color: #00af9c;
+    }
+    
+    #chat {
+      flex: 1;
+      padding: 20px;
+      overflow-y: auto;
+      background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect width="100" height="100" fill="%230d0d0d"/><path d="M0 50 L100 50 M50 0 L50 100" stroke="%231a1a1a" stroke-width="1"/></svg>');
+    }
+    
+    .message {
+      max-width: 70%;
+      margin-bottom: 15px;
+      position: relative;
+    }
+    
+    .message-content {
+      padding: 10px 15px;
+      border-radius: 8px;
+      position: relative;
+    }
+    
+    .message.mine {
+      margin-left: auto;
+    }
+    
+    .message.mine .message-content {
+      background: #005c4b;
+      border-top-right-radius: 2px;
+    }
+    
+    .message.other .message-content {
+      background: #202020;
+      border-top-left-radius: 2px;
+    }
+    
+    .message-sender {
+      font-size: 13px;
+      font-weight: 600;
+      margin-bottom: 4px;
+      color: #00af9c;
+    }
+    
+    .message-text {
+      word-break: break-word;
+    }
+    
+    .message-meta {
+      text-align: right;
+      font-size: 11px;
+      color: #999;
+      margin-top: 4px;
+    }
+    
+    .input-container {
+      padding: 15px 20px;
+      background: #1a1a1a;
+      display: flex;
+      align-items: center;
+      border-top: 1px solid #2a2a2a;
+    }
+    
+    .input-action {
+      margin-right: 12px;
+      color: #a0a0a0;
+      cursor: pointer;
+      font-size: 20px;
+    }
+    
+    .input-action:hover {
+      color: #00af9c;
+    }
+    
+    #messageInput {
+      flex: 1;
+      background: #2d2d2d;
+      border: none;
+      border-radius: 20px;
+      padding: 12px 18px;
+      color: #e6e6e6;
+      outline: none;
+      font-size: 16px;
+    }
+    
+    #sendBtn {
+      margin-left: 12px;
+      background: #00af9c;
+      color: white;
+      border: none;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    
+    #sendBtn:hover {
+      background: #008f7e;
+    }
+    
+    .bot-indicator {
+      display: inline-block;
+      background: #00af9c;
+      color: white;
+      font-size: 10px;
+      padding: 2px 6px;
+      border-radius: 10px;
+      margin-left: 8px;
+      vertical-align: middle;
+    }
   </style>
 </head>
 <body>
-
-  <div id="chat"></div>
-
-  <div id="inputArea">
-    <input type="text" id="messageInput" placeholder="Type a message..." />
-    <button id="sendBtn">Send</button>
+  <div class="chat-container">
+    <div class="chat-header">
+      <div class="chat-user">
+        <div class="user-avatar" id="userAvatar">U</div>
+        <div class="user-details">
+          <div class="user-name" id="userName">User</div>
+          <div class="user-status" id="userStatus">Online</div>
+        </div>
+      </div>
+      <div class="header-icons">
+        <button class="icon-btn" onclick="toggleBot()"><i class="fas fa-robot"></i></button>
+        <button class="icon-btn" onclick="clearChat()"><i class="fas fa-trash"></i></button>
+      </div>
+    </div>
+    
+    <div id="chat">
+      <!-- Messages will appear here -->
+    </div>
+    
+    <div class="input-container">
+      <div class="input-action" onclick="toggleEmojiPicker()"><i class="far fa-smile"></i></div>
+      <div class="input-action" onclick="attachFile()"><i class="fas fa-paperclip"></i></div>
+      <input type="text" id="messageInput" placeholder="Type a message...">
+      <button id="sendBtn"><i class="fas fa-paper-plane"></i></button>
+    </div>
   </div>
 
   <script src="/socket.io/socket.io.js"></script>
@@ -34,6 +220,10 @@
       window.location.href = "login.html";
     }
 
+    // ✅ Set user info in UI
+    document.getElementById('userName').textContent = currentUser.name;
+    document.getElementById('userAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
+
     // ✅ Friend UID
     const params = new URLSearchParams(window.location.search);
     const friendUid = params.get("uid");
@@ -44,8 +234,9 @@
 
     const room = [currentUser.uid, friendUid].sort().join("_");
 
-    // ✅ Socket setup
+    // ✅ Socket setup - FIXED duplicate message issue
     const socket = io();
+    let isSending = false;
 
     socket.on("connect", () => {
       console.log("Connected:", socket.id);
@@ -54,35 +245,100 @@
 
       fetch(`/get-room-messages?room=${room}`)
         .then(res => res.json())
-        .then(msgs => msgs.forEach(m => addMessage(m.sender, m.text, m.sender === currentUser.name)))
+        .then(msgs => msgs.forEach(m => {
+          // ✅ Filter out WebRTC signals
+          if (!m.text.includes('__signal')) {
+            addMessage(m.sender, m.text, m.sender === currentUser.name);
+          }
+        }))
         .catch(err => console.error("Failed to load messages:", err));
     });
 
-    socket.on("private-message", data => addMessage(data.sender, data.text, data.sender === currentUser.name));
-    socket.on("bot-reply", data => addMessage(data.sender, data.text));
+    // ✅ FIX: Filter out WebRTC signals from messages
+    socket.on("private-message", data => {
+      // ✅ Don't show WebRTC signaling messages in chat
+      if (!data.text.includes('__signal')) {
+        addMessage(data.sender, data.text, data.sender === currentUser.name);
+      }
+    });
+    
+    socket.on("bot-reply", data => {
+      addMessage(data.sender, data.text, false, true);
+    });
 
     document.getElementById("sendBtn").addEventListener("click", sendMessage);
-    document.getElementById("messageInput").addEventListener("keypress", e => { if (e.key === "Enter") sendMessage(); });
+    document.getElementById("messageInput").addEventListener("keypress", e => { 
+      if (e.key === "Enter") sendMessage(); 
+    });
 
+    // ✅ FIXED: Send message function without duplication
     function sendMessage() {
+      if (isSending) return;
+      
       const text = document.getElementById("messageInput").value.trim();
       if (!text) return;
 
+      isSending = true;
+      
       const payload = { room, sender: currentUser.name, text };
       socket.emit("private-message", payload);
-
-      addMessage(currentUser.name, text, true);
+      
+      // ✅ DON'T add message here - wait for server confirmation
       document.getElementById("messageInput").value = "";
+      
+      // Reset sending flag after a short delay
+      setTimeout(() => { isSending = false; }, 300);
     }
 
-    function addMessage(sender, text, mine = false) {
-      const div = document.createElement("div");
-      div.className = "msg " + (mine ? "mine" : "other");
-      div.textContent = `${sender}: ${text}`;
-      document.getElementById("chat").appendChild(div);
+    // ✅ Improved message display function
+    function addMessage(sender, text, mine = false, isBot = false) {
+      const messageEl = document.createElement("div");
+      messageEl.className = "message " + (mine ? "mine" : "other");
+      
+      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+      
+      messageEl.innerHTML = `
+        ${!mine ? `<div class="message-sender">${sender} ${isBot ? '<span class="bot-indicator">BOT</span>' : ''}</div>` : ''}
+        <div class="message-content">
+          <div class="message-text">${text}</div>
+          <div class="message-meta">${timestamp} ${mine ? '<i class="fas fa-check-double" style="color: #00af9c; margin-left: 3px;"></i>' : ''}</div>
+        </div>
+      `;
+      
+      document.getElementById("chat").appendChild(messageEl);
       document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
     }
-  </script>
 
+    // ✅ Additional functions for new features
+    function toggleBot() {
+      const botCommand = ">>bot";
+      socket.emit("private-message", { room, sender: currentUser.name, text: botCommand });
+      addMessage("System", "Bot activation requested...", false);
+    }
+
+    function clearChat() {
+      if (confirm("Clear all messages in this chat?")) {
+        fetch('/clear-room', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ room })
+        })
+        .then(response => response.text())
+        .then(result => {
+          document.getElementById("chat").innerHTML = '';
+          addMessage("System", "Chat cleared successfully", false);
+        })
+        .catch(error => console.error('Error clearing chat:', error));
+      }
+    }
+
+    function toggleEmojiPicker() {
+      alert("Emoji picker will be implemented here");
+    }
+
+    function attachFile() {
+      alert("File attachment will be implemented here");
+    }
+  </script>
 </body>
 </html>
