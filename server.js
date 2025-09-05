@@ -1,4 +1,4 @@
-// ✅ FINAL MONGO-READY BACKEND (PRIVATE CHAT FIXED, BOT + FRIEND SYSTEM)
+// ✅ UPDATED SERVER WITH VOICE CALLING FEATURE
 import express from "express";
 import cors from "cors";
 import { Server } from "socket.io";
@@ -245,6 +245,7 @@ app.post("/clear-room", async (req, res) => {
 
 // 🧠 Socket.IO Logic
 const users = {};
+const activeCalls = {};
 let botActive = false;
 
 io.on("connection", (socket) => {
@@ -252,10 +253,159 @@ io.on("connection", (socket) => {
 
   socket.on("set_name", (data) => {
     if (!data) return;
-    if (typeof data === "string") users[socket.id] = { uid: null, name: data };
-    else if (typeof data === "object") {
+    if (typeof data === "string") {
+      users[socket.id] = { uid: null, name: data, socketId: socket.id };
+    } else if (typeof data === "object") {
       const { uid, name } = data;
-      users[socket.id] = { uid: uid || null, name: name || "Unknown" };
+      users[socket.id] = { uid: uid || null, name: name || "Unknown", socketId: socket.id };
+    }
+  });
+
+  // 📞 NEW: Register user for calling
+  socket.on("register-call-user", (data) => {
+    if (data && data.uid) {
+      users[socket.id] = { 
+        uid: data.uid, 
+        name: data.name || "Unknown",
+        socketId: socket.id
+      };
+      console.log("📞 User registered for calling:", data.uid);
+    }
+  });
+
+  // 📞 NEW: Handle call requests
+  socket.on("call-request", (data) => {
+    if (!data.to || !data.callerId) return;
+    
+    console.log("📞 Call request from:", data.callerId, "to:", data.to);
+    
+    // Find recipient's socket ID
+    const recipientEntry = Object.entries(users).find(([_, user]) => user.uid === data.to);
+    
+    if (recipientEntry) {
+      const [recipientSocketId, recipient] = recipientEntry;
+      
+      // Store call info
+      activeCalls[data.callerId] = {
+        recipient: data.to,
+        status: 'calling',
+        socketId: socket.id
+      };
+      
+      activeCalls[data.to] = {
+        caller: data.callerId,
+        status: 'ringing',
+        socketId: recipientSocketId
+      };
+      
+      // Send call request to recipient
+      io.to(recipientSocketId).emit("incoming-call", {
+        callerId: data.callerId,
+        callerName: data.callerName || "Unknown"
+      });
+    } else {
+      // Recipient not found or offline
+      socket.emit("call-error", {
+        message: "User is offline or unavailable"
+      });
+    }
+  });
+
+  // 📞 NEW: Handle call acceptance
+  socket.on("call-accepted", (data) => {
+    if (!data.to || !data.callerId) return;
+    
+    console.log("✅ Call accepted by:", data.callerId);
+    
+    // Find caller's socket ID from activeCalls
+    const callInfo = activeCalls[data.callerId];
+    if (callInfo && callInfo.socketId) {
+      // Update call status
+      activeCalls[data.callerId].status = 'connected';
+      activeCalls[data.to].status = 'connected';
+      
+      // Notify caller
+      io.to(callInfo.socketId).emit("call-accepted", {
+        callerId: data.callerId
+      });
+    }
+  });
+
+  // 📞 NEW: Handle call rejection
+  socket.on("call-rejected", (data) => {
+    if (!data.to || !data.callerId) return;
+    
+    console.log("❌ Call rejected by:", data.callerId);
+    
+    // Find caller's socket ID from activeCalls
+    const callInfo = activeCalls[data.callerId];
+    if (callInfo && callInfo.socketId) {
+      // Remove call info
+      delete activeCalls[data.callerId];
+      delete activeCalls[data.to];
+      
+      // Notify caller
+      io.to(callInfo.socketId).emit("call-rejected", {
+        callerId: data.callerId
+      });
+    }
+  });
+
+  // 📞 NEW: Handle call end
+  socket.on("call-ended", (data) => {
+    if (!data.to || !data.callerId) return;
+    
+    console.log("📞 Call ended:", data.callerId);
+    
+    // Find other user's call info
+    const callInfo = activeCalls[data.callerId] || activeCalls[data.to];
+    
+    if (callInfo && callInfo.socketId) {
+      // Remove call info
+      delete activeCalls[data.callerId];
+      delete activeCalls[data.to];
+      
+      // Notify other user
+      io.to(callInfo.socketId).emit("call-ended", {
+        callerId: data.callerId
+      });
+    }
+  });
+
+  // 📞 NEW: WebRTC signaling
+  socket.on("webrtc-offer", (data) => {
+    if (!data.to || !data.offer) return;
+    
+    const recipient = Object.values(users).find(user => user.uid === data.to);
+    if (recipient && recipient.socketId) {
+      io.to(recipient.socketId).emit("webrtc-offer", {
+        offer: data.offer,
+        from: data.from
+      });
+    }
+  });
+
+  socket.on("webrtc-answer", (data) => {
+    if (!data.to || !data.answer) return;
+    
+    const recipient = Object.values(users).find(user => user.uid === data.to);
+    if (recipient && recipient.socketId) {
+      io.to(recipient.socketId).emit("webrtc-answer", {
+        answer: data.answer,
+        from: data.from
+      });
+    }
+  });
+
+  socket.on("webrtc-ice-candidate", (data) => {
+    if (!data.to || !data.candidate) return;
+    
+    const recipient = Object.values(users).find(user => user.uid === data.to);
+    if (recipient && recipient.socketId) {
+      io.to(recipient.socketId).emit("webrtc-ice-candidate", {
+        candidate: data.candidate,
+        from: data.from
+      });
     }
   });
 
@@ -316,6 +466,23 @@ io.on("connection", (socket) => {
 
   socket.on("disconnect", () => {
     console.log("❌ Disconnected:", socket.id, users[socket.id] ? `(${users[socket.id].name}/${users[socket.id].uid})` : "");
+    
+    // 📞 NEW: Clean up active calls on disconnect
+    if (users[socket.id] && users[socket.id].uid) {
+      const uid = users[socket.id].uid;
+      if (activeCalls[uid]) {
+        const otherParty = activeCalls[uid].recipient || activeCalls[uid].caller;
+        if (otherParty && activeCalls[otherParty]) {
+          const otherSocketId = activeCalls[otherParty].socketId;
+          if (otherSocketId) {
+            io.to(otherSocketId).emit("call-ended", { callerId: uid });
+          }
+        }
+        delete activeCalls[uid];
+        if (otherParty) delete activeCalls[otherParty];
+      }
+    }
+    
     delete users[socket.id];
   });
 });
