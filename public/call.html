@@ -276,6 +276,31 @@
       75% { transform: rotate(-5deg); }
       100% { transform: rotate(0deg); }
     }
+
+    /* Error toast */
+    .error-toast {
+      position: fixed;
+      top: 20px;
+      right: 20px;
+      background: #ff3b30;
+      color: white;
+      padding: 15px 20px;
+      border-radius: 8px;
+      z-index: 10000;
+      display: none;
+      animation: slideIn 0.3s ease;
+    }
+
+    .error-content {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    @keyframes slideIn {
+      from { transform: translateX(100%); opacity: 0; }
+      to { transform: translateX(0); opacity: 1; }
+    }
   </style>
 </head>
 <body>
@@ -344,6 +369,17 @@
     </div>
   </div>
 
+  <!-- Audio element for remote audio -->
+  <audio id="remoteAudio" autoplay playsinline style="display: none;"></audio>
+
+  <!-- Error toast -->
+  <div class="error-toast" id="errorToast">
+    <div class="error-content">
+      <i class="fas fa-exclamation-circle"></i>
+      <span id="errorMessage">Voice call not working</span>
+    </div>
+  </div>
+
   <script src="/socket.io/socket.io.js"></script>
   <script>
     let socket = null;
@@ -355,6 +391,17 @@
     let isMuted = false;
     let isSpeakerOn = false;
     let currentCall = null;
+
+    // Show error message
+    function showError(message) {
+      const toast = document.getElementById('errorToast');
+      document.getElementById('errorMessage').textContent = message;
+      toast.style.display = 'flex';
+      
+      setTimeout(() => {
+        toast.style.display = 'none';
+      }, 5000);
+    }
 
     // Initialize the call page
     function initCallPage() {
@@ -379,7 +426,7 @@
         loadFriends();
       });
 
-      // Handle incoming call - FIXED: This was missing
+      // Handle incoming call
       socket.on("incoming-call", (data) => {
         console.log("Incoming call from:", data);
         showIncomingCall(data.callerId, data.callerName);
@@ -398,7 +445,7 @@
         console.log("Call rejected by:", data);
         if (currentCall && currentCall.friendUid === data.callerId) {
           endCall();
-          alert("Call rejected by " + currentCall.friendName);
+          showError("Call rejected by " + currentCall.friendName);
         }
       });
 
@@ -407,7 +454,7 @@
         console.log("Call ended by:", data);
         if (currentCall && currentCall.friendUid === data.callerId) {
           endCall();
-          alert("Call ended by " + currentCall.friendName);
+          showError("Call ended by " + currentCall.friendName);
         }
       });
 
@@ -429,8 +476,18 @@
       socket.on("webrtc-ice-candidate", async (data) => {
         console.log("Received ICE candidate:", data);
         if (peerConnection) {
-          await peerConnection.addIceCandidate(data.candidate);
+          try {
+            await peerConnection.addIceCandidate(data.candidate);
+          } catch (e) {
+            console.error("Error adding ICE candidate:", e);
+          }
         }
+      });
+
+      // Handle call errors
+      socket.on("call-error", (data) => {
+        showError(data.message || "Call failed");
+        endCall();
       });
     }
 
@@ -466,15 +523,23 @@
         });
       } catch (error) {
         console.error("Failed to load friends:", error);
+        showError("Failed to load friends list");
       }
     }
 
-    // Start calling a friend - FIXED: Proper call request
+    // Start calling a friend - FIXED: Mobile optimized audio
     async function startCalling(friendUid, friendName) {
       try {
-        // Get user media
+        // Get user media with mobile optimization
         localStream = await navigator.mediaDevices.getUserMedia({ 
-          audio: true,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true,
+            channelCount: 1,
+            sampleRate: 48000,
+            sampleSize: 16
+          },
           video: false 
         });
         
@@ -494,7 +559,7 @@
           isIncoming: false
         };
         
-        // Send call request to the specific user - FIXED
+        // Send call request to the specific user
         socket.emit("call-request", {
           to: friendUid,
           callerId: currentUser.uid,
@@ -504,28 +569,40 @@
         // Create and send offer after a delay
         setTimeout(async () => {
           if (peerConnection) {
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
-            
-            socket.emit("webrtc-offer", {
-              offer: offer,
-              to: friendUid
-            });
+            try {
+              const offer = await peerConnection.createOffer({
+                offerToReceiveAudio: true,
+                offerToReceiveVideo: false
+              });
+              await peerConnection.setLocalDescription(offer);
+              
+              socket.emit("webrtc-offer", {
+                offer: offer,
+                to: friendUid
+              });
+            } catch (error) {
+              console.error("Error creating offer:", error);
+              showError("Failed to start call");
+              endCall();
+            }
           }
         }, 1000);
         
       } catch (error) {
         console.error("Error starting call:", error);
-        alert("Error accessing microphone. Please check permissions.");
+        showError("Error accessing microphone. Please check permissions.");
       }
     }
 
-    // Initialize WebRTC connection
+    // Initialize WebRTC connection - FIXED: Better configuration
     async function initWebRTC() {
       const configuration = {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' }
+          { urls: 'stun:stun1.l.google.com:19302' },
+          { urls: 'stun:stun2.l.google.com:19302' },
+          { urls: 'stun:stun3.l.google.com:19302' },
+          { urls: 'stun:stun4.l.google.com:19302' }
         ]
       };
       
@@ -538,12 +615,25 @@
         });
       }
       
-      // Handle remote stream
+      // Handle remote stream - FIXED: Proper audio handling
       peerConnection.ontrack = (event) => {
-        console.log("Received remote stream");
-        const remoteAudio = new Audio();
-        remoteAudio.srcObject = event.streams[0];
-        remoteAudio.play().catch(e => console.error("Error playing audio:", e));
+        console.log("Received remote stream tracks:", event.streams);
+        const remoteAudio = document.getElementById('remoteAudio');
+        
+        if (event.streams && event.streams[0]) {
+          remoteAudio.srcObject = event.streams[0];
+          
+          // Mobile-friendly audio play
+          const playPromise = remoteAudio.play();
+          if (playPromise !== undefined) {
+            playPromise
+              .then(() => console.log("Audio playing successfully"))
+              .catch(error => {
+                console.log("Audio play prevented:", error);
+                showError("Tap to allow audio playback");
+              });
+          }
+        }
       };
       
       // Handle ICE candidates
@@ -555,6 +645,14 @@
           });
         }
       };
+
+      // Handle connection state changes
+      peerConnection.onconnectionstatechange = () => {
+        console.log("Connection state:", peerConnection.connectionState);
+        if (peerConnection.connectionState === "connected") {
+          document.getElementById('callStatus').textContent = 'Connected';
+        }
+      };
     }
 
     // Handle incoming offer
@@ -563,14 +661,22 @@
         await initWebRTC();
       }
       
-      await peerConnection.setRemoteDescription(offer);
-      const answer = await peerConnection.createAnswer();
-      await peerConnection.setLocalDescription(answer);
-      
-      socket.emit("webrtc-answer", {
-        answer: answer,
-        to: from
-      });
+      try {
+        await peerConnection.setRemoteDescription(offer);
+        const answer = await peerConnection.createAnswer({
+          offerToReceiveAudio: true,
+          offerToReceiveVideo: false
+        });
+        await peerConnection.setLocalDescription(answer);
+        
+        socket.emit("webrtc-answer", {
+          answer: answer,
+          to: from
+        });
+      } catch (error) {
+        console.error("Error handling offer:", error);
+        showError("Call setup failed");
+      }
     }
 
     // Show incoming call screen
@@ -586,11 +692,16 @@
       };
     }
 
-    // Accept incoming call
+    // Accept incoming call - FIXED: Mobile optimized
     async function acceptIncomingCall() {
       try {
+        // Get user media with mobile optimization
         localStream = await navigator.mediaDevices.getUserMedia({ 
-          audio: true,
+          audio: {
+            echoCancellation: true,
+            noiseSuppression: true,
+            autoGainControl: true
+          },
           video: false 
         });
         
@@ -612,6 +723,7 @@
         
       } catch (error) {
         console.error("Error accepting call:", error);
+        showError("Failed to accept call. Microphone access denied.");
       }
     }
 
@@ -656,6 +768,7 @@
       }
       
       document.getElementById('callScreen').style.display = 'none';
+      document.getElementById('incomingCall').style.display = 'none';
       
       if (currentCall) {
         socket.emit("call-ended", { 
@@ -687,7 +800,8 @@
     // Toggle speaker
     function toggleSpeaker() {
       isSpeakerOn = !isSpeakerOn;
-      alert("Speaker function would need device-specific implementation");
+      // This would need device-specific implementation
+      showError("Speaker toggle may not work on all devices");
     }
 
     // Go back to previous page
