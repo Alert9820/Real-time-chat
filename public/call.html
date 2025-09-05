@@ -264,6 +264,18 @@
       color: white;
       cursor: pointer;
     }
+
+    .ringing-animation {
+      animation: ring 1s infinite;
+    }
+    
+    @keyframes ring {
+      0% { transform: rotate(0deg); }
+      25% { transform: rotate(5deg); }
+      50% { transform: rotate(0deg); }
+      75% { transform: rotate(-5deg); }
+      100% { transform: rotate(0deg); }
+    }
   </style>
 </head>
 <body>
@@ -273,7 +285,7 @@
         <i class="fas fa-arrow-left"></i>
       </button>
       <h2>Voice Calls</h2>
-      <div style="width: 40px;"></div> <!-- For spacing -->
+      <div style="width: 40px;"></div>
     </div>
     
     <div class="friends-list" id="friendsList">
@@ -281,7 +293,7 @@
     </div>
   </div>
 
-  <!-- Call Screen -->
+  <!-- Outgoing Call Screen -->
   <div class="call-screen" id="callScreen">
     <div class="caller-info">
       <div class="caller-avatar" id="callerAvatar">R</div>
@@ -317,7 +329,7 @@
   <!-- Incoming Call Screen -->
   <div class="incoming-call" id="incomingCall">
     <div class="caller-info">
-      <div class="caller-avatar" id="incomingCallerAvatar">S</div>
+      <div class="caller-avatar ringing-animation" id="incomingCallerAvatar">S</div>
       <div class="caller-name" id="incomingCallerName">Sneha Patel</div>
       <div class="call-status">Incoming Voice Call</div>
     </div>
@@ -360,52 +372,62 @@
       // Set up socket event listeners for calling
       socket.on("connect", () => {
         console.log("Connected to server for calling");
-        socket.emit("set_name", { uid: currentUser.uid, name: currentUser.name });
+        socket.emit("register-call-user", { 
+          uid: currentUser.uid, 
+          name: currentUser.name 
+        });
         loadFriends();
       });
 
-      // Handle incoming call
+      // Handle incoming call - FIXED: This was missing
       socket.on("incoming-call", (data) => {
+        console.log("Incoming call from:", data);
         showIncomingCall(data.callerId, data.callerName);
       });
 
       // Handle call accepted
       socket.on("call-accepted", (data) => {
-        startCall(data.callerId);
-      });
-
-      // Handle call rejected
-      socket.on("call-rejected", () => {
-        endCall();
-        alert("Call rejected");
-      });
-
-      // Handle call ended
-      socket.on("call-ended", () => {
-        endCall();
-        alert("Call ended by other user");
-      });
-
-      // WebRTC signaling
-      socket.on("offer", async (data) => {
-        if (peerConnection) {
-          await peerConnection.setRemoteDescription(data.offer);
-          const answer = await peerConnection.createAnswer();
-          await peerConnection.setLocalDescription(answer);
-          socket.emit("answer", { 
-            answer: answer, 
-            to: data.from 
-          });
+        console.log("Call accepted by:", data);
+        if (currentCall && currentCall.friendUid === data.callerId) {
+          startCall(data.callerId);
         }
       });
 
-      socket.on("answer", async (data) => {
+      // Handle call rejected
+      socket.on("call-rejected", (data) => {
+        console.log("Call rejected by:", data);
+        if (currentCall && currentCall.friendUid === data.callerId) {
+          endCall();
+          alert("Call rejected by " + currentCall.friendName);
+        }
+      });
+
+      // Handle call ended
+      socket.on("call-ended", (data) => {
+        console.log("Call ended by:", data);
+        if (currentCall && currentCall.friendUid === data.callerId) {
+          endCall();
+          alert("Call ended by " + currentCall.friendName);
+        }
+      });
+
+      // WebRTC signaling
+      socket.on("webrtc-offer", async (data) => {
+        console.log("Received WebRTC offer:", data);
+        if (currentCall && currentCall.friendUid === data.from) {
+          await handleOffer(data.offer, data.from);
+        }
+      });
+
+      socket.on("webrtc-answer", async (data) => {
+        console.log("Received WebRTC answer:", data);
         if (peerConnection) {
           await peerConnection.setRemoteDescription(data.answer);
         }
       });
 
-      socket.on("ice-candidate", async (data) => {
+      socket.on("webrtc-ice-candidate", async (data) => {
+        console.log("Received ICE candidate:", data);
         if (peerConnection) {
           await peerConnection.addIceCandidate(data.candidate);
         }
@@ -447,7 +469,7 @@
       }
     }
 
-    // Start calling a friend
+    // Start calling a friend - FIXED: Proper call request
     async function startCalling(friendUid, friendName) {
       try {
         // Get user media
@@ -465,17 +487,32 @@
         document.getElementById('callStatus').textContent = 'Calling...';
         document.getElementById('callScreen').style.display = 'flex';
         
-        // Send call request
+        // Store current call info
+        currentCall = {
+          friendUid: friendUid,
+          friendName: friendName,
+          isIncoming: false
+        };
+        
+        // Send call request to the specific user - FIXED
         socket.emit("call-request", {
           to: friendUid,
           callerId: currentUser.uid,
           callerName: currentUser.name
         });
         
-        currentCall = {
-          friendUid: friendUid,
-          friendName: friendName
-        };
+        // Create and send offer after a delay
+        setTimeout(async () => {
+          if (peerConnection) {
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+            
+            socket.emit("webrtc-offer", {
+              offer: offer,
+              to: friendUid
+            });
+          }
+        }, 1000);
         
       } catch (error) {
         console.error("Error starting call:", error);
@@ -495,26 +532,45 @@
       peerConnection = new RTCPeerConnection(configuration);
       
       // Add local stream
-      localStream.getTracks().forEach(track => {
-        peerConnection.addTrack(track, localStream);
-      });
+      if (localStream) {
+        localStream.getTracks().forEach(track => {
+          peerConnection.addTrack(track, localStream);
+        });
+      }
       
       // Handle remote stream
       peerConnection.ontrack = (event) => {
+        console.log("Received remote stream");
         const remoteAudio = new Audio();
         remoteAudio.srcObject = event.streams[0];
-        remoteAudio.play();
+        remoteAudio.play().catch(e => console.error("Error playing audio:", e));
       };
       
       // Handle ICE candidates
       peerConnection.onicecandidate = (event) => {
-        if (event.candidate) {
-          socket.emit("ice-candidate", {
+        if (event.candidate && currentCall) {
+          socket.emit("webrtc-ice-candidate", {
             candidate: event.candidate,
             to: currentCall.friendUid
           });
         }
       };
+    }
+
+    // Handle incoming offer
+    async function handleOffer(offer, from) {
+      if (!peerConnection) {
+        await initWebRTC();
+      }
+      
+      await peerConnection.setRemoteDescription(offer);
+      const answer = await peerConnection.createAnswer();
+      await peerConnection.setLocalDescription(answer);
+      
+      socket.emit("webrtc-answer", {
+        answer: answer,
+        to: from
+      });
     }
 
     // Show incoming call screen
@@ -540,20 +596,17 @@
         
         await initWebRTC();
         
+        // Send acceptance notification
+        socket.emit("call-accepted", {
+          to: currentCall.friendUid,
+          callerId: currentUser.uid
+        });
+        
         document.getElementById('incomingCall').style.display = 'none';
         document.getElementById('callerAvatar').textContent = currentCall.friendName.charAt(0).toUpperCase();
         document.getElementById('callerName').textContent = currentCall.friendName;
         document.getElementById('callStatus').textContent = 'Connected';
         document.getElementById('callScreen').style.display = 'flex';
-        
-        // Create and send offer
-        const offer = await peerConnection.createOffer();
-        await peerConnection.setLocalDescription(offer);
-        
-        socket.emit("answer", {
-          answer: offer,
-          to: currentCall.friendUid
-        });
         
         startCallTimer();
         
@@ -564,7 +617,10 @@
 
     // Reject incoming call
     function rejectIncomingCall() {
-      socket.emit("call-rejected", { to: currentCall.friendUid });
+      socket.emit("call-rejected", { 
+        to: currentCall.friendUid,
+        callerId: currentUser.uid
+      });
       document.getElementById('incomingCall').style.display = 'none';
       currentCall = null;
     }
@@ -602,7 +658,10 @@
       document.getElementById('callScreen').style.display = 'none';
       
       if (currentCall) {
-        socket.emit("call-ended", { to: currentCall.friendUid });
+        socket.emit("call-ended", { 
+          to: currentCall.friendUid,
+          callerId: currentUser.uid
+        });
         currentCall = null;
       }
     }
@@ -611,23 +670,22 @@
     function toggleMute() {
       if (localStream) {
         const audioTracks = localStream.getAudioTracks();
-        audioTracks.forEach(track => {
-          track.enabled = !track.enabled;
-        });
-        isMuted = !track.enabled;
-        
-        const muteIcon = document.querySelector('.mute-btn i');
-        if (isMuted) {
-          muteIcon.className = 'fas fa-microphone-slash';
-        } else {
-          muteIcon.className = 'fas fa-microphone';
+        if (audioTracks.length > 0) {
+          audioTracks[0].enabled = !audioTracks[0].enabled;
+          isMuted = !audioTracks[0].enabled;
+          
+          const muteIcon = document.querySelector('.mute-btn i');
+          if (isMuted) {
+            muteIcon.className = 'fas fa-microphone-slash';
+          } else {
+            muteIcon.className = 'fas fa-microphone';
+          }
         }
       }
     }
 
-    // Toggle speaker (mobile devices)
+    // Toggle speaker
     function toggleSpeaker() {
-      // This would need device-specific implementation
       isSpeakerOn = !isSpeakerOn;
       alert("Speaker function would need device-specific implementation");
     }
