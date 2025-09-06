@@ -135,6 +135,11 @@
             background: #2d2d2d;
         }
 
+        .group-action-btn.active {
+            background: #00af9c;
+            color: white;
+        }
+
         .messages-container {
             flex: 1;
             padding: 15px;
@@ -183,7 +188,7 @@
             color: rgba(255, 255, 255, 0.6);
         }
 
-        /* INPUT AREA - FIXED POSITION (BOTTOM) */
+        /* INPUT AREA - BOTTOM */
         .input-area {
             padding: 15px;
             background: #1a1a1a;
@@ -215,8 +220,6 @@
             align-items: center;
             justify-content: center;
         }
-
-        
 
         /* Modal Styles */
         .modal {
@@ -338,9 +341,10 @@
             <button class="group-action-btn" onclick="showRenameModal()" title="Rename Group">
                 <i class="fas fa-edit"></i>
             </button>
+            <button class="group-action-btn" onclick="clearGroupChat()" title="Clear Chat">
+                <i class="fas fa-trash"></i>
+            </button>
         </div>
-
-    
 
         <!-- Messages Container -->
         <div class="messages-container" id="messagesContainer">
@@ -349,7 +353,7 @@
             </div>
         </div>
 
-        <!-- Input Area - NOW AT BOTTOM -->
+        <!-- Input Area -->
         <div class="input-area">
             <input type="text" class="message-input" id="messageInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
             <button class="send-btn" onclick="sendMessage()">
@@ -490,6 +494,16 @@
                     currentGroup.name = data.newName;
                     document.getElementById('chatGroupName').textContent = data.newName;
                     loadUserGroups(); // Refresh group list
+                }
+            });
+
+            socket.on("chat-cleared", (data) => {
+                if (currentGroup && data.groupId === currentGroup.groupId) {
+                    document.getElementById('messagesContainer').innerHTML = `
+                        <div class="message bot">
+                            <div class="message-text">Chat cleared by ${data.clearedBy}</div>
+                        </div>
+                    `;
                 }
             });
         }
@@ -694,10 +708,7 @@
         // Activate bot
         function activateBot() {
             botActive = true;
-            document.getElementById('activateBotBtn').style.display = 'none';
-            document.getElementById('deactivateBotBtn').style.display = 'flex';
-            document.getElementById('botToggleBtn').style.background = '#00af9c';
-            document.getElementById('botToggleBtn').style.color = 'white';
+            document.getElementById('botToggleBtn').classList.add('active');
             
             // Show bot activated message
             displayMessage({
@@ -712,10 +723,7 @@
         // Deactivate bot
         function deactivateBot() {
             botActive = false;
-            document.getElementById('activateBotBtn').style.display = 'flex';
-            document.getElementById('deactivateBotBtn').style.display = 'none';
-            document.getElementById('botToggleBtn').style.background = '';
-            document.getElementById('botToggleBtn').style.color = '#e6e6e6';
+            document.getElementById('botToggleBtn').classList.remove('active');
             
             // Show bot deactivated message
             displayMessage({
@@ -725,6 +733,43 @@
                 timestamp: new Date(),
                 groupId: currentGroup.groupId
             });
+        }
+
+        // Clear group chat
+        async function clearGroupChat() {
+            if (!currentGroup || !confirm("Are you sure you want to clear all messages in this group?")) return;
+
+            try {
+                const response = await fetch('/clear-group-chat', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        groupId: currentGroup.groupId
+                    })
+                });
+
+                if (response.ok) {
+                    // Clear messages from UI
+                    document.getElementById('messagesContainer').innerHTML = `
+                        <div class="message bot">
+                            <div class="message-text">Chat cleared by ${currentUser.name}</div>
+                        </div>
+                    `;
+                    
+                    // Notify other group members
+                    socket.emit('clear-chat', {
+                        groupId: currentGroup.groupId,
+                        clearedBy: currentUser.name
+                    });
+                } else {
+                    alert('Error clearing chat');
+                }
+            } catch (error) {
+                console.error('Error clearing chat:', error);
+                alert('Error clearing chat');
+            }
         }
 
         // Handle key press (Enter to send)
