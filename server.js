@@ -1,4 +1,4 @@
-// ✅ UPDATED SERVER WITH VOICE CALLING FEATURE
+// ✅ UPDATED SERVER WITH VOICE CALLING + GROUP CHAT FEATURE
 import express from "express";
 import cors from "cors";
 import { Server } from "socket.io";
@@ -37,7 +37,8 @@ const client = new MongoClient(uri, {
 });
 
 const dbName = "ChatDB";
-let userCollection, historyCollection, requestCollection, friendCollection, privateMsgCollection;
+let userCollection, historyCollection, requestCollection, friendCollection, 
+    privateMsgCollection, groupCollection, groupMessageCollection;
 
 client
   .connect()
@@ -48,6 +49,8 @@ client
     requestCollection = db.collection("friend_requests");
     friendCollection = db.collection("friends");
     privateMsgCollection = db.collection("privateMessages");
+    groupCollection = db.collection("groups"); // ✅ NEW: Group collection
+    groupMessageCollection = db.collection("groupMessages"); // ✅ NEW: Group messages
     console.log("✅ MongoDB Connected");
   })
   .catch((err) => console.error("❌ Mongo Connection Error:", err));
@@ -243,6 +246,97 @@ app.post("/clear-room", async (req, res) => {
   }
 });
 
+// 🆕 GROUP CHAT ROUTES (Add these after existing routes)
+
+// 📋 Create Group
+app.post("/create-group", async (req, res) => {
+  try {
+    const { name, createdBy, participants } = req.body;
+    
+    if (!name || !createdBy) {
+      return res.status(400).send("Group name and creator are required");
+    }
+
+    const groupId = generateUID();
+    const groupData = {
+      groupId,
+      name,
+      createdBy,
+      participants: participants || [createdBy],
+      createdAt: new Date()
+    };
+
+    await groupCollection.insertOne(groupData);
+    res.json({ message: "Group created successfully", groupId });
+  } catch (e) {
+    console.error("❌ Create Group Error:", e);
+    res.status(500).send("Server error");
+  }
+});
+
+// 👥 Add Participants to Group
+app.post("/add-to-group", async (req, res) => {
+  try {
+    const { groupId, userId } = req.body;
+    
+    if (!groupId || !userId) {
+      return res.status(400).send("Group ID and User ID are required");
+    }
+
+    await groupCollection.updateOne(
+      { groupId },
+      { $addToSet: { participants: userId } }
+    );
+    
+    res.send("User added to group");
+  } catch (e) {
+    console.error("❌ Add to Group Error:", e);
+    res.status(500).send("Server error");
+  }
+});
+
+// 📜 Get User Groups
+app.get("/get-user-groups", async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    const groups = await groupCollection.find({ 
+      participants: userId 
+    }).toArray();
+    
+    res.json(groups);
+  } catch (e) {
+    console.error("❌ Get User Groups Error:", e);
+    res.status(500).send("Server error");
+  }
+});
+
+// 💬 Get Group Messages
+app.get("/get-group-messages", async (req, res) => {
+  try {
+    const { groupId } = req.query;
+    const messages = await groupMessageCollection.find({ 
+      groupId 
+    }).sort({ timestamp: 1 }).toArray();
+    
+    res.json(messages);
+  } catch (e) {
+    console.error("❌ Get Group Messages Error:", e);
+    res.status(500).send("Error loading group messages");
+  }
+});
+
+// 🧹 Clear Group Messages
+app.post("/clear-group-messages", async (req, res) => {
+  try {
+    const { groupId } = req.body;
+    await groupMessageCollection.deleteMany({ groupId });
+    res.send("Group messages cleared");
+  } catch (e) {
+    console.error("❌ Clear Group Messages Error:", e);
+    res.status(500).send("Error clearing group messages");
+  }
+});
+
 // 🧠 Socket.IO Logic
 const users = {};
 const activeCalls = {};
@@ -407,6 +501,46 @@ io.on("connection", (socket) => {
         from: data.from
       });
     }
+  });
+
+  // 🆕 GROUP CHAT SOCKET EVENTS
+  socket.on("join-group", (groupId) => {
+    socket.join(`group-${groupId}`);
+    console.log(`User joined group: ${groupId}`);
+  });
+
+  socket.on("leave-group", (groupId) => {
+    socket.leave(`group-${groupId}`);
+    console.log(`User left group: ${groupId}`);
+  });
+
+  socket.on("group-message", async (data) => {
+    try {
+      const { groupId, sender, text, senderName } = data;
+      
+      if (!groupId || !text) return;
+
+      // Save group message to database
+      const messageData = {
+        groupId,
+        sender,
+        senderName,
+        text,
+        timestamp: new Date()
+      };
+
+      await groupMessageCollection.insertOne(messageData);
+      
+      // Send to all group members
+      io.to(`group-${groupId}`).emit("group-message", messageData);
+    } catch (e) {
+      console.error("❌ Group Message Error:", e);
+    }
+  });
+
+  socket.on("group-typing", (data) => {
+    const { groupId, userName } = data;
+    socket.to(`group-${groupId}`).emit("group-typing", userName);
   });
 
   socket.on("typing", (payload) => {
