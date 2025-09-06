@@ -246,7 +246,7 @@ app.post("/clear-room", async (req, res) => {
   }
 });
 
-// 🆕 GROUP CHAT ROUTES (Add these after existing routes)
+// 🆕 GROUP CHAT ROUTES
 
 // 📋 Create Group
 app.post("/create-group", async (req, res) => {
@@ -334,6 +334,52 @@ app.post("/clear-group-messages", async (req, res) => {
   } catch (e) {
     console.error("❌ Clear Group Messages Error:", e);
     res.status(500).send("Error clearing group messages");
+  }
+});
+
+// ✅ CLEAR GROUP CHAT ROUTE
+app.post("/clear-group-chat", async (req, res) => {
+  try {
+    const { groupId } = req.body;
+    await groupMessageCollection.deleteMany({ groupId });
+    
+    // Notify all group members
+    io.to(`group-${groupId}`).emit("chat-cleared", {
+      groupId,
+      clearedBy: req.body.clearedBy || "Someone"
+    });
+    
+    res.send("Chat cleared successfully");
+  } catch (e) {
+    console.error("❌ Clear Group Chat Error:", e);
+    res.status(500).send("Error clearing chat");
+  }
+});
+
+// ✅ RENAME GROUP ROUTE
+app.post("/rename-group", async (req, res) => {
+  try {
+    const { groupId, newName } = req.body;
+    
+    if (!groupId || !newName) {
+      return res.status(400).send("Group ID and new name are required");
+    }
+
+    await groupCollection.updateOne(
+      { groupId },
+      { $set: { name: newName } }
+    );
+    
+    // Notify all group members
+    io.to(`group-${groupId}`).emit("group-renamed", {
+      groupId,
+      newName
+    });
+    
+    res.send("Group renamed successfully");
+  } catch (e) {
+    console.error("❌ Rename Group Error:", e);
+    res.status(500).send("Error renaming group");
   }
 });
 
@@ -533,9 +579,84 @@ io.on("connection", (socket) => {
       
       // Send to all group members
       io.to(`group-${groupId}`).emit("group-message", messageData);
+      
+      // ✅ BOT AUTO-RESPONSE
+      if (text.toLowerCase().includes("bot")) {
+        const prompt = text.replace(/bot/gi, "").trim();
+        if (prompt) {
+          const reply = await generateBotReply(prompt);
+          
+          // Send bot reply
+          io.to(`group-${groupId}`).emit("group-message", {
+            groupId,
+            sender: "BotX",
+            senderName: "BotX",
+            text: reply,
+            timestamp: new Date()
+          });
+          
+          // Save to history
+          const user = await userCollection.findOne({ uid: sender });
+          if (user) {
+            await historyCollection.insertOne({
+              name: user.name,
+              prompt,
+              reply,
+              timestamp: new Date()
+            });
+          }
+        }
+      }
     } catch (e) {
       console.error("❌ Group Message Error:", e);
     }
+  });
+
+  // ✅ CLEAR CHAT EVENT
+  socket.on("clear-chat", (data) => {
+    const { groupId, clearedBy } = data;
+    io.to(`group-${groupId}`).emit("chat-cleared", {
+      groupId,
+      clearedBy
+    });
+  });
+
+  // ✅ BOT MESSAGE EVENT
+  socket.on("bot-message", async (data) => {
+    try {
+      const { groupId, prompt, userId } = data;
+      
+      // Generate bot reply
+      const reply = await generateBotReply(prompt);
+      
+      // Send bot reply to the group
+      io.to(`group-${groupId}`).emit("bot-reply", {
+        groupId,
+        text: reply
+      });
+      
+      // Save to history if needed
+      const user = await userCollection.findOne({ uid: userId });
+      if (user) {
+        await historyCollection.insertOne({
+          name: user.name,
+          prompt,
+          reply,
+          timestamp: new Date()
+        });
+      }
+    } catch (e) {
+      console.error("❌ Bot message error:", e);
+    }
+  });
+
+  // ✅ GROUP RENAME EVENT
+  socket.on("group-rename", (data) => {
+    const { groupId, newName } = data;
+    io.to(`group-${groupId}`).emit("group-renamed", {
+      groupId,
+      newName
+    });
   });
 
   socket.on("group-typing", (data) => {
