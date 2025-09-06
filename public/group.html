@@ -14,11 +14,10 @@
         }
 
         body {
-            background: linear-gradient(135deg, #0f0f0f 0%, #1a1a1a 100%);
+            background: #0f0f0f;
             color: #e6e6e6;
             height: 100vh;
             display: flex;
-            overflow: hidden;
         }
 
         .container {
@@ -29,242 +28,96 @@
 
         /* Sidebar Styles */
         .sidebar {
-            width: 320px;
-            background: rgba(26, 26, 26, 0.95);
+            width: 300px;
+            background: #1a1a1a;
             border-right: 1px solid #2a2a2a;
             padding: 20px;
             overflow-y: auto;
-            backdrop-filter: blur(10px);
-            box-shadow: 2px 0 10px rgba(0, 0, 0, 0.3);
         }
 
         .header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 25px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #333;
+            margin-bottom: 20px;
+            padding-bottom: 10px;
+            border-bottom: 1px solid #2a2a2a;
         }
 
         .back-btn {
             background: none;
             border: none;
             color: #00af9c;
-            font-size: 20px;
+            font-size: 18px;
             cursor: pointer;
-            transition: transform 0.2s;
-        }
-
-        .back-btn:hover {
-            transform: scale(1.1);
-        }
-
-        .header h3 {
-            font-size: 20px;
-            font-weight: 600;
-            color: #00af9c;
         }
 
         .create-group-btn {
-            background: linear-gradient(135deg, #00af9c 0%, #008f7e 100%);
+            background: #00af9c;
             color: white;
             border: none;
-            padding: 10px 15px;
-            border-radius: 8px;
+            padding: 8px 12px;
+            border-radius: 5px;
             cursor: pointer;
             font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-            transition: all 0.3s;
-            box-shadow: 0 4px 6px rgba(0, 175, 156, 0.2);
-        }
-
-        .create-group-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 8px rgba(0, 175, 156, 0.3);
         }
 
         .groups-list {
             display: flex;
             flex-direction: column;
-            gap: 12px;
-            margin-top: 20px;
+            gap: 10px;
         }
 
         .group-item {
-            padding: 16px;
+            padding: 12px;
             background: #252525;
-            border-radius: 12px;
+            border-radius: 8px;
             cursor: pointer;
-            transition: all 0.3s;
-            border-left: 4px solid transparent;
-            position: relative;
         }
 
         .group-item:hover {
             background: #2d2d2d;
-            transform: translateX(5px);
-            border-left: 4px solid #00af9c;
-        }
-
-        .group-item.active {
-            background: linear-gradient(135deg, #00af9c 0%, #008f7e 100%);
-            transform: translateX(5px);
-            border-left: 4px solid #fff;
         }
 
         .group-name {
             font-weight: 600;
-            margin-bottom: 6px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .group-name i {
-            font-size: 14px;
+            margin-bottom: 5px;
         }
 
         .group-members {
-            font-size: 13px;
-            color: #aaa;
+            font-size: 12px;
+            color: #888;
         }
 
-        .group-actions {
-            position: absolute;
-            right: 15px;
-            top: 15px;
-            display: none;
-        }
-
-        .group-item:hover .group-actions {
-            display: flex;
-            gap: 8px;
-        }
-
-        .group-action-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            width: 28px;
-            height: 28px;
-            border-radius: 50%;
-            color: #ccc;
-            cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.2s;
-        }
-
-        .group-action-btn:hover {
-            background: rgba(255, 255, 255, 0.2);
-            color: #00af9c;
-        }
-
-        /* Main Chat Area */
+        /* Chat Area */
         .chat-area {
             flex: 1;
             display: flex;
             flex-direction: column;
-            background: rgba(15, 15, 15, 0.9);
         }
 
         .chat-header {
-            padding: 20px;
-            background: rgba(26, 26, 26, 0.95);
+            padding: 15px 20px;
+            background: #1a1a1a;
             border-bottom: 1px solid #2a2a2a;
             display: flex;
             justify-content: space-between;
             align-items: center;
-            backdrop-filter: blur(10px);
-        }
-
-        .current-group-info {
-            display: flex;
-            align-items: center;
-            gap: 15px;
-        }
-
-        .group-avatar {
-            width: 45px;
-            height: 45px;
-            border-radius: 50%;
-            background: linear-gradient(135deg, #00af9c 0%, #008f7e 100%);
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-weight: bold;
-            font-size: 18px;
-            color: white;
-        }
-
-        .current-group-details {
-            display: flex;
-            flex-direction: column;
         }
 
         .current-group-name {
             font-size: 18px;
             font-weight: 600;
-            display: flex;
-            align-items: center;
-            gap: 10px;
         }
 
-        .rename-btn {
-            background: none;
-            border: none;
-            color: #888;
-            cursor: pointer;
-            font-size: 14px;
-            transition: color 0.2s;
-        }
-
-        .rename-btn:hover {
-            color: #00af9c;
-        }
-
-        .members-count {
-            font-size: 13px;
-            color: #888;
-        }
-
-        .group-info {
-            display: flex;
-            align-items: center;
-            gap: 12px;
-        }
-
-        .members-count-badge {
+        .group-actions button {
             background: #252525;
-            padding: 6px 12px;
-            border-radius: 15px;
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .header-action-btn {
-            background: rgba(255, 255, 255, 0.1);
             border: none;
-            width: 40px;
-            height: 40px;
-            border-radius: 50%;
-            color: #ccc;
+            color: #e6e6e6;
+            padding: 6px 10px;
+            border-radius: 4px;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
-        }
-
-        .header-action-btn:hover {
-            background: #00af9c;
-            color: white;
-            transform: scale(1.05);
+            margin-left: 8px;
         }
 
         .messages-container {
@@ -273,166 +126,62 @@
             overflow-y: auto;
             display: flex;
             flex-direction: column;
-            gap: 15px;
-            background: url('data:image/svg+xml;utf8,<svg xmlns="http://www.w3.org/2000/svg" width="100" height="100" viewBox="0 0 100 100"><rect fill="%23121212" width="100" height="100"/><path fill="%231a1a1a" d="M0 0L100 100M100 0L0 100"/></svg>');
-            background-size: 30px 30px;
+            gap: 10px;
         }
 
         .message {
-            max-width: 75%;
-            padding: 14px 18px;
-            border-radius: 18px;
-            margin-bottom: 12px;
-            animation: fadeIn 0.3s ease;
-            position: relative;
-        }
-
-        @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(10px); }
-            to { opacity: 1; transform: translateY(0); }
+            max-width: 70%;
+            padding: 10px 14px;
+            border-radius: 12px;
+            margin-bottom: 8px;
         }
 
         .message.sent {
-            background: linear-gradient(135deg, #00af9c 0%, #008f7e 100%);
+            background: #00af9c;
             align-self: flex-end;
-            border-bottom-right-radius: 6px;
-            box-shadow: 0 4px 8px rgba(0, 175, 156, 0.2);
         }
 
         .message.received {
             background: #252525;
             align-self: flex-start;
-            border-bottom-left-radius: 6px;
-            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.2);
         }
 
         .message.bot {
-            background: linear-gradient(135deg, #6a11cb 0%, #2575fc 100%);
+            background: #6a0dad;
             align-self: center;
-            border-radius: 18px;
-            max-width: 85%;
         }
 
         .message-sender {
             font-weight: 600;
-            margin-bottom: 6px;
-            font-size: 13px;
-            color: rgba(255, 255, 255, 0.7);
-        }
-
-        .message-text {
-            word-wrap: break-word;
-            line-height: 1.5;
-        }
-
-        .message-time {
-            font-size: 11px;
-            text-align: right;
-            margin-top: 8px;
-            color: rgba(255, 255, 255, 0.6);
+            font-size: 12px;
+            margin-bottom: 4px;
         }
 
         .input-area {
-            padding: 20px;
-            background: rgba(26, 26, 26, 0.95);
+            padding: 15px;
+            background: #1a1a1a;
             border-top: 1px solid #2a2a2a;
             display: flex;
-            gap: 12px;
-            align-items: center;
-            backdrop-filter: blur(10px);
-        }
-
-        .bot-controls {
-            display: flex;
-            gap: 8px;
-            margin-bottom: 10px;
-        }
-
-        .bot-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            padding: 8px 15px;
-            border-radius: 20px;
-            color: #ccc;
-            cursor: pointer;
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-            transition: all 0.2s;
-        }
-
-        .bot-btn.active {
-            background: #00af9c;
-            color: white;
-        }
-
-        .bot-btn:hover {
-            background: rgba(255, 255, 255, 0.15);
-        }
-
-        .message-input-container {
-            flex: 1;
-            position: relative;
+            gap: 10px;
         }
 
         .message-input {
-            width: 100%;
-            padding: 14px 50px 14px 18px;
+            flex: 1;
+            padding: 12px;
             border: none;
-            border-radius: 25px;
+            border-radius: 20px;
             background: #252525;
             color: #e6e6e6;
-            font-size: 15px;
-            transition: all 0.3s;
-        }
-
-        .message-input:focus {
-            outline: none;
-            background: #2d2d2d;
-            box-shadow: 0 0 0 2px rgba(0, 175, 156, 0.3);
-        }
-
-        .input-actions {
-            position: absolute;
-            right: 10px;
-            top: 50%;
-            transform: translateY(-50%);
-            display: flex;
-            gap: 8px;
-        }
-
-        .input-action-btn {
-            background: none;
-            border: none;
-            color: #888;
-            cursor: pointer;
-            font-size: 16px;
-            transition: color 0.2s;
-        }
-
-        .input-action-btn:hover {
-            color: #00af9c;
         }
 
         .send-btn {
-            background: linear-gradient(135deg, #00af9c 0%, #008f7e 100%);
+            background: #00af9c;
             color: white;
             border: none;
-            width: 50px;
-            height: 50px;
+            width: 40px;
+            height: 40px;
             border-radius: 50%;
             cursor: pointer;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            transition: all 0.3s;
-            box-shadow: 0 4px 8px rgba(0, 175, 156, 0.3);
-        }
-
-        .send-btn:hover {
-            transform: scale(1.05);
-            box-shadow: 0 6px 12px rgba(0, 175, 156, 0.4);
         }
 
         /* Modal Styles */
@@ -447,133 +196,58 @@
             z-index: 1000;
             justify-content: center;
             align-items: center;
-            backdrop-filter: blur(5px);
         }
 
         .modal-content {
             background: #1a1a1a;
-            padding: 30px;
-            border-radius: 15px;
-            width: 450px;
-            max-width: 90%;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
-            border: 1px solid #333;
-            animation: modalFadeIn 0.3s ease;
-        }
-
-        @keyframes modalFadeIn {
-            from { opacity: 0; transform: scale(0.9); }
-            to { opacity: 1; transform: scale(1); }
+            padding: 20px;
+            border-radius: 10px;
+            width: 350px;
         }
 
         .modal-header {
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 20px;
-            padding-bottom: 15px;
-            border-bottom: 1px solid #333;
-        }
-
-        .modal-header h3 {
-            font-size: 20px;
-            color: #00af9c;
+            margin-bottom: 15px;
         }
 
         .close-modal {
             background: none;
             border: none;
             color: #888;
-            font-size: 22px;
+            font-size: 18px;
             cursor: pointer;
-            transition: color 0.2s;
-        }
-
-        .close-modal:hover {
-            color: #ff3b30;
-        }
-
-        .modal-input {
-            width: 100%;
-            padding: 14px;
-            border: 1px solid #333;
-            border-radius: 8px;
-            background: #252525;
-            color: #e6e6e6;
-            font-size: 15px;
-            margin-bottom: 20px;
-            transition: border-color 0.3s;
-        }
-
-        .modal-input:focus {
-            outline: none;
-            border-color: #00af9c;
         }
 
         .friends-list {
-            max-height: 300px;
+            max-height: 200px;
             overflow-y: auto;
-            margin-bottom: 20px;
-            border: 1px solid #333;
-            border-radius: 8px;
-            background: #252525;
+            margin-bottom: 15px;
         }
 
         .friend-checkbox {
             display: flex;
             align-items: center;
-            padding: 12px 15px;
-            border-bottom: 1px solid #333;
-            cursor: pointer;
-            transition: background 0.2s;
-        }
-
-        .friend-checkbox:last-child {
-            border-bottom: none;
-        }
-
-        .friend-checkbox:hover {
-            background: #2d2d2d;
+            padding: 8px;
+            margin-bottom: 5px;
         }
 
         .friend-checkbox input {
-            margin-right: 12px;
-            accent-color: #00af9c;
-        }
-
-        .friend-info {
-            display: flex;
-            align-items: center;
-            gap: 10px;
-        }
-
-        .friend-status {
-            width: 10px;
-            height: 10px;
-            border-radius: 50%;
-        }
-
-        .friend-status.online {
-            background: #00af9c;
-        }
-
-        .friend-status.offline {
-            background: #888;
+            margin-right: 8px;
         }
 
         .modal-actions {
             display: flex;
             justify-content: flex-end;
-            gap: 12px;
+            gap: 10px;
         }
 
         .modal-btn {
-            padding: 12px 24px;
+            padding: 8px 16px;
             border: none;
-            border-radius: 8px;
+            border-radius: 4px;
             cursor: pointer;
-            font-weight: 600;
-            transition: all 0.3s;
         }
 
         .cancel-btn {
@@ -581,104 +255,15 @@
             color: #e6e6e6;
         }
 
-        .cancel-btn:hover {
-            background: #2d2d2d;
-        }
-
         .create-btn {
-            background: linear-gradient(135deg, #00af9c 0%, #008f7e 100%);
-            color: white;
-            box-shadow: 0 4px 8px rgba(0, 175, 156, 0.3);
-        }
-
-        .create-btn:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 6px 12px rgba(0, 175, 156, 0.4);
-        }
-
-        /* Typing indicator */
-        .typing-indicator {
-            padding: 10px 15px;
-            font-style: italic;
-            color: #888;
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            gap: 8px;
-        }
-
-        .typing-dots {
-            display: flex;
-            gap: 3px;
-        }
-
-        .typing-dot {
-            width: 6px;
-            height: 6px;
-            border-radius: 50%;
             background: #00af9c;
-            animation: typingAnimation 1.4s infinite ease-in-out;
-        }
-
-        .typing-dot:nth-child(1) { animation-delay: 0s; }
-        .typing-dot:nth-child(2) { animation-delay: 0.2s; }
-        .typing-dot:nth-child(3) { animation-delay: 0.4s; }
-
-        @keyframes typingAnimation {
-            0%, 60%, 100% { transform: translateY(0); }
-            30% { transform: translateY(-5px); }
+            color: white;
         }
 
         .no-groups {
             text-align: center;
             color: #888;
-            padding: 50px 20px;
-        }
-
-        .no-groups i {
-            font-size: 50px;
-            margin-bottom: 15px;
-            color: #333;
-        }
-
-        .no-groups p {
-            margin-bottom: 10px;
-        }
-
-        /* Scrollbar styling */
-        ::-webkit-scrollbar {
-            width: 8px;
-        }
-
-        ::-webkit-scrollbar-track {
-            background: #1a1a1a;
-        }
-
-        ::-webkit-scrollbar-thumb {
-            background: #00af9c;
-            border-radius: 4px;
-        }
-
-        ::-webkit-scrollbar-thumb:hover {
-            background: #008f7e;
-        }
-
-        /* Responsive design */
-        @media (max-width: 768px) {
-            .container {
-                flex-direction: column;
-            }
-            
-            .sidebar {
-                width: 100%;
-                height: 30%;
-                border-right: none;
-                border-bottom: 1px solid #2a2a2a;
-            }
-            
-            .chat-area {
-                height: 70%;
-            }
+            padding: 20px;
         }
     </style>
 </head>
@@ -690,77 +275,37 @@
                 <button class="back-btn" onclick="goBack()">
                     <i class="fas fa-arrow-left"></i>
                 </button>
-                <h3>Group Chats</h3>
+                <h3>Groups</h3>
                 <button class="create-group-btn" onclick="showCreateGroupModal()">
                     <i class="fas fa-plus"></i> Create
                 </button>
             </div>
             
             <div class="groups-list" id="groupsList">
-                <!-- Groups will be loaded here -->
-                <div class="no-groups" id="noGroups">
-                    <i class="fas fa-users"></i>
-                    <p>No groups yet</p>
-                    <p>Create your first group to start chatting</p>
-                </div>
+                <div class="no-groups">Loading groups...</div>
             </div>
         </div>
 
-        <!-- Main Chat Area -->
+        <!-- Chat Area -->
         <div class="chat-area">
             <div class="chat-header">
-                <div class="current-group-info">
-                    <div class="group-avatar" id="groupAvatar">G</div>
-                    <div class="current-group-details">
-                        <div class="current-group-name" id="currentGroupName">
-                            Select a group
-                            <button class="rename-btn" id="renameBtn" onclick="showRenameModal()" style="display: none;">
-                                <i class="fas fa-edit"></i>
-                            </button>
-                        </div>
-                        <div class="members-count" id="membersCount">0 members</div>
-                    </div>
-                </div>
-                
-                <div class="group-info">
-                    <div class="members-count-badge">
-                        <i class="fas fa-users"></i>
-                        <span id="membersCountBadge">0</span>
-                    </div>
-                    <button class="header-action-btn" id="addMemberBtn" style="display: none;" onclick="showAddMemberModal()">
-                        <i class="fas fa-user-plus"></i>
+                <div class="current-group-name" id="currentGroupName">Select a group</div>
+                <div class="group-actions">
+                    <button onclick="showRenameModal()" id="renameBtn" style="display:none;">
+                        <i class="fas fa-edit"></i> Rename
                     </button>
-                    <button class="header-action-btn" id="groupInfoBtn" style="display: none;" onclick="showGroupInfo()">
-                        <i class="fas fa-info-circle"></i>
+                    <button onclick="showAddMemberModal()" id="addMemberBtn" style="display:none;">
+                        <i class="fas fa-user-plus"></i> Add
                     </button>
                 </div>
             </div>
 
             <div class="messages-container" id="messagesContainer">
-                <div class="no-groups">
-                    <i class="fas fa-comments"></i>
-                    <p>Welcome to Group Chat</p>
-                    <p>Select a group from the sidebar to start messaging</p>
-                </div>
+                <div class="welcome-message">Select a group to start chatting</div>
             </div>
 
-            <div class="input-area" style="display: none;" id="inputArea">
-                <div class="bot-controls" id="botControls">
-                    <button class="bot-btn" id="activateBotBtn" onclick="toggleBot()">
-                        <i class="fas fa-robot"></i> Activate Bot
-                    </button>
-                    <button class="bot-btn" id="deactivateBotBtn" onclick="toggleBot()" style="display: none;">
-                        <i class="fas fa-times-circle"></i> Deactivate Bot
-                    </button>
-                </div>
-                <div class="message-input-container">
-                    <input type="text" class="message-input" id="messageInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
-                    <div class="input-actions">
-                        <button class="input-action-btn" onclick="toggleEmojiPicker()">
-                            <i class="far fa-smile"></i>
-                        </button>
-                    </div>
-                </div>
+            <div class="input-area" id="inputArea" style="display:none;">
+                <input type="text" class="message-input" id="messageInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
                 <button class="send-btn" onclick="sendMessage()">
                     <i class="fas fa-paper-plane"></i>
                 </button>
@@ -772,19 +317,16 @@
     <div class="modal" id="createGroupModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Create New Group</h3>
+                <h3>Create Group</h3>
                 <button class="close-modal" onclick="closeModal('createGroupModal')">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <input type="text" class="modal-input" id="groupNameInput" placeholder="Enter group name">
-            <h4 style="margin-bottom: 10px; color: #ccc;">Select Friends:</h4>
-            <div class="friends-list" id="modalFriendsList">
-                <!-- Friends will be loaded here -->
-            </div>
+            <input type="text" class="message-input" id="groupNameInput" placeholder="Group name" style="width:100%; margin-bottom:15px;">
+            <div class="friends-list" id="modalFriendsList">Loading friends...</div>
             <div class="modal-actions">
                 <button class="modal-btn cancel-btn" onclick="closeModal('createGroupModal')">Cancel</button>
-                <button class="modal-btn create-btn" onclick="createGroup()">Create Group</button>
+                <button class="modal-btn create-btn" onclick="createGroup()">Create</button>
             </div>
         </div>
     </div>
@@ -793,22 +335,20 @@
     <div class="modal" id="addMemberModal">
         <div class="modal-content">
             <div class="modal-header">
-                <h3>Add Members to <span id="addMemberGroupName">Group</span></h3>
+                <h3>Add Members</h3>
                 <button class="close-modal" onclick="closeModal('addMemberModal')">
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <div class="friends-list" id="addMemberFriendsList">
-                <!-- Friends will be loaded here -->
-            </div>
+            <div class="friends-list" id="addMemberFriendsList">Loading friends...</div>
             <div class="modal-actions">
                 <button class="modal-btn cancel-btn" onclick="closeModal('addMemberModal')">Cancel</button>
-                <button class="modal-btn create-btn" onclick="addMembersToGroup()">Add Members</button>
+                <button class="modal-btn create-btn" onclick="addMembersToGroup()">Add</button>
             </div>
         </div>
     </div>
 
-    <!-- Rename Group Modal -->
+    <!-- Rename Modal -->
     <div class="modal" id="renameModal">
         <div class="modal-content">
             <div class="modal-header">
@@ -817,7 +357,7 @@
                     <i class="fas fa-times"></i>
                 </button>
             </div>
-            <input type="text" class="modal-input" id="renameInput" placeholder="Enter new group name">
+            <input type="text" class="message-input" id="renameInput" placeholder="New group name" style="width:100%; margin-bottom:15px;">
             <div class="modal-actions">
                 <button class="modal-btn cancel-btn" onclick="closeModal('renameModal')">Cancel</button>
                 <button class="modal-btn create-btn" onclick="renameGroup()">Rename</button>
@@ -834,7 +374,6 @@
         let groupsList = [];
         let selectedFriends = [];
         let selectedMembers = [];
-        let botActive = false;
 
         // Initialize the group chat
         function initGroupChat() {
@@ -860,28 +399,15 @@
             });
 
             socket.on("group-typing", (userName) => {
-                showTypingIndicator(userName);
-            });
-
-            socket.on("user-joined-group", (data) => {
-                if (currentGroup && data.groupId === currentGroup.groupId) {
-                    showSystemMessage(`${data.userName} joined the group`);
-                    updateMembersCount();
-                }
+                // Show typing indicator
+                console.log(userName + " is typing...");
             });
 
             socket.on("group-renamed", (data) => {
                 if (currentGroup && data.groupId === currentGroup.groupId) {
                     currentGroup.name = data.newName;
-                    document.getElementById('currentGroupName').innerHTML = `
-                        ${data.newName}
-                        <button class="rename-btn" onclick="showRenameModal()">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                    `;
-                    document.getElementById('groupAvatar').textContent = data.newName.charAt(0).toUpperCase();
+                    document.getElementById('currentGroupName').textContent = data.newName;
                     loadUserGroups(); // Refresh group list
-                    showSystemMessage(`Group renamed to "${data.newName}"`);
                 }
             });
         }
@@ -890,107 +416,85 @@
         async function loadUserGroups() {
             try {
                 const response = await fetch(`/get-user-groups?userId=${currentUser.uid}`);
+                if (!response.ok) throw new Error("Failed to load groups");
+                
                 groupsList = await response.json();
                 displayGroups();
             } catch (error) {
                 console.error("Error loading groups:", error);
+                document.getElementById('groupsList').innerHTML = '<div class="no-groups">Error loading groups</div>';
+            }
+        }
+
+        // Load friends list
+        async function loadFriends() {
+            try {
+                const response = await fetch(`/get-friends?uid=${currentUser.uid}`);
+                if (!response.ok) throw new Error("Failed to load friends");
+                
+                friendsList = await response.json();
+            } catch (error) {
+                console.error("Error loading friends:", error);
             }
         }
 
         // Display groups in sidebar
         function displayGroups() {
             const groupsListEl = document.getElementById('groupsList');
-            const noGroupsEl = document.getElementById('noGroups');
             
             if (groupsList.length === 0) {
-                noGroupsEl.style.display = 'block';
-                groupsListEl.innerHTML = '';
+                groupsListEl.innerHTML = '<div class="no-groups">No groups yet. Create one!</div>';
                 return;
             }
 
-            noGroupsEl.style.display = 'none';
             groupsListEl.innerHTML = groupsList.map(group => `
                 <div class="group-item" onclick="selectGroup('${group.groupId}')">
-                    <div class="group-name">
-                        <i class="fas fa-users"></i>
-                        ${group.name}
-                    </div>
+                    <div class="group-name">${group.name}</div>
                     <div class="group-members">${group.participants.length} members</div>
-                    <div class="group-actions">
-                        <button class="group-action-btn" onclick="event.stopPropagation(); showRenameModal('${group.groupId}')">
-                            <i class="fas fa-edit"></i>
-                        </button>
-                    </div>
                 </div>
             `).join('');
         }
 
         // Select a group
         async function selectGroup(groupId) {
-            currentGroup = groupsList.find(g => g.groupId === groupId);
-            if (!currentGroup) return;
+            try {
+                const response = await fetch(`/get-group-messages?groupId=${groupId}`);
+                if (!response.ok) throw new Error("Failed to load group messages");
+                
+                const messages = await response.json();
+                currentGroup = groupsList.find(g => g.groupId === groupId);
+                
+                document.getElementById('currentGroupName').textContent = currentGroup.name;
+                document.getElementById('renameBtn').style.display = 'block';
+                document.getElementById('addMemberBtn').style.display = 'block';
+                document.getElementById('inputArea').style.display = 'flex';
+                
+                displayMessages(messages);
+                socket.emit('join-group', groupId);
+            } catch (error) {
+                console.error("Error selecting group:", error);
+                alert("Error loading group messages");
+            }
+        }
 
-            // Update UI
-            document.getElementById('currentGroupName').innerHTML = `
-                ${currentGroup.name}
-                <button class="rename-btn" onclick="showRenameModal()">
-                    <i class="fas fa-edit"></i>
-                </button>
-            `;
-            document.getElementById('groupAvatar').textContent = currentGroup.name.charAt(0).toUpperCase();
-            updateMembersCount();
+        // Display messages
+        function displayMessages(messages) {
+            const messagesContainer = document.getElementById('messagesContainer');
+            messagesContainer.innerHTML = '';
             
-            document.getElementById('addMemberBtn').style.display = 'flex';
-            document.getElementById('groupInfoBtn').style.display = 'flex';
-            document.getElementById('renameBtn').style.display = 'inline';
-            document.getElementById('inputArea').style.display = 'flex';
-
-            // Join group room
-            socket.emit('join-group', groupId);
-
-            // Load group messages
-            await loadGroupMessages();
-
-            // Highlight selected group
-            document.querySelectorAll('.group-item').forEach(item => {
-                item.classList.remove('active');
+            if (messages.length === 0) {
+                messagesContainer.innerHTML = '<div class="no-groups">No messages yet</div>';
+                return;
+            }
+            
+            messages.forEach(message => {
+                displayMessage(message);
             });
             
-            const selectedGroup = document.querySelector(`.group-item[onclick="selectGroup('${groupId}')"]`);
-            if (selectedGroup) {
-                selectedGroup.classList.add('active');
-            }
+            scrollToBottom();
         }
 
-        // Update members count
-        function updateMembersCount() {
-            if (!currentGroup) return;
-            
-            const count = currentGroup.participants.length;
-            document.getElementById('membersCount').textContent = `${count} members`;
-            document.getElementById('membersCountBadge').textContent = count;
-        }
-
-        // Load group messages
-        async function loadGroupMessages() {
-            try {
-                const response = await fetch(`/get-group-messages?groupId=${currentGroup.groupId}`);
-                const messages = await response.json();
-                
-                const messagesContainer = document.getElementById('messagesContainer');
-                messagesContainer.innerHTML = '';
-                
-                messages.forEach(message => {
-                    displayMessage(message);
-                });
-                
-                scrollToBottom();
-            } catch (error) {
-                console.error("Error loading messages:", error);
-            }
-        }
-
-        // Display a message
+        // Display a single message
         function displayMessage(message) {
             const messagesContainer = document.getElementById('messagesContainer');
             const isCurrentUser = message.sender === currentUser.uid;
@@ -1000,54 +504,14 @@
             messageEl.className = `message ${isCurrentUser ? 'sent' : isBot ? 'bot' : 'received'}`;
             
             messageEl.innerHTML = `
-                ${!isCurrentUser && !isBot ? `<div class="message-sender">${message.senderName}</div>` : ''}
-                ${isBot ? `<div class="message-sender"><i class="fas fa-robot"></i> ${message.senderName}</div>` : ''}
+                ${!isCurrentUser && !isBot ? `<div class="message-sender">${message.senderName || message.sender}</div>` : ''}
+                ${isBot ? `<div class="message-sender">${message.senderName}</div>` : ''}
                 <div class="message-text">${message.text}</div>
                 <div class="message-time">${new Date(message.timestamp).toLocaleTimeString()}</div>
             `;
             
             messagesContainer.appendChild(messageEl);
             scrollToBottom();
-        }
-
-        // Show system message
-        function showSystemMessage(text) {
-            const messagesContainer = document.getElementById('messagesContainer');
-            const messageEl = document.createElement('div');
-            messageEl.className = 'typing-indicator';
-            messageEl.textContent = text;
-            messagesContainer.appendChild(messageEl);
-            scrollToBottom();
-        }
-
-        // Show typing indicator
-        function showTypingIndicator(userName) {
-            // Remove existing typing indicator
-            const existingIndicator = document.querySelector('.typing-indicator:not(.system)');
-            if (existingIndicator) {
-                existingIndicator.remove();
-            }
-
-            const messagesContainer = document.getElementById('messagesContainer');
-            const indicator = document.createElement('div');
-            indicator.className = 'typing-indicator';
-            indicator.innerHTML = `
-                <span>${userName} is typing</span>
-                <div class="typing-dots">
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                    <div class="typing-dot"></div>
-                </div>
-            `;
-            messagesContainer.appendChild(indicator);
-            scrollToBottom();
-
-            // Remove after 3 seconds
-            setTimeout(() => {
-                if (indicator.parentNode) {
-                    indicator.remove();
-                }
-            }, 3000);
         }
 
         // Send message
@@ -1059,13 +523,29 @@
 
             // Handle bot commands
             if (text === ">>bot") {
-                toggleBot();
+                // Activate bot
+                const messageData = {
+                    groupId: currentGroup.groupId,
+                    sender: 'BotX',
+                    senderName: 'BotX',
+                    text: 'Bot is now active! Mention "bot" in your messages to get responses.',
+                    timestamp: new Date()
+                };
+                displayMessage(messageData);
                 input.value = '';
                 return;
             }
             
             if (text === "<<bot") {
-                toggleBot();
+                // Deactivate bot
+                const messageData = {
+                    groupId: currentGroup.groupId,
+                    sender: 'BotX',
+                    senderName: 'BotX',
+                    text: 'Bot is now inactive.',
+                    timestamp: new Date()
+                };
+                displayMessage(messageData);
                 input.value = '';
                 return;
             }
@@ -1074,28 +554,32 @@
                 groupId: currentGroup.groupId,
                 sender: currentUser.uid,
                 senderName: currentUser.name,
-                text: text
+                text: text,
+                timestamp: new Date()
             };
 
             // Send via socket
             socket.emit('group-message', messageData);
 
+            // Also save to server
+            saveGroupMessage(messageData);
+
             // Clear input
             input.value = '';
         }
 
-        // Toggle bot activation
-        function toggleBot() {
-            botActive = !botActive;
-            
-            if (botActive) {
-                document.getElementById('activateBotBtn').style.display = 'none';
-                document.getElementById('deactivateBotBtn').style.display = 'flex';
-                showSystemMessage("Bot is now active. Type your questions and include the word 'bot' for responses.");
-            } else {
-                document.getElementById('activateBotBtn').style.display = 'flex';
-                document.getElementById('deactivateBotBtn').style.display = 'none';
-                showSystemMessage("Bot is now inactive.");
+        // Save message to server
+        async function saveGroupMessage(messageData) {
+            try {
+                await fetch('/save-group-message', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify(messageData)
+                });
+            } catch (error) {
+                console.error("Error saving message:", error);
             }
         }
 
@@ -1103,12 +587,6 @@
         function handleKeyPress(event) {
             if (event.key === 'Enter') {
                 sendMessage();
-            } else {
-                // Send typing indicator
-                socket.emit('group-typing', {
-                    groupId: currentGroup.groupId,
-                    userName: currentUser.name
-                });
             }
         }
 
@@ -1118,16 +596,6 @@
             messagesContainer.scrollTop = messagesContainer.scrollHeight;
         }
 
-        // Load friends for modal
-        async function loadFriends() {
-            try {
-                const response = await fetch(`/get-friends?uid=${currentUser.uid}`);
-                friendsList = await response.json();
-            } catch (error) {
-                console.error("Error loading friends:", error);
-            }
-        }
-
         // Show create group modal
         function showCreateGroupModal() {
             const modal = document.getElementById('createGroupModal');
@@ -1135,13 +603,10 @@
             
             // Populate friends list
             friendsListEl.innerHTML = friendsList.map(friend => `
-                <label class="friend-checkbox">
+                <div class="friend-checkbox">
                     <input type="checkbox" value="${friend.uid}" onchange="toggleFriendSelection(this)">
-                    <div class="friend-info">
-                        <div class="friend-status ${friend.online ? 'online' : 'offline'}"></div>
-                        <span>${friend.name}</span>
-                    </div>
-                </label>
+                    ${friend.name}
+                </div>
             `).join('');
             
             modal.style.display = 'flex';
@@ -1154,7 +619,6 @@
 
             const modal = document.getElementById('addMemberModal');
             const friendsListEl = document.getElementById('addMemberFriendsList');
-            document.getElementById('addMemberGroupName').textContent = currentGroup.name;
             
             // Filter out already added friends
             const availableFriends = friendsList.filter(friend => 
@@ -1162,13 +626,10 @@
             );
             
             friendsListEl.innerHTML = availableFriends.map(friend => `
-                <label class="friend-checkbox">
+                <div class="friend-checkbox">
                     <input type="checkbox" value="${friend.uid}" onchange="toggleMemberSelection(this)">
-                    <div class="friend-info">
-                        <div class="friend-status ${friend.online ? 'online' : 'offline'}"></div>
-                        <span>${friend.name}</span>
-                    </div>
-                </label>
+                    ${friend.name}
+                </div>
             `).join('');
             
             modal.style.display = 'flex';
@@ -1176,22 +637,9 @@
         }
 
         // Show rename modal
-        function showRenameModal(groupId = null) {
-            const modal = document.getElementById('renameModal');
-            const input = document.getElementById('renameInput');
-            
-            if (groupId) {
-                const group = groupsList.find(g => g.groupId === groupId);
-                if (group) {
-                    input.value = group.name;
-                    input.dataset.groupId = groupId;
-                }
-            } else if (currentGroup) {
-                input.value = currentGroup.name;
-                input.dataset.groupId = currentGroup.groupId;
-            }
-            
-            modal.style.display = 'flex';
+        function showRenameModal() {
+            document.getElementById('renameModal').style.display = 'flex';
+            document.getElementById('renameInput').value = currentGroup.name;
         }
 
         // Toggle friend selection
@@ -1252,6 +700,43 @@
             }
         }
 
+        // Rename group
+        async function renameGroup() {
+            const newName = document.getElementById('renameInput').value.trim();
+            
+            if (!newName) {
+                alert('Please enter a new group name');
+                return;
+            }
+
+            try {
+                const response = await fetch('/rename-group', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        groupId: currentGroup.groupId,
+                        newName: newName
+                    })
+                });
+
+                if (response.ok) {
+                    closeModal('renameModal');
+                    // Notify all group members via socket
+                    socket.emit('group-rename', {
+                        groupId: currentGroup.groupId,
+                        newName: newName
+                    });
+                } else {
+                    alert('Error renaming group');
+                }
+            } catch (error) {
+                console.error('Error renaming group:', error);
+                alert('Error renaming group');
+            }
+        }
+
         // Add members to group
         async function addMembersToGroup() {
             if (!currentGroup || selectedMembers.length === 0) return;
@@ -1283,57 +768,6 @@
             }
         }
 
-        // Rename group
-        async function renameGroup() {
-            const input = document.getElementById('renameInput');
-            const newName = input.value.trim();
-            const groupId = input.dataset.groupId;
-            
-            if (!newName) {
-                alert('Please enter a group name');
-                return;
-            }
-
-            try {
-                const response = await fetch('/rename-group', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        groupId: groupId,
-                        newName: newName
-                    })
-                });
-
-                if (response.ok) {
-                    closeModal('renameModal');
-                    // Notify all group members
-                    socket.emit('group-rename', {
-                        groupId: groupId,
-                        newName: newName
-                    });
-                } else {
-                    alert('Error renaming group');
-                }
-            } catch (error) {
-                console.error('Error renaming group:', error);
-                alert('Error renaming group');
-            }
-        }
-
-        // Show group info
-        function showGroupInfo() {
-            if (!currentGroup) return;
-            
-            const participantNames = currentGroup.participants.map(uid => {
-                const friend = friendsList.find(f => f.uid === uid);
-                return friend ? friend.name : uid;
-            }).join(', ');
-            
-            alert(`Group Info:\n\nName: ${currentGroup.name}\nMembers: ${participantNames}`);
-        }
-
         // Close modal
         function closeModal(modalId) {
             document.getElementById(modalId).style.display = 'none';
@@ -1344,13 +778,8 @@
             window.history.back();
         }
 
-        // Toggle emoji picker (placeholder)
-        function toggleEmojiPicker() {
-            alert("Emoji picker will be implemented here");
-        }
-
         // Initialize when page loads
         window.onload = initGroupChat;
     </script>
 </body>
-</html> 
+</html>
