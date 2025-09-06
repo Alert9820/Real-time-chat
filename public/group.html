@@ -173,6 +173,7 @@
             color: rgba(255, 255, 255, 0.6);
         }
 
+        /* INPUT AREA - FIXED POSITION (TOP) */
         .input-area {
             padding: 15px;
             background: #1a1a1a;
@@ -180,6 +181,7 @@
             display: flex;
             gap: 10px;
             align-items: center;
+            order: -1; /* This moves it to the top */
         }
 
         .message-input {
@@ -205,7 +207,7 @@
             justify-content: center;
         }
 
-        /* Bot Controls */
+        /* Bot Controls - FIXED POSITION (BELOW INPUT) */
         .bot-controls {
             display: flex;
             justify-content: center;
@@ -213,6 +215,7 @@
             padding: 10px;
             background: #1a1a1a;
             border-bottom: 1px solid #2a2a2a;
+            order: -1; /* This moves it below input area */
         }
 
         .bot-btn {
@@ -352,6 +355,15 @@
             </button>
         </div>
 
+        <!-- INPUT AREA - NOW AT THE TOP -->
+        <div class="input-area">
+            <input type="text" class="message-input" id="messageInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
+            <button class="send-btn" onclick="sendMessage()">
+                <i class="fas fa-paper-plane"></i>
+            </button>
+        </div>
+
+        <!-- BOT CONTROLS - BELOW INPUT -->
         <div class="bot-controls" id="botControls">
             <button class="bot-btn" id="activateBotBtn" onclick="activateBot()">
                 <i class="fas fa-robot"></i> Activate Bot
@@ -361,17 +373,11 @@
             </button>
         </div>
 
+        <!-- MESSAGES CONTAINER - BELOW BOT CONTROLS -->
         <div class="messages-container" id="messagesContainer">
             <div class="message bot">
                 <div class="message-text">Welcome to the group! Type your messages here.</div>
             </div>
-        </div>
-
-        <div class="input-area">
-            <input type="text" class="message-input" id="messageInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
-            <button class="send-btn" onclick="sendMessage()">
-                <i class="fas fa-paper-plane"></i>
-            </button>
         </div>
     </div>
 
@@ -441,6 +447,7 @@
         let selectedFriends = [];
         let selectedMembers = [];
         let botActive = false;
+        let messageQueue = [];
 
         // Initialize the group chat
         function initGroupChat() {
@@ -461,7 +468,29 @@
         function setupSocketEvents() {
             socket.on("group-message", (data) => {
                 if (currentGroup && data.groupId === currentGroup.groupId) {
-                    displayMessage(data);
+                    // Check if message is not already displayed
+                    const isDuplicate = messageQueue.some(msg => 
+                        msg.sender === data.sender && 
+                        msg.text === data.text && 
+                        Math.abs(new Date(msg.timestamp) - new Date(data.timestamp)) < 1000
+                    );
+                    
+                    if (!isDuplicate) {
+                        messageQueue.push(data);
+                        displayMessage(data);
+                    }
+                }
+            });
+
+            socket.on("bot-reply", (data) => {
+                if (currentGroup && data.groupId === currentGroup.groupId) {
+                    displayMessage({
+                        sender: "BotX",
+                        senderName: "BotX",
+                        text: data.text,
+                        timestamp: new Date(),
+                        groupId: currentGroup.groupId
+                    });
                 }
             });
 
@@ -475,18 +504,6 @@
                     currentGroup.name = data.newName;
                     document.getElementById('chatGroupName').textContent = data.newName;
                     loadUserGroups(); // Refresh group list
-                }
-            });
-
-            // Bot reply event
-            socket.on("bot-reply", (data) => {
-                if (currentGroup && data.room === currentGroup.groupId) {
-                    displayMessage({
-                        sender: "BotX",
-                        senderName: "BotX",
-                        text: data.text,
-                        timestamp: new Date()
-                    });
                 }
             });
         }
@@ -553,6 +570,9 @@
                 // Update chat header
                 document.getElementById('chatGroupName').textContent = currentGroup.name;
                 
+                // Clear message queue
+                messageQueue = [];
+                
                 // Load messages
                 const response = await fetch(`/get-group-messages?groupId=${groupId}`);
                 if (!response.ok) throw new Error("Failed to load messages");
@@ -574,6 +594,7 @@
             document.getElementById('chatView').style.display = 'none';
             document.getElementById('groupsView').style.display = 'flex';
             currentGroup = null;
+            messageQueue = [];
         }
 
         // Display messages in chat
@@ -632,6 +653,9 @@
                 timestamp: new Date()
             };
 
+            // Add to queue to prevent duplicates
+            messageQueue.push(messageData);
+            
             // Send via socket
             socket.emit('group-message', messageData);
             
@@ -652,12 +676,24 @@
             // Remove "bot" keyword from message
             const prompt = userMessage.replace(/bot/gi, "").trim();
             
+            if (!prompt) return;
+            
             // Send to server for bot processing
             socket.emit('bot-message', {
                 groupId: currentGroup.groupId,
                 prompt: prompt,
                 userId: currentUser.uid
             });
+            
+            // Show typing indicator
+            const messagesContainer = document.getElementById('messagesContainer');
+            const typingIndicator = document.createElement('div');
+            typingIndicator.className = 'message bot';
+            typingIndicator.innerHTML = `
+                <div class="message-text">Bot is thinking...</div>
+            `;
+            messagesContainer.appendChild(typingIndicator);
+            scrollToBottom();
         }
 
         // Activate bot
@@ -670,8 +706,9 @@
             displayMessage({
                 sender: "BotX",
                 senderName: "BotX",
-                text: "Bot activated! Mention 'bot' in your messages for responses.",
-                timestamp: new Date()
+                text: "Bot activated! Type your question and include the word 'bot' for responses.",
+                timestamp: new Date(),
+                groupId: currentGroup.groupId
             });
         }
 
@@ -686,7 +723,8 @@
                 sender: "BotX",
                 senderName: "BotX",
                 text: "Bot deactivated.",
-                timestamp: new Date()
+                timestamp: new Date(),
+                groupId: currentGroup.groupId
             });
         }
 
