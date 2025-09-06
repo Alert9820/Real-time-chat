@@ -216,33 +216,7 @@
             justify-content: center;
         }
 
-        /* Bot Controls */
-        .bot-controls {
-            display: flex;
-            justify-content: center;
-            gap: 10px;
-            padding: 10px;
-            background: #1a1a1a;
-            border-bottom: 1px solid #2a2a2a;
-        }
-
-        .bot-btn {
-            background: rgba(255, 255, 255, 0.1);
-            border: none;
-            padding: 8px 15px;
-            border-radius: 20px;
-            color: #ccc;
-            cursor: pointer;
-            font-size: 13px;
-            display: flex;
-            align-items: center;
-            gap: 5px;
-        }
-
-        .bot-btn.active {
-            background: #00af9c;
-            color: white;
-        }
+        
 
         /* Modal Styles */
         .modal {
@@ -366,15 +340,7 @@
             </button>
         </div>
 
-        <!-- Bot Controls -->
-        <div class="bot-controls" id="botControls">
-            <button class="bot-btn" id="activateBotBtn" onclick="activateBot()">
-                <i class="fas fa-robot"></i> Activate Bot
-            </button>
-            <button class="bot-btn" id="deactivateBotBtn" onclick="deactivateBot()" style="display: none;">
-                <i class="fas fa-times-circle"></i> Deactivate Bot
-            </button>
-        </div>
+    
 
         <!-- Messages Container -->
         <div class="messages-container" id="messagesContainer">
