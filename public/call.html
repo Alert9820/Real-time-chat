@@ -301,21 +301,6 @@
       from { transform: translateX(100%); opacity: 0; }
       to { transform: translateX(0); opacity: 1; }
     }
-
-    /* Loading spinner */
-    .loading-spinner {
-      display: inline-block;
-      width: 20px;
-      height: 20px;
-      border: 3px solid rgba(255,255,255,0.3);
-      border-radius: 50%;
-      border-top-color: #00af9c;
-      animation: spin 1s ease-in-out infinite;
-    }
-
-    @keyframes spin {
-      to { transform: rotate(360deg); }
-    }
   </style>
 </head>
 <body>
@@ -329,15 +314,7 @@
     </div>
     
     <div class="friends-list" id="friendsList">
-      <div class="friend-item">
-        <div class="friend-info">
-          <div class="friend-avatar"><i class="fas fa-spinner loading-spinner"></i></div>
-          <div class="friend-details">
-            <div class="friend-name">Loading friends...</div>
-            <div class="friend-status">Please wait</div>
-          </div>
-        </div>
-      </div>
+      <!-- Friends will be loaded here -->
     </div>
   </div>
 
@@ -380,7 +357,6 @@
       <div class="caller-avatar ringing-animation" id="incomingCallerAvatar">S</div>
       <div class="caller-name" id="incomingCallerName">Sneha Patel</div>
       <div class="call-status">Incoming Voice Call</div>
-      <div class="call-timer" id="incomingCallTimer">00:00</div>
     </div>
     
     <div class="call-actions">
@@ -425,6 +401,11 @@
       setTimeout(() => {
         toast.style.display = 'none';
       }, 5000);
+    }
+
+    // Go back to previous page
+    function goBack() {
+      window.history.back();
     }
 
     // Initialize the call page
@@ -513,21 +494,6 @@
         showError(data.message || "Call failed");
         endCall();
       });
-
-      // Handle call timer sync
-      socket.on("call-timer-update", (data) => {
-        if (currentCall && currentCall.friendUid === data.callerId) {
-          updateCallTimer(data.timestamp);
-        }
-      });
-
-      // Handle call connected
-      socket.on("call-connected", (data) => {
-        if (currentCall && currentCall.friendUid === data.callerId) {
-          document.getElementById('callStatus').textContent = 'Connected';
-          startCallTimer();
-        }
-      });
     }
 
     // Load friends list
@@ -539,21 +505,6 @@
         const friendsList = document.getElementById('friendsList');
         friendsList.innerHTML = '';
         
-        if (friends.length === 0) {
-          friendsList.innerHTML = `
-            <div class="friend-item">
-              <div class="friend-info">
-                <div class="friend-avatar">😢</div>
-                <div class="friend-details">
-                  <div class="friend-name">No friends found</div>
-                  <div class="friend-status">Add friends to start calling</div>
-                </div>
-              </div>
-            </div>
-          `;
-          return;
-        }
-        
         friends.forEach(friend => {
           const friendItem = document.createElement('div');
           friendItem.className = 'friend-item';
@@ -564,11 +515,11 @@
               <div class="friend-details">
                 <div class="friend-name">${friend.name}</div>
                 <div class="friend-status ${friend.online ? 'online' : 'offline'}">
-                  ${friend.online ? 'Online • Available for call' : 'Offline • Not available'}
+                  ${friend.online ? 'Online' : 'Offline'}
                 </div>
               </div>
             </div>
-            <button class="call-btn" onclick="startCalling('${friend.uid}', '${friend.name}')" ${!friend.online ? 'disabled style="opacity:0.5"' : ''}>
+            <button class="call-btn" onclick="startCalling('${friend.uid}', '${friend.name}')">
               <i class="fas fa-phone"></i>
             </button>
           `;
@@ -578,50 +529,26 @@
       } catch (error) {
         console.error("Failed to load friends:", error);
         showError("Failed to load friends list");
-        
-        const friendsList = document.getElementById('friendsList');
-        friendsList.innerHTML = `
-          <div class="friend-item">
-            <div class="friend-info">
-              <div class="friend-avatar">❌</div>
-              <div class="friend-details">
-                <div class="friend-name">Error loading friends</div>
-                <div class="friend-status">Check your connection</div>
-              </div>
-            </div>
-          </div>
-        `;
       }
     }
 
     // Start calling a friend
     async function startCalling(friendUid, friendName) {
       try {
-        // Show preparing call UI
-        document.getElementById('callerAvatar').textContent = friendName.charAt(0).toUpperCase();
-        document.getElementById('callerName').textContent = friendName;
-        document.getElementById('callStatus').textContent = 'Preparing call...';
-        document.getElementById('callScreen').style.display = 'flex';
-        
-        // Get user media with mobile optimization
+        // Get user media
         localStream = await navigator.mediaDevices.getUserMedia({ 
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-            channelCount: 1,
-            sampleRate: 48000,
-            sampleSize: 16,
-            latency: 0.01
-          },
+          audio: true,
           video: false 
         });
         
         // Initialize WebRTC
         await initWebRTC();
         
-        // Update UI
+        // Show call screen
+        document.getElementById('callerAvatar').textContent = friendName.charAt(0).toUpperCase();
+        document.getElementById('callerName').textContent = friendName;
         document.getElementById('callStatus').textContent = 'Calling...';
+        document.getElementById('callScreen').style.display = 'flex';
         
         // Store current call info
         currentCall = {
@@ -630,23 +557,18 @@
           isIncoming: false
         };
         
-        // Send call request to the specific user
+        // Send call request
         socket.emit("call-request", {
           to: friendUid,
           callerId: currentUser.uid,
           callerName: currentUser.name
         });
         
-        // Create and send offer after a delay
+        // Create and send offer
         setTimeout(async () => {
           if (peerConnection) {
             try {
-              const offer = await peerConnection.createOffer({
-                offerToReceiveAudio: true,
-                offerToReceiveVideo: false,
-                voiceActivityDetection: false
-              });
-              
+              const offer = await peerConnection.createOffer();
               await peerConnection.setLocalDescription(offer);
               
               socket.emit("webrtc-offer", {
@@ -664,7 +586,6 @@
       } catch (error) {
         console.error("Error starting call:", error);
         showError("Error accessing microphone. Please check permissions.");
-        endCall();
       }
     }
 
@@ -673,60 +594,24 @@
       const configuration = {
         iceServers: [
           { urls: 'stun:stun.l.google.com:19302' },
-          { urls: 'stun:stun1.l.google.com:19302' },
-          { urls: 'stun:stun2.l.google.com:19302' },
-          { urls: 'stun:stun3.l.google.com:19302' }
-        ],
-        iceTransportPolicy: 'all',
-        bundlePolicy: 'max-bundle',
-        rtcpMuxPolicy: 'require'
+          { urls: 'stun:stun1.l.google.com:19302' }
+        ]
       };
       
       peerConnection = new RTCPeerConnection(configuration);
       
       // Add local stream
       if (localStream) {
-        const audioTracks = localStream.getAudioTracks();
-        if (audioTracks.length > 0) {
-          const audioTrack = audioTracks[0];
-          await audioTrack.applyConstraints({
-            advanced: [{ echoCancellation: true }, { autoGainControl: true }]
-          });
-          
-          peerConnection.addTrack(audioTrack, localStream);
-        }
+        localStream.getTracks().forEach(track => {
+          peerConnection.addTrack(track, localStream);
+        });
       }
       
       // Handle remote stream
       peerConnection.ontrack = (event) => {
-        console.log("Received remote audio stream");
+        console.log("Received remote stream");
         const remoteAudio = document.getElementById('remoteAudio');
-        
-        if (event.streams && event.streams[0]) {
-          remoteAudio.srcObject = event.streams[0];
-          
-          // Play audio with retry logic
-          const playAudio = () => {
-            const playPromise = remoteAudio.play();
-            if (playPromise !== undefined) {
-              playPromise
-                .then(() => {
-                  console.log("Audio is playing");
-                  remoteAudio.volume = 1.0;
-                  showError("Voice connected successfully!");
-                })
-                .catch(error => {
-                  console.log("Audio play failed:", error);
-                  // User interaction might be required on mobile
-                  if (error.name === 'NotAllowedError') {
-                    showError("Tap screen to allow audio playback");
-                  }
-                });
-            }
-          };
-          
-          playAudio();
-        }
+        remoteAudio.srcObject = event.streams[0];
       };
       
       // Handle ICE candidates
@@ -738,42 +623,6 @@
           });
         }
       };
-
-      // Handle connection state changes
-      peerConnection.onconnectionstatechange = () => {
-        console.log("Connection state:", peerConnection.connectionState);
-        if (peerConnection.connectionState === "connected") {
-          document.getElementById('callStatus').textContent = 'Connected';
-          startCallTimer();
-          
-          // Notify other user
-          socket.emit("call-connected", {
-            to: currentCall.friendUid,
-            callerId: currentUser.uid,
-            timestamp: new Date().toISOString()
-          });
-        }
-      };
-    }
-
-    // Update call timer from server
-    function updateCallTimer(timestamp) {
-      if (!callStartTime) {
-        callStartTime = new Date(timestamp);
-      }
-      
-      if (callTimer) {
-        clearInterval(callTimer);
-      }
-      
-      callTimer = setInterval(() => {
-        const now = new Date();
-        const diff = now - callStartTime;
-        const minutes = Math.floor(diff / 60000);
-        const seconds = Math.floor((diff % 60000) / 1000);
-        document.getElementById('callTimer').textContent = 
-          `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
-      }, 1000);
     }
 
     // Handle incoming offer
@@ -784,10 +633,7 @@
       
       try {
         await peerConnection.setRemoteDescription(offer);
-        const answer = await peerConnection.createAnswer({
-          offerToReceiveAudio: true,
-          offerToReceiveVideo: false
-        });
+        const answer = await peerConnection.createAnswer();
         await peerConnection.setLocalDescription(answer);
         
         socket.emit("webrtc-answer", {
@@ -811,25 +657,14 @@
         friendName: callerName,
         isIncoming: true
       };
-
-      // Start ringtone or notification
-      const ringtone = new Audio('data:audio/wav;base64,UklGRnoGAABXQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YQoGAACBhYqFbF1fdJivrJBhNjVgodDbq2EcBStztvLJ');
-      ringtone.loop = true;
-      ringtone.play().catch(e => console.log("Ringtone play failed:", e));
     }
 
     // Accept incoming call
     async function acceptIncomingCall() {
       try {
-        // Get user media with mobile optimization
+        // Get user media
         localStream = await navigator.mediaDevices.getUserMedia({ 
-          audio: {
-            echoCancellation: true,
-            noiseSuppression: true,
-            autoGainControl: true,
-            channelCount: 1,
-            sampleRate: 48000
-          },
+          audio: true,
           video: false 
         });
         
@@ -844,8 +679,10 @@
         document.getElementById('incomingCall').style.display = 'none';
         document.getElementById('callerAvatar').textContent = currentCall.friendName.charAt(0).toUpperCase();
         document.getElementById('callerName').textContent = currentCall.friendName;
-        document.getElementById('callStatus').textContent = 'Connecting...';
+        document.getElementById('callStatus').textContent = 'Connected';
         document.getElementById('callScreen').style.display = 'flex';
+        
+        startCallTimer();
         
       } catch (error) {
         console.error("Error accepting call:", error);
@@ -853,7 +690,7 @@
       }
     }
 
-    // Reject incoming call
+    // Reject incoming call - ✅ FIXED
     function rejectIncomingCall() {
       socket.emit("call-rejected", { 
         to: currentCall.friendUid,
@@ -863,7 +700,93 @@
       currentCall = null;
     }
 
-    // Start call timer
+    // Toggle mute - ✅ FIXED
+    function toggleMute() {
+      if (localStream) {
+        const audioTracks = localStream.getAudioTracks();
+        if (audioTracks.length > 0) {
+          isMuted = !isMuted;
+          audioTracks[0].enabled = !isMuted;
+          
+          const muteIcon = document.querySelector('.mute-btn .control-icon i');
+          if (isMuted) {
+            muteIcon.className = 'fas fa-microphone-slash';
+            document.querySelector('.mute-btn .control-label').textContent = 'Unmute';
+          } else {
+            muteIcon.className = 'fas fa-microphone';
+            document.querySelector('.mute-btn .control-label').textContent = 'Mute';
+          }
+        }
+      }
+    }
+
+    // Toggle speaker - ✅ FIXED
+  function toggleSpeaker() {
+      const remoteAudio = document.getElementById('remoteAudio');
+      isSpeakerOn = !isSpeakerOn;
+      
+      // This is a simplified approach - actual implementation may vary by device
+      try {
+        remoteAudio.volume = isSpeakerOn ? 1.0 : 0.5;
+        
+        const speakerIcon = document.querySelector('.speaker-btn .control-icon i');
+        if (isSpeakerOn) {
+          speakerIcon.className = 'fas fa-volume-up';
+          document.querySelector('.speaker-btn .control-label').textContent = 'Speaker On';
+        } else {
+          speakerIcon.className = 'fas fa-volume-down';
+          document.querySelector('.speaker-btn .control-label').textContent = 'Speaker Off';
+        }
+      } catch (error) {
+        console.error("Error toggling speaker:", error);
+      }
+    }
+
+    // End call - ✅ FIXED
+    function endCall() {
+      // Stop call timer
+      if (callTimer) {
+        clearInterval(callTimer);
+        callTimer = null;
+      }
+      
+      // Send call ended notification
+      if (currentCall) {
+        socket.emit("call-ended", {
+          to: currentCall.friendUid,
+          callerId: currentUser.uid
+        });
+      }
+      
+      // Close media streams
+      if (localStream) {
+        localStream.getTracks().forEach(track => track.stop());
+        localStream = null;
+      }
+      
+      // Close peer connection
+      if (peerConnection) {
+        peerConnection.close();
+        peerConnection = null;
+      }
+      
+      // Hide call screens
+      document.getElementById('callScreen').style.display = 'none';
+      document.getElementById('incomingCall').style.display = 'none';
+      
+      // Reset UI
+      const muteIcon = document.querySelector('.mute-btn .control-icon i');
+      muteIcon.className = 'fas fa-microphone';
+      document.querySelector('.mute-btn .control-label').textContent = 'Mute';
+      
+      const speakerIcon = document.querySelector('.speaker-btn .control-icon i');
+      speakerIcon.className = 'fas fa-volume-up';
+      document.querySelector('.speaker-btn .control-label').textContent = 'Speaker';
+      
+      currentCall = null;
+    }
+
+    // Start call timer - ✅ FIXED
     function startCallTimer() {
       callStartTime = new Date();
       callTimer = setInterval(() => {
@@ -874,83 +797,10 @@
         document.getElementById('callTimer').textContent = 
           `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
       }, 1000);
-      
-      // Sync timer with other user
-      socket.emit("call-timer-sync", {
-        to: currentCall.friendUid,
-        callerId: currentUser.uid,
-        timestamp: callStartTime.toISOString()
-      });
     }
 
-    // End current call
-    function endCall() {
-      if (callTimer) {
-        clearInterval(callTimer);
-        callTimer = null;
-      }
-      
-      if (peerConnection) {
-        peerConnection.close();
-        peerConnection = null;
-      }
-      
-      if (localStream) {
-        localStream.getTracks().forEach(track => track.stop());
-        localStream = null;
-      }
-      
-      document.getElementById('callScreen').style.display = 'none';
-      document.getElementById('incomingCall').style.display = 'none';
-      
-      // Reset audio element
-      const remoteAudio = document.getElementById('remoteAudio');
-      remoteAudio.srcObject = null;
-      
-      if (currentCall) {
-        socket.emit("call-ended", { 
-          to: currentCall.friendUid,
-          callerId: currentUser.uid
-        });
-        currentCall = null;
-      }
-    }
-
-    // Toggle mute
-    function toggleMute() {
-      if (localStream) {
-        const audioTracks = localStream.getAudioTracks();
-        if (audioTracks.length > 0) {
-          audioTracks[0].enabled = !audioTracks[0].enabled;
-          isMuted = !audioTracks[0].enabled;
-          
-          const muteIcon = document.querySelector('.mute-btn i');
-          if (isMuted) {
-            muteIcon.className = 'fas fa-microphone-slash';
-            showError("Microphone muted");
-          } else {
-            muteIcon.className = 'fas fa-microphone';
-            showError("Microphone unmuted");
-          }
-        }
-      }
-    }
-
-    // Toggle speaker
-    function toggleSpeaker() {
-      isSpeakerOn = !isSpeakerOn;
-      const remoteAudio = document.getElementById('remoteAudio');
-      remoteAudio.volume = isSpeakerOn ? 1.0 : 0.7;
-      showError(isSpeakerOn ? "Speaker on" : "Speaker off");
-    }
-
-    // Go back to previous page
-    function goBack() {
-      window.history.back();
-    }
-
-    // Initialize the page
-    document.addEventListener('DOMContentLoaded', initCallPage);
+    // Initialize the page when loaded
+    window.onload = initCallPage;
   </script>
 </body>
 </html>
