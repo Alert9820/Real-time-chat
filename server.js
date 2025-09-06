@@ -1,4 +1,4 @@
-// ✅ UPDATED SERVER WITH VOICE CALLING FEATURE
+// ✅ UPDATED SERVER WITH VOICE CALLING FEATURE 
 import express from "express";
 import cors from "cors";
 import { Server } from "socket.io";
@@ -9,6 +9,8 @@ import bodyParser from "body-parser";
 import { MongoClient } from "mongodb";
 import fetch from "node-fetch";
 import dotenv from "dotenv";
+import bcrypt from "bcrypt"; // ✅ Password encryption ke liye
+
 dotenv.config();
 
 // 📁 Path setup
@@ -19,7 +21,10 @@ const __dirname = path.dirname(__filename);
 const app = express();
 const server = createServer(app);
 const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] },
+  cors: {
+    origin: "*",
+    methods: ["GET", "POST"]
+  },
 });
 
 // 🔧 Middleware
@@ -39,8 +44,7 @@ const client = new MongoClient(uri, {
 const dbName = "ChatDB";
 let userCollection, historyCollection, requestCollection, friendCollection, privateMsgCollection;
 
-client
-  .connect()
+client.connect()
   .then(() => {
     const db = client.db(dbName);
     userCollection = db.collection("user");
@@ -65,9 +69,15 @@ async function generateBotReply(prompt) {
       `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${GEMINI_API_KEY}`,
       {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json"
+        },
         body: JSON.stringify({
-          contents: [{ parts: [{ text: `Reply in short Hinglish. ${prompt}` }] }],
+          contents: [{
+            parts: [{
+              text: `Reply in short Hinglish. ${prompt}`
+            }]
+          }],
         }),
       }
     );
@@ -84,25 +94,39 @@ app.get("/", (req, res) => {
   res.sendFile(path.join(__dirname, "public", "login.html"));
 });
 
-// 📝 Register User
+// 📝 Register User - ✅ FIXED
 app.post("/register", async (req, res) => {
   try {
     const { name, email, password } = req.body;
     if (!name || !email || !password) return res.status(400).send("Fill all fields");
 
-    const exist = await userCollection.findOne({ $or: [{ email }, { name }] });
-    if (exist) return res.status(400).send("User already exists");
+    // Check if user already exists
+    const existingUser = await userCollection.findOne({ email });
+    if (existingUser) {
+      return res.status(400).send("User already exists with this email");
+    }
 
+    // Hash password
+    const hashedPassword = await bcrypt.hash(password, 10);
     const uid = generateUID();
-    await userCollection.insertOne({ name, email, password, uid });
-    res.send("Registration success");
+
+    // Create new user
+    await userCollection.insertOne({
+      name,
+      email,
+      password: hashedPassword, // ✅ Encrypted password
+      uid,
+      createdAt: new Date()
+    });
+
+    res.json({ message: "Registration successful", uid, name });
   } catch (e) {
     console.error("❌ Register Error:", e);
     res.status(500).send("Server error");
   }
 });
 
-// 🔑 Login
+// 🔑 Login - ✅ FIXED
 app.post("/login", async (req, res) => {
   try {
     let email, password;
@@ -113,25 +137,51 @@ app.post("/login", async (req, res) => {
       password = req.body.password;
     }
 
-    const user = await userCollection.findOne({ email, password });
-    if (!user) return res.status(401).send("Invalid");
+    if (!email || !password) return res.status(400).send("Email and password required");
 
-    res.json({ name: user.name, email: user.email, uid: user.uid });
+    // Find user
+    const user = await userCollection.findOne({ email });
+    if (!user) {
+      return res.status(400).send("User not found");
+    }
+
+    // Check password
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).send("Invalid password");
+    }
+
+    res.json({ message: "Login successful", uid: user.uid, name: user.name });
   } catch (e) {
     console.error("❌ Login Error:", e);
     res.status(500).send("Server error");
   }
 });
 
-// ❌ Delete Account
+// ❌ Delete Account - ✅ FIXED
 app.post("/delete-account", async (req, res) => {
   try {
-    const { email } = req.body;
-    if (!email) return res.status(400).send("Missing email");
+    const { email, password } = req.body;
+    if (!email || !password) return res.status(400).send("Missing email or password");
 
-    const result = await userCollection.deleteOne({ email });
-    if (result.deletedCount === 1) res.send("Account deleted successfully");
-    else res.status(404).send("User not found");
+    // Find user and verify password
+    const user = await userCollection.findOne({ email });
+    if (!user) {
+      return res.status(400).send("User not found");
+    }
+
+    const isPasswordValid = await bcrypt.compare(password, user.password);
+    if (!isPasswordValid) {
+      return res.status(400).send("Invalid password");
+    }
+
+    // Delete user and associated data
+    await userCollection.deleteOne({ email });
+    await historyCollection.deleteMany({ name: user.name });
+    await requestCollection.deleteMany({ $or: [{ from: user.uid }, { to: user.uid }] });
+    await friendCollection.deleteMany({ $or: [{ uid1: user.uid }, { uid2: user.uid }] });
+    
+    res.send("Account deleted successfully");
   } catch (e) {
     console.error("❌ Delete Account Error:", e);
     res.status(500).send("Server error");
@@ -264,8 +314,8 @@ io.on("connection", (socket) => {
   // 📞 NEW: Register user for calling
   socket.on("register-call-user", (data) => {
     if (data && data.uid) {
-      users[socket.id] = { 
-        uid: data.uid, 
+      users[socket.id] = {
+        uid: data.uid,
         name: data.name || "Unknown",
         socketId: socket.id
       };
@@ -277,56 +327,27 @@ io.on("connection", (socket) => {
   socket.on("call-request", (data) => {
     if (!data.to || !data.callerId) return;
     
-    console.log("📞 Call request from:", data.callerId, "to:", data.to);
-    
-    // Find recipient's socket ID
-    const recipientEntry = Object.entries(users).find(([_, user]) => user.uid === data.to);
-    
-    if (recipientEntry) {
-      const [recipientSocketId, recipient] = recipientEntry;
-      
-      // Store call info
-      activeCalls[data.callerId] = {
-        recipient: data.to,
-        status: 'calling',
-        socketId: socket.id
-      };
-      
-      activeCalls[data.to] = {
-        caller: data.callerId,
-        status: 'ringing',
-        socketId: recipientSocketId
-      };
-      
-      // Send call request to recipient
-      io.to(recipientSocketId).emit("incoming-call", {
+    const recipient = Object.values(users).find(user => user.uid === data.to);
+    if (recipient && recipient.socketId) {
+      io.to(recipient.socketId).emit("incoming-call", {
         callerId: data.callerId,
-        callerName: data.callerName || "Unknown"
+        callerName: users[socket.id]?.name || "Unknown",
+        signal: data.signal
       });
     } else {
-      // Recipient not found or offline
-      socket.emit("call-error", {
-        message: "User is offline or unavailable"
-      });
+      socket.emit("call-error", "User not available");
     }
   });
 
   // 📞 NEW: Handle call acceptance
   socket.on("call-accepted", (data) => {
-    if (!data.to || !data.callerId) return;
+    if (!data.to || !data.callerId || !data.signal) return;
     
-    console.log("✅ Call accepted by:", data.callerId);
-    
-    // Find caller's socket ID from activeCalls
-    const callInfo = activeCalls[data.callerId];
-    if (callInfo && callInfo.socketId) {
-      // Update call status
-      activeCalls[data.callerId].status = 'connected';
-      activeCalls[data.to].status = 'connected';
-      
-      // Notify caller
-      io.to(callInfo.socketId).emit("call-accepted", {
-        callerId: data.callerId
+    const caller = Object.values(users).find(user => user.uid === data.callerId);
+    if (caller && caller.socketId) {
+      io.to(caller.socketId).emit("call-accepted", {
+        signal: data.signal,
+        recipientId: data.to
       });
     }
   });
@@ -335,40 +356,21 @@ io.on("connection", (socket) => {
   socket.on("call-rejected", (data) => {
     if (!data.to || !data.callerId) return;
     
-    console.log("❌ Call rejected by:", data.callerId);
-    
-    // Find caller's socket ID from activeCalls
-    const callInfo = activeCalls[data.callerId];
-    if (callInfo && callInfo.socketId) {
-      // Remove call info
-      delete activeCalls[data.callerId];
-      delete activeCalls[data.to];
-      
-      // Notify caller
-      io.to(callInfo.socketId).emit("call-rejected", {
-        callerId: data.callerId
+    const caller = Object.values(users).find(user => user.uid === data.callerId);
+    if (caller && caller.socketId) {
+      io.to(caller.socketId).emit("call-rejected", {
+        recipientId: data.to
       });
     }
   });
 
   // 📞 NEW: Handle call end
   socket.on("call-ended", (data) => {
-    if (!data.to || !data.callerId) return;
+    if (!data.to) return;
     
-    console.log("📞 Call ended:", data.callerId);
-    
-    // Find other user's call info
-    const callInfo = activeCalls[data.callerId] || activeCalls[data.to];
-    
-    if (callInfo && callInfo.socketId) {
-      // Remove call info
-      delete activeCalls[data.callerId];
-      delete activeCalls[data.to];
-      
-      // Notify other user
-      io.to(callInfo.socketId).emit("call-ended", {
-        callerId: data.callerId
-      });
+    const recipient = Object.values(users).find(user => user.uid === data.to);
+    if (recipient && recipient.socketId) {
+      io.to(recipient.socketId).emit("call-ended");
     }
   });
 
@@ -380,7 +382,7 @@ io.on("connection", (socket) => {
     if (recipient && recipient.socketId) {
       io.to(recipient.socketId).emit("webrtc-offer", {
         offer: data.offer,
-        from: data.from
+        callerId: data.callerId
       });
     }
   });
@@ -391,8 +393,7 @@ io.on("connection", (socket) => {
     const recipient = Object.values(users).find(user => user.uid === data.to);
     if (recipient && recipient.socketId) {
       io.to(recipient.socketId).emit("webrtc-answer", {
-        answer: data.answer,
-        from: data.from
+        answer: data.answer
       });
     }
   });
@@ -403,15 +404,16 @@ io.on("connection", (socket) => {
     const recipient = Object.values(users).find(user => user.uid === data.to);
     if (recipient && recipient.socketId) {
       io.to(recipient.socketId).emit("webrtc-ice-candidate", {
-        candidate: data.candidate,
-        from: data.from
+        candidate: data.candidate
       });
     }
   });
 
   socket.on("typing", (payload) => {
-    if (payload && typeof payload === "object" && payload.room) socket.to(payload.room).emit("typing", payload.name || "Someone");
-    else socket.broadcast.emit("typing", payload || "Someone");
+    if (payload && typeof payload === "object" && payload.room) 
+      socket.to(payload.room).emit("typing", payload.name || "Someone");
+    else 
+      socket.broadcast.emit("typing", payload || "Someone");
   });
 
   socket.on("join-room", (room) => {
@@ -428,88 +430,75 @@ io.on("connection", (socket) => {
     const sender = user.name;
     io.emit("message", { sender, text });
 
-    if (text === ">>bot") { botActive = true; io.emit("message", { sender: "System", text: "Bot is now active." }); return; }
-    if (text === "<<bot") { botActive = false; io.emit("message", { sender: "System", text: "Bot is now inactive." }); return; }
-
-    if (botActive && text.toLowerCase().includes("bot")) {
-      const clean = text.replace(/bot/gi, "").trim();
-      const reply = await generateBotReply(clean || "Hello");
-      io.emit("message", { sender: "BotX", text: reply });
-      await historyCollection.insertOne({ name: sender, prompt: clean, reply });
+    if (text.startsWith("/bot ") && !botActive) {
+      botActive = true;
+      const prompt = text.substring(5);
+      const reply = await generateBotReply(prompt);
+      io.emit("message", { sender: "ChatBot", text: reply });
+      
+      if (user.name !== "Unknown") {
+        await historyCollection.insertOne({
+          name: user.name,
+          prompt,
+          reply,
+          timestamp: new Date()
+        });
+      }
+      botActive = false;
     }
   });
 
   // 🔒 Private Chat
   socket.on("private-message", async (payload) => {
     if (!payload || payload.__signal) return; // 🔹 ignore WebRTC signals
-
-    const { room, sender, text } = payload;
-    if (!room || !sender || !text) return;
-
-    io.to(room).emit("private-message", { sender, text });
-
-    // Save message
-    try {
-      await privateMsgCollection.insertOne({ room, sender, text, timestamp: new Date() });
-    } catch (e) {
-      console.error("❌ Save private message error:", e);
-    }
-
-    // Bot reply in private
-    if (botActive && text.toLowerCase().includes("bot")) {
-      const prompt = text.replace(/bot/gi, "").trim();
-      const reply = await generateBotReply(prompt);
-      io.to(room).emit("bot-reply", { sender: "BotX", text: reply });
-      try { await historyCollection.insertOne({ name: sender, prompt, reply }); } catch {}
-    }
+    
+    const { room, text, sender } = payload;
+    if (!room || !text || !sender) return;
+    
+    const messageData = {
+      room,
+      sender,
+      text,
+      timestamp: new Date()
+    };
+    
+    // Save to database
+    await privateMsgCollection.insertOne(messageData);
+    
+    // Send to all in room
+    io.to(room).emit("private-message", messageData);
   });
 
   socket.on("disconnect", () => {
-    console.log("❌ Disconnected:", socket.id, users[socket.id] ? `(${users[socket.id].name}/${users[socket.id].uid})` : "");
-    
-    // 📞 NEW: Clean up active calls on disconnect
-    if (users[socket.id] && users[socket.id].uid) {
-      const uid = users[socket.id].uid;
-      if (activeCalls[uid]) {
-        const otherParty = activeCalls[uid].recipient || activeCalls[uid].caller;
-        if (otherParty && activeCalls[otherParty]) {
-          const otherSocketId = activeCalls[otherParty].socketId;
-          if (otherSocketId) {
-            io.to(otherSocketId).emit("call-ended", { callerId: uid });
-          }
-        }
-        delete activeCalls[uid];
-        if (otherParty) delete activeCalls[otherParty];
-      }
-    }
-    
+    console.log("❌ Disconnected:", socket.id, users[socket.id] ? `${users[socket.id].name}/${users[socket.id].uid}` : "");
     delete users[socket.id];
   });
-  // 📞 NEW: Call timer synchronization
-socket.on("call-timer-sync", (data) => {
-  if (data.to && data.callerId) {
-    const recipient = Object.values(users).find(user => user.uid === data.to);
-    if (recipient && recipient.socketId) {
-      io.to(recipient.socketId).emit("call-timer-update", {
-        callerId: data.callerId,
-        timestamp: data.timestamp
-      });
-    }
-  }
-});
 
-// 📞 NEW: Call connected event
-socket.on("call-connected", (data) => {
-  if (data.to && data.callerId) {
-    const recipient = Object.values(users).find(user => user.uid === data.to);
-    if (recipient && recipient.socketId) {
-      io.to(recipient.socketId).emit("call-connected", {
-        callerId: data.callerId,
-        timestamp: data.timestamp
-      });
+  // 📞 NEW: Call timer synchronization
+  socket.on("call-timer-sync", (data) => {
+    if (data.to && data.callerId) {
+      const recipient = Object.values(users).find(user => user.uid === data.to);
+      if (recipient && recipient.socketId) {
+        io.to(recipient.socketId).emit("call-timer-update", {
+          callerId: data.callerId,
+          timestamp: data.timestamp
+        });
+      }
     }
-  }
-});
+  });
+
+  // 📞 NEW: Call connected event
+  socket.on("call-connected", (data) => {
+    if (data.to && data.callerId) {
+      const recipient = Object.values(users).find(user => user.uid === data.to);
+      if (recipient && recipient.socketId) {
+        io.to(recipient.socketId).emit("call-connected", {
+          callerId: data.callerId,
+          timestamp: data.timestamp
+        });
+      }
+    }
+  });
 });
 
 // 🚀 Start Server
