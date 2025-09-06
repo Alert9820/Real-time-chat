@@ -122,7 +122,17 @@
             color: #e6e6e6;
             font-size: 16px;
             cursor: pointer;
-            margin-left: 10px;
+            margin-left: 8px;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .group-action-btn:hover {
+            background: #2d2d2d;
         }
 
         .messages-container {
@@ -173,7 +183,7 @@
             color: rgba(255, 255, 255, 0.6);
         }
 
-        /* INPUT AREA - FIXED POSITION (TOP) */
+        /* INPUT AREA - FIXED POSITION (BOTTOM) */
         .input-area {
             padding: 15px;
             background: #1a1a1a;
@@ -181,7 +191,6 @@
             display: flex;
             gap: 10px;
             align-items: center;
-            order: -1; /* This moves it to the top */
         }
 
         .message-input {
@@ -207,7 +216,7 @@
             justify-content: center;
         }
 
-        /* Bot Controls - FIXED POSITION (BELOW INPUT) */
+        /* Bot Controls */
         .bot-controls {
             display: flex;
             justify-content: center;
@@ -215,7 +224,6 @@
             padding: 10px;
             background: #1a1a1a;
             border-bottom: 1px solid #2a2a2a;
-            order: -1; /* This moves it below input area */
         }
 
         .bot-btn {
@@ -347,23 +355,18 @@
                 <i class="fas fa-arrow-left"></i>
             </button>
             <div class="chat-group-name" id="chatGroupName">Group Name</div>
-            <button class="group-action-btn" onclick="showAddMemberModal()">
+            <button class="group-action-btn" onclick="showAddMemberModal()" title="Add Members">
                 <i class="fas fa-user-plus"></i>
             </button>
-            <button class="group-action-btn" onclick="showRenameModal()">
+            <button class="group-action-btn" onclick="toggleBot()" id="botToggleBtn" title="Toggle Bot">
+                <i class="fas fa-robot"></i>
+            </button>
+            <button class="group-action-btn" onclick="showRenameModal()" title="Rename Group">
                 <i class="fas fa-edit"></i>
             </button>
         </div>
 
-        <!-- INPUT AREA - NOW AT THE TOP -->
-        <div class="input-area">
-            <input type="text" class="message-input" id="messageInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
-            <button class="send-btn" onclick="sendMessage()">
-                <i class="fas fa-paper-plane"></i>
-            </button>
-        </div>
-
-        <!-- BOT CONTROLS - BELOW INPUT -->
+        <!-- Bot Controls -->
         <div class="bot-controls" id="botControls">
             <button class="bot-btn" id="activateBotBtn" onclick="activateBot()">
                 <i class="fas fa-robot"></i> Activate Bot
@@ -373,11 +376,19 @@
             </button>
         </div>
 
-        <!-- MESSAGES CONTAINER - BELOW BOT CONTROLS -->
+        <!-- Messages Container -->
         <div class="messages-container" id="messagesContainer">
             <div class="message bot">
                 <div class="message-text">Welcome to the group! Type your messages here.</div>
             </div>
+        </div>
+
+        <!-- Input Area - NOW AT BOTTOM -->
+        <div class="input-area">
+            <input type="text" class="message-input" id="messageInput" placeholder="Type a message..." onkeypress="handleKeyPress(event)">
+            <button class="send-btn" onclick="sendMessage()">
+                <i class="fas fa-paper-plane"></i>
+            </button>
         </div>
     </div>
 
@@ -484,6 +495,15 @@
 
             socket.on("bot-reply", (data) => {
                 if (currentGroup && data.groupId === currentGroup.groupId) {
+                    // Remove any "bot is thinking" message
+                    const messagesContainer = document.getElementById('messagesContainer');
+                    const thinkingMessages = messagesContainer.querySelectorAll('.message-text');
+                    thinkingMessages.forEach(msg => {
+                        if (msg.textContent === "Bot is thinking...") {
+                            msg.parentElement.remove();
+                        }
+                    });
+                    
                     displayMessage({
                         sender: "BotX",
                         senderName: "BotX",
@@ -678,13 +698,6 @@
             
             if (!prompt) return;
             
-            // Send to server for bot processing
-            socket.emit('bot-message', {
-                groupId: currentGroup.groupId,
-                prompt: prompt,
-                userId: currentUser.uid
-            });
-            
             // Show typing indicator
             const messagesContainer = document.getElementById('messagesContainer');
             const typingIndicator = document.createElement('div');
@@ -694,6 +707,22 @@
             `;
             messagesContainer.appendChild(typingIndicator);
             scrollToBottom();
+            
+            // Send to server for bot processing
+            socket.emit('bot-message', {
+                groupId: currentGroup.groupId,
+                prompt: prompt,
+                userId: currentUser.uid
+            });
+        }
+
+        // Toggle bot
+        function toggleBot() {
+            if (botActive) {
+                deactivateBot();
+            } else {
+                activateBot();
+            }
         }
 
         // Activate bot
@@ -701,6 +730,8 @@
             botActive = true;
             document.getElementById('activateBotBtn').style.display = 'none';
             document.getElementById('deactivateBotBtn').style.display = 'flex';
+            document.getElementById('botToggleBtn').style.background = '#00af9c';
+            document.getElementById('botToggleBtn').style.color = 'white';
             
             // Show bot activated message
             displayMessage({
@@ -717,6 +748,8 @@
             botActive = false;
             document.getElementById('activateBotBtn').style.display = 'flex';
             document.getElementById('deactivateBotBtn').style.display = 'none';
+            document.getElementById('botToggleBtn').style.background = '';
+            document.getElementById('botToggleBtn').style.color = '#e6e6e6';
             
             // Show bot deactivated message
             displayMessage({
