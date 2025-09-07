@@ -14,8 +14,8 @@
         }
 
         body {
-            background: linear-gradient(135deg, #6e8efb, #a777e3);
-            color: #333;
+            background: #0a0a0a;
+            color: #e0e0e0;
             min-height: 100vh;
             display: flex;
             justify-content: center;
@@ -26,18 +26,19 @@
         .settings-container {
             width: 100%;
             max-width: 500px;
-            background: white;
-            border-radius: 16px;
-            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.15);
+            background: #1a1a1a;
+            border-radius: 12px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.3);
             overflow: hidden;
         }
 
         .settings-header {
-            background: #4f46e5;
-            color: white;
+            background: #2d2d2d;
+            color: #ffffff;
             padding: 20px;
             text-align: center;
             position: relative;
+            border-bottom: 1px solid #333;
         }
 
         .back-btn {
@@ -45,13 +46,18 @@
             left: 20px;
             top: 50%;
             transform: translateY(-50%);
-            color: white;
+            color: #a777e3;
             font-size: 20px;
             cursor: pointer;
+            transition: color 0.3s;
+        }
+
+        .back-btn:hover {
+            color: #8e5cdd;
         }
 
         .settings-header h1 {
-            font-size: 24px;
+            font-size: 22px;
             font-weight: 600;
         }
 
@@ -61,121 +67,29 @@
             overflow-y: auto;
         }
 
-        .profile-section {
-            text-align: center;
-            margin-bottom: 25px;
-            padding-bottom: 20px;
-            border-bottom: 1px solid #eee;
-        }
-
-        .profile-img {
-            width: 100px;
-            height: 100px;
-            border-radius: 50%;
-            object-fit: cover;
-            border: 3px solid #4f46e5;
-            margin-bottom: 15px;
-            background: #ddd;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            margin: 0 auto 15px;
-            color: #777;
-            font-size: 40px;
-        }
-
-        .change-photo {
-            color: #4f46e5;
-            background: none;
-            border: none;
-            cursor: pointer;
-            font-weight: 500;
-            margin-top: 10px;
-        }
-
-        .input-group {
-            margin-bottom: 20px;
-        }
-
-        .input-group label {
-            display: block;
-            margin-bottom: 8px;
-            font-weight: 500;
-            color: #555;
-        }
-
-        .input-group input, .input-group textarea {
-            width: 100%;
-            padding: 12px;
-            border: 1px solid #ddd;
-            border-radius: 8px;
-            font-size: 16px;
-            transition: all 0.3s;
-        }
-
-        .input-group input:focus, .input-group textarea:focus {
-            outline: none;
-            border-color: #4f46e5;
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
-        }
-
-        .input-group textarea {
-            height: 100px;
-            resize: vertical;
-        }
-
-        .btn {
-            padding: 14px 20px;
-            border: none;
-            border-radius: 8px;
-            font-size: 16px;
-            font-weight: 600;
-            cursor: pointer;
-            transition: all 0.3s;
-            display: block;
-            width: 100%;
-            text-align: center;
-        }
-
-        .btn-primary {
-            background: #4f46e5;
-            color: white;
-            margin-top: 10px;
-        }
-
-        .btn-primary:hover {
-            background: #4338ca;
-        }
-
-        .btn-secondary {
-            background: #f3f4f6;
-            color: #4f46e5;
-            margin-top: 15px;
-        }
-
-        .btn-secondary:hover {
-            background: #e5e7eb;
-        }
-
         .section-title {
-            font-size: 18px;
+            font-size: 16px;
             font-weight: 600;
-            margin: 25px 0 15px;
-            color: #4f46e5;
+            margin: 20px 0 15px;
+            color: #a777e3;
             display: flex;
             align-items: center;
+            padding-left: 10px;
+            border-left: 3px solid #a777e3;
         }
 
         .section-title i {
             margin-right: 10px;
-            font-size: 20px;
+            font-size: 18px;
         }
 
         .toggle-group {
             display: flex;
             align-items: center;
             margin-bottom: 15px;
-            padding: 10px 0;
+            padding: 12px;
+            background: #222;
+            border-radius: 8px;
         }
 
         .toggle {
@@ -199,7 +113,7 @@
             left: 0;
             right: 0;
             bottom: 0;
-            background-color: #ccc;
+            background-color: #333;
             transition: .4s;
             border-radius: 34px;
         }
@@ -217,7 +131,7 @@
         }
 
         input:checked + .toggle-slider {
-            background-color: #4f46e5;
+            background-color: #a777e3;
         }
 
         input:checked + .toggle-slider:before {
@@ -226,28 +140,86 @@
 
         .toggle-label {
             font-weight: 500;
+            color: #e0e0e0;
         }
 
         .toggle-desc {
-            font-size: 14px;
-            color: #666;
+            font-size: 13px;
+            color: #999;
             margin-top: 3px;
         }
 
         select {
             width: 100%;
             padding: 12px;
-            border: 1px solid #ddd;
+            border: 1px solid #333;
             border-radius: 8px;
-            font-size: 16px;
-            background: white;
+            font-size: 14px;
+            background: #222;
+            color: #e0e0e0;
             margin-top: 8px;
         }
 
         select:focus {
             outline: none;
-            border-color: #4f46e5;
-            box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.2);
+            border-color: #a777e3;
+        }
+
+        .btn {
+            padding: 14px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 15px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: block;
+            width: 100%;
+            text-align: center;
+            margin-top: 10px;
+        }
+
+        .btn-primary {
+            background: #a777e3;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #8e5cdd;
+        }
+
+        .btn-danger {
+            background: #e54545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #d32f2f;
+        }
+
+        .btn-secondary {
+            background: #333;
+            color: #e0e0e0;
+        }
+
+        .btn-secondary:hover {
+            background: #444;
+        }
+
+        .status-indicator {
+            display: inline-block;
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+            margin-left: 8px;
+        }
+
+        .status-online {
+            background: #4caf50;
+        }
+
+        .status-offline {
+            background: #f44336;
         }
 
         .blocked-user {
@@ -255,7 +227,7 @@
             justify-content: space-between;
             align-items: center;
             padding: 12px;
-            background: #f9fafb;
+            background: #222;
             border-radius: 8px;
             margin-bottom: 10px;
         }
@@ -269,7 +241,7 @@
             width: 40px;
             height: 40px;
             border-radius: 50%;
-            background: #4f46e5;
+            background: #a777e3;
             color: white;
             display: flex;
             align-items: center;
@@ -279,19 +251,19 @@
         }
 
         .unblock-btn {
-            background: #4f46e5;
-            color: white;
+            background: #333;
+            color: #e0e0e0;
             border: none;
             padding: 6px 12px;
             border-radius: 6px;
             cursor: pointer;
             font-weight: 500;
             transition: background 0.3s;
-            font-size: 14px;
+            font-size: 13px;
         }
 
         .unblock-btn:hover {
-            background: #4338ca;
+            background: #444;
         }
 
         .no-blocked {
@@ -301,9 +273,35 @@
             font-style: italic;
         }
 
+        .call-options {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 10px;
+            margin-top: 15px;
+        }
+
+        .call-btn {
+            padding: 10px;
+            border-radius: 8px;
+            background: #333;
+            color: #e0e0e0;
+            border: none;
+            cursor: pointer;
+            transition: background 0.3s;
+            text-align: center;
+        }
+
+        .call-btn:hover {
+            background: #444;
+        }
+
+        .call-btn i {
+            margin-right: 5px;
+        }
+
         @media (max-width: 500px) {
             .settings-container {
-                border-radius: 12px;
+                border-radius: 10px;
             }
             
             .settings-header {
@@ -319,13 +317,7 @@
             }
             
             .section-title {
-                font-size: 16px;
-            }
-            
-            .profile-img {
-                width: 80px;
-                height: 80px;
-                font-size: 30px;
+                font-size: 15px;
             }
         }
     </style>
@@ -340,47 +332,23 @@
         </div>
         
         <div class="settings-content">
-            <!-- Profile Section -->
-            <div class="profile-section">
-                <div class="profile-img">
-                    <i class="fas fa-user"></i>
-                </div>
-                <button class="change-photo"><i class="fas fa-camera"></i> Change Photo</button>
-            </div>
-            
-            <!-- Account Settings -->
-            <h2 class="section-title"><i class="fas fa-user"></i> Account</h2>
-            <div class="input-group">
-                <label for="name">Name</label>
-                <input type="text" id="name" placeholder="Enter your name" value="John Doe">
-            </div>
-            <div class="input-group">
-                <label for="email">Email</label>
-                <input type="email" id="email" placeholder="Enter your email" value="johndoe@example.com">
-            </div>
-            <div class="input-group">
-                <label for="bio">Bio</label>
-                <textarea id="bio" placeholder="Tell something about yourself">Hello! I'm using this chat app.</textarea>
-            </div>
-            <button class="btn btn-primary"><i class="fas fa-save"></i> Save Changes</button>
-            
             <!-- Privacy Settings -->
             <h2 class="section-title"><i class="fas fa-shield-alt"></i> Privacy</h2>
             
             <div class="toggle-group">
                 <label class="toggle">
-                    <input type="checkbox" checked>
+                    <input type="checkbox" id="lastSeen" checked>
                     <span class="toggle-slider"></span>
                 </label>
                 <div>
-                    <div class="toggle-label">Last Seen</div>
+                    <div class="toggle-label">Last Seen & Online</div>
                     <div class="toggle-desc">Others can see when you were last active</div>
                 </div>
             </div>
             
             <div class="toggle-group">
                 <label class="toggle">
-                    <input type="checkbox" checked>
+                    <input type="checkbox" id="readReceipts" checked>
                     <span class="toggle-slider"></span>
                 </label>
                 <div>
@@ -389,13 +357,15 @@
                 </div>
             </div>
             
-            <div class="input-group">
-                <label for="privacy">Who can add me to groups?</label>
-                <select id="privacy">
-                    <option value="everyone">Everyone</option>
-                    <option value="contacts">My Contacts</option>
-                    <option value="nobody">Nobody</option>
-                </select>
+            <div class="toggle-group">
+                <label class="toggle">
+                    <input type="checkbox" id="groupAdd" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+                <div>
+                    <div class="toggle-label">Group Invites</div>
+                    <div class="toggle-desc">Allow others to add you to groups</div>
+                </div>
             </div>
             
             <!-- Notifications -->
@@ -403,7 +373,7 @@
             
             <div class="toggle-group">
                 <label class="toggle">
-                    <input type="checkbox" checked>
+                    <input type="checkbox" id="messageNotif" checked>
                     <span class="toggle-slider"></span>
                 </label>
                 <div>
@@ -414,12 +384,48 @@
             
             <div class="toggle-group">
                 <label class="toggle">
-                    <input type="checkbox">
+                    <input type="checkbox" id="vibrate">
                     <span class="toggle-slider"></span>
                 </label>
                 <div>
                     <div class="toggle-label">Vibrate</div>
                     <div class="toggle-desc">Vibrate for new messages</div>
+                </div>
+            </div>
+            
+            <div class="toggle-group">
+                <label class="toggle">
+                    <input type="checkbox" id="callNotif" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+                <div>
+                    <div class="toggle-label">Call Notifications</div>
+                    <div class="toggle-desc">Notify for incoming calls</div>
+                </div>
+            </div>
+            
+            <!-- Call Settings -->
+            <h2 class="section-title"><i class="fas fa-phone"></i> Call Settings</h2>
+            
+            <div class="toggle-group">
+                <label class="toggle">
+                    <input type="checkbox" id="lowData" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+                <div>
+                    <div class="toggle-label">Low Data Usage</div>
+                    <div class="toggle-desc">Reduce data consumption during calls</div>
+                </div>
+            </div>
+            
+            <div class="toggle-group">
+                <label class="toggle">
+                    <input type="checkbox" id="noiseSuppression" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+                <div>
+                    <div class="toggle-label">Noise Suppression</div>
+                    <div class="toggle-desc">Reduce background noise in calls</div>
                 </div>
             </div>
             
@@ -430,8 +436,19 @@
                 <div class="blocked-user-info">
                     <div class="user-avatar">S</div>
                     <div>
-                        <div class="toggle-label">Sarah Johnson</div>
+                        <div class="toggle-label">Sarah Johnson <span class="status-indicator status-offline"></span></div>
                         <div class="toggle-desc">+1 (234) 567-8901</div>
+                    </div>
+                </div>
+                <button class="unblock-btn">Unblock</button>
+            </div>
+            
+            <div class="blocked-user">
+                <div class="blocked-user-info">
+                    <div class="user-avatar">M</div>
+                    <div>
+                        <div class="toggle-label">Mike Thomas <span class="status-indicator status-online"></span></div>
+                        <div class="toggle-desc">+1 (345) 678-9012</div>
                     </div>
                 </div>
                 <button class="unblock-btn">Unblock</button>
@@ -439,72 +456,155 @@
             
             <div class="no-blocked">No other blocked users</div>
             
-            <!-- Danger Zone -->
-            <h2 class="section-title"><i class="fas fa-exclamation-triangle"></i> Account Actions</h2>
-            <button class="btn btn-secondary"><i class="fas fa-sign-out-alt"></i> Logout</button>
-            <button class="btn btn-secondary" style="background: #ef4444; color: white; margin-top: 10px;">
+            <!-- Data & Storage -->
+            <h2 class="section-title"><i class="fas fa-database"></i> Data & Storage</h2>
+            
+            <div class="toggle-group">
+                <label class="toggle">
+                    <input type="checkbox" id="autoDownload" checked>
+                    <span class="toggle-slider"></span>
+                </label>
+                <div>
+                    <div class="toggle-label">Auto-Download Media</div>
+                    <div class="toggle-desc">Automatically download images and videos</div>
+                </div>
+            </div>
+            
+            <button class="btn btn-secondary">
+                <i class="fas fa-broom"></i> Clear Local Chat Cache
+            </button>
+            
+            <!-- Account Actions -->
+            <h2 class="section-title"><i class="fas fa-user-cog"></i> Account</h2>
+            
+            <button class="btn btn-secondary">
+                <i class="fas fa-sign-out-alt"></i> Logout
+            </button>
+            
+            <button class="btn btn-danger">
                 <i class="fas fa-trash-alt"></i> Delete Account
             </button>
         </div>
     </div>
 
     <script>
+        // Connect to Socket.io server
+        const socket = io();
+        
         document.addEventListener('DOMContentLoaded', function() {
-            // Load user data
-            const userData = JSON.parse(localStorage.getItem('userData')) || {
-                name: 'John Doe',
-                email: 'johndoe@example.com',
-                bio: 'Hello! I\'m using this chat app.'
-            };
+            // Load settings from server/localStorage
+            loadSettings();
             
-            document.getElementById('name').value = userData.name;
-            document.getElementById('email').value = userData.email;
-            document.getElementById('bio').value = userData.bio;
-            
-            // Save changes
-            document.querySelector('.btn-primary').addEventListener('click', function() {
-                const updatedData = {
-                    name: document.getElementById('name').value,
-                    email: document.getElementById('email').value,
-                    bio: document.getElementById('bio').value
-                };
-                
-                localStorage.setItem('userData', JSON.stringify(updatedData));
-                alert('Profile updated successfully!');
+            // Handle toggle changes
+            document.querySelectorAll('.toggle input').forEach(toggle => {
+                toggle.addEventListener('change', function() {
+                    saveSettings();
+                });
             });
             
             // Unblock user
-            document.querySelector('.unblock-btn').addEventListener('click', function() {
-                if(confirm('Are you sure you want to unblock this user?')) {
-                    this.closest('.blocked-user').style.opacity = '0';
-                    setTimeout(() => {
-                        this.closest('.blocked-user').remove();
-                    }, 300);
+            document.querySelectorAll('.unblock-btn').forEach(btn => {
+                btn.addEventListener('click', function() {
+                    const userName = this.closest('.blocked-user').querySelector('.toggle-label').textContent.split(' ')[0];
+                    if(confirm(`Unblock ${userName}?`)) {
+                        socket.emit('unblock-user', { userId: '123' }); // Replace with actual user ID
+                        this.closest('.blocked-user').style.opacity = '0';
+                        setTimeout(() => {
+                            this.closest('.blocked-user').remove();
+                        }, 300);
+                    }
+                });
+            });
+            
+            // Clear cache
+            document.querySelector('.btn-secondary').addEventListener('click', function() {
+                if(confirm('Clear local chat cache? This will not delete your messages from the server.')) {
+                    socket.emit('clear-cache');
+                    alert('Local cache cleared successfully');
                 }
             });
             
             // Delete account
-            document.querySelector('[style*="background: #ef4444"]').addEventListener('click', function() {
-                if(confirm('Are you sure you want to delete your account? This action cannot be undone.')) {
-                    alert('Account deletion process initiated. You will be logged out.');
+            document.querySelector('.btn-danger').addEventListener('click', function() {
+                if(confirm('Permanently delete your account? This cannot be undone.')) {
+                    socket.emit('delete-account');
+                    alert('Account deletion initiated. You will be logged out.');
                     setTimeout(() => {
                         window.location.href = 'login.html';
-                    }, 1500);
+                    }, 2000);
                 }
             });
             
             // Logout
-            document.querySelector('.btn-secondary:not([style*="background: #ef4444"])').addEventListener('click', function() {
-                if(confirm('Are you sure you want to logout?')) {
+            document.querySelectorAll('.btn-secondary')[1].addEventListener('click', function() {
+                if(confirm('Log out from your account?')) {
+                    socket.emit('logout');
                     window.location.href = 'login.html';
                 }
             });
+        });
+        
+        function loadSettings() {
+            // Load settings from server or localStorage
+            const settings = JSON.parse(localStorage.getItem('chatSettings')) || {
+                lastSeen: true,
+                readReceipts: true,
+                groupAdd: true,
+                messageNotif: true,
+                vibrate: false,
+                callNotif: true,
+                lowData: true,
+                noiseSuppression: true,
+                autoDownload: true
+            };
             
-            // Change profile photo
-            document.querySelector('.change-photo').addEventListener('click', function() {
-                alert('Profile photo change functionality would be implemented here');
-            });
+            // Apply settings to toggles
+            document.getElementById('lastSeen').checked = settings.lastSeen;
+            document.getElementById('readReceipts').checked = settings.readReceipts;
+            document.getElementById('groupAdd').checked = settings.groupAdd;
+            document.getElementById('messageNotif').checked = settings.messageNotif;
+            document.getElementById('vibrate').checked = settings.vibrate;
+            document.getElementById('callNotif').checked = settings.callNotif;
+            document.getElementById('lowData').checked = settings.lowData;
+            document.getElementById('noiseSuppression').checked = settings.noiseSuppression;
+            document.getElementById('autoDownload').checked = settings.autoDownload;
+        }
+        
+        function saveSettings() {
+            const settings = {
+                lastSeen: document.getElementById('lastSeen').checked,
+                readReceipts: document.getElementById('readReceipts').checked,
+                groupAdd: document.getElementById('groupAdd').checked,
+                messageNotif: document.getElementById('messageNotif').checked,
+                vibrate: document.getElementById('vibrate').checked,
+                callNotif: document.getElementById('callNotif').checked,
+                lowData: document.getElementById('lowData').checked,
+                noiseSuppression: document.getElementById('noiseSuppression').checked,
+                autoDownload: document.getElementById('autoDownload').checked
+            };
+            
+            // Save to localStorage
+            localStorage.setItem('chatSettings', JSON.stringify(settings));
+            
+            // Send to server
+            socket.emit('save-settings', settings);
+        }
+        
+        // Socket event listeners
+        socket.on('settings-saved', () => {
+            console.log('Settings saved to server');
+        });
+        
+        socket.on('user-unblocked', (data) => {
+            console.log('User unblocked:', data.userId);
+        });
+        
+        socket.on('cache-cleared', () => {
+            console.log('Cache cleared on server');
         });
     </script>
+    
+    <!-- Socket.io client library -->
+    <script src="/socket.io/socket.io.js"></script>
 </body>
 </html>
