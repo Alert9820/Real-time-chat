@@ -206,6 +206,18 @@
             background: #444;
         }
 
+        .btn-about {
+            background: #2d2d2d;
+            color: #a777e3;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .btn-about:hover {
+            background: #333;
+        }
+
         .status-indicator {
             display: inline-block;
             width: 10px;
@@ -299,6 +311,159 @@
             margin-right: 5px;
         }
 
+        /* About Page Styles */
+        .about-container {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: #0a0a0a;
+            z-index: 1000;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        .about-header {
+            text-align: center;
+            margin-bottom: 30px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #333;
+        }
+
+        .about-header h1 {
+            color: #a777e3;
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+
+        .about-content {
+            max-width: 600px;
+            margin: 0 auto;
+        }
+
+        .founder-section {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .founder-section h2 {
+            color: #a777e3;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .founder-card {
+            display: flex;
+            align-items: center;
+            background: #222;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 15px;
+        }
+
+        .founder-avatar {
+            width: 60px;
+            height: 60px;
+            border-radius: 50%;
+            background: #a777e3;
+            color: white;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            margin-right: 15px;
+        }
+
+        .founder-info h3 {
+            color: #e0e0e0;
+            margin-bottom: 5px;
+        }
+
+        .founder-info p {
+            color: #999;
+            font-size: 14px;
+        }
+
+        .college-info {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+            text-align: center;
+        }
+
+        .college-info h2 {
+            color: #a777e3;
+            margin-bottom: 15px;
+        }
+
+        .college-info p {
+            color: #e0e0e0;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .app-info {
+            background: #1a1a1a;
+            padding: 20px;
+            border-radius: 12px;
+            margin-bottom: 20px;
+        }
+
+        .app-info h2 {
+            color: #a777e3;
+            margin-bottom: 15px;
+            text-align: center;
+        }
+
+        .app-info p {
+            color: #e0e0e0;
+            line-height: 1.6;
+            margin-bottom: 10px;
+        }
+
+        .feature-list {
+            list-style-type: none;
+            margin: 15px 0;
+        }
+
+        .feature-list li {
+            padding: 8px 0;
+            border-bottom: 1px solid #333;
+            color: #e0e0e0;
+        }
+
+        .feature-list li:last-child {
+            border-bottom: none;
+        }
+
+        .feature-list i {
+            color: #a777e3;
+            margin-right: 10px;
+        }
+
+        .close-about {
+            display: block;
+            margin: 20px auto;
+            padding: 12px 25px;
+            background: #a777e3;
+            color: white;
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.3s;
+        }
+
+        .close-about:hover {
+            background: #8e5cdd;
+        }
+
         @media (max-width: 500px) {
             .settings-container {
                 border-radius: 10px;
@@ -318,6 +483,16 @@
             
             .section-title {
                 font-size: 15px;
+            }
+            
+            .founder-card {
+                flex-direction: column;
+                text-align: center;
+            }
+            
+            .founder-avatar {
+                margin-right: 0;
+                margin-bottom: 10px;
             }
         }
     </style>
@@ -357,17 +532,6 @@
                 </div>
             </div>
             
-            <div class="toggle-group">
-                <label class="toggle">
-                    <input type="checkbox" id="groupAdd" checked>
-                    <span class="toggle-slider"></span>
-                </label>
-                <div>
-                    <div class="toggle-label">Group Invites</div>
-                    <div class="toggle-desc">Allow others to add you to groups</div>
-                </div>
-            </div>
-            
             <!-- Notifications -->
             <h2 class="section-title"><i class="fas fa-bell"></i> Notifications</h2>
             
@@ -379,17 +543,6 @@
                 <div>
                     <div class="toggle-label">Message Notifications</div>
                     <div class="toggle-desc">Play sound for new messages</div>
-                </div>
-            </div>
-            
-            <div class="toggle-group">
-                <label class="toggle">
-                    <input type="checkbox" id="vibrate">
-                    <span class="toggle-slider"></span>
-                </label>
-                <div>
-                    <div class="toggle-label">Vibrate</div>
-                    <div class="toggle-desc">Vibrate for new messages</div>
                 </div>
             </div>
             
@@ -418,17 +571,6 @@
                 </div>
             </div>
             
-            <div class="toggle-group">
-                <label class="toggle">
-                    <input type="checkbox" id="noiseSuppression" checked>
-                    <span class="toggle-slider"></span>
-                </label>
-                <div>
-                    <div class="toggle-label">Noise Suppression</div>
-                    <div class="toggle-desc">Reduce background noise in calls</div>
-                </div>
-            </div>
-            
             <!-- Blocked Users -->
             <h2 class="section-title"><i class="fas fa-ban"></i> Blocked Users</h2>
             
@@ -438,17 +580,6 @@
                     <div>
                         <div class="toggle-label">Sarah Johnson <span class="status-indicator status-offline"></span></div>
                         <div class="toggle-desc">+1 (234) 567-8901</div>
-                    </div>
-                </div>
-                <button class="unblock-btn">Unblock</button>
-            </div>
-            
-            <div class="blocked-user">
-                <div class="blocked-user-info">
-                    <div class="user-avatar">M</div>
-                    <div>
-                        <div class="toggle-label">Mike Thomas <span class="status-indicator status-online"></span></div>
-                        <div class="toggle-desc">+1 (345) 678-9012</div>
                     </div>
                 </div>
                 <button class="unblock-btn">Unblock</button>
@@ -474,6 +605,13 @@
                 <i class="fas fa-broom"></i> Clear Local Chat Cache
             </button>
             
+            <!-- About Section -->
+            <h2 class="section-title"><i class="fas fa-info-circle"></i> About</h2>
+            
+            <button class="btn btn-about" id="aboutBtn">
+                <i class="fas fa-external-link-alt"></i> About This App
+            </button>
+            
             <!-- Account Actions -->
             <h2 class="section-title"><i class="fas fa-user-cog"></i> Account</h2>
             
@@ -484,6 +622,64 @@
             <button class="btn btn-danger">
                 <i class="fas fa-trash-alt"></i> Delete Account
             </button>
+        </div>
+    </div>
+
+    <!-- About Page -->
+    <div class="about-container" id="aboutPage">
+        <div class="about-header">
+            <h1>About Our Chat App</h1>
+            <p>Connect with friends and family seamlessly</p>
+        </div>
+        
+        <div class="about-content">
+            <div class="founder-section">
+                <h2>Founders</h2>
+                
+                <div class="founder-card">
+                    <div class="founder-avatar">S</div>
+                    <div class="founder-info">
+                        <h3>Sunny Chaurasiya</h3>
+                        <p>Co-Founder & Lead Developer</p>
+                        <p>Expert in full-stack development with a passion for creating innovative solutions.</p>
+                    </div>
+                </div>
+                
+                <div class="founder-card">
+                    <div class="founder-avatar">B</div>
+                    <div class="founder-info">
+                        <h3>Bhavesh Mali</h3>
+                        <p>Co-Founder & UI/UX Designer</p>
+                        <p>Creative designer with an eye for detail and user experience optimization.</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="college-info">
+                <h2>Education</h2>
+                <p>Both founders are currently pursuing their TYBSc in Computer Science at</p>
+                <p><strong>S.S.T College of Arts And Commerce</strong></p>
+                <p>Where they are honing their skills and knowledge in the field of technology and computer science.</p>
+            </div>
+            
+            <div class="app-info">
+                <h2>About The App</h2>
+                <p>This chat application was developed as a project to demonstrate modern web development techniques and real-time communication capabilities.</p>
+                
+                <p><strong>Key Features:</strong></p>
+                <ul class="feature-list">
+                    <li><i class="fas fa-comments"></i> Real-time messaging</li>
+                    <li><i class="fas fa-phone"></i> Voice and video calling</li>
+                    <li><i class="fas fa-users"></i> Group chats</li>
+                    <li><i class="fas fa-shield-alt"></i> End-to-end encryption</li>
+                    <li><i class="fas fa-cloud"></i> Cloud synchronization</li>
+                    <li><i class="fas fa-mobile-alt"></i> Cross-platform compatibility</li>
+                </ul>
+                
+                <p>The app is built with cutting-edge technologies including Node.js, Socket.io, and MongoDB, ensuring a seamless and responsive user experience.</p>
+            </div>
+            
+            <button class="close-about" id="closeAbout">Close</button>
         </div>
     </div>
 
@@ -542,6 +738,26 @@
                     window.location.href = 'login.html';
                 }
             });
+            
+            // About page functionality
+            const aboutBtn = document.getElementById('aboutBtn');
+            const aboutPage = document.getElementById('aboutPage');
+            const closeAbout = document.getElementById('closeAbout');
+            
+            aboutBtn.addEventListener('click', function() {
+                aboutPage.style.display = 'block';
+            });
+            
+            closeAbout.addEventListener('click', function() {
+                aboutPage.style.display = 'none';
+            });
+            
+            // Close about page if clicked outside content
+            aboutPage.addEventListener('click', function(e) {
+                if (e.target === aboutPage) {
+                    aboutPage.style.display = 'none';
+                }
+            });
         });
         
         function loadSettings() {
@@ -549,24 +765,18 @@
             const settings = JSON.parse(localStorage.getItem('chatSettings')) || {
                 lastSeen: true,
                 readReceipts: true,
-                groupAdd: true,
                 messageNotif: true,
-                vibrate: false,
                 callNotif: true,
                 lowData: true,
-                noiseSuppression: true,
                 autoDownload: true
             };
             
             // Apply settings to toggles
             document.getElementById('lastSeen').checked = settings.lastSeen;
             document.getElementById('readReceipts').checked = settings.readReceipts;
-            document.getElementById('groupAdd').checked = settings.groupAdd;
             document.getElementById('messageNotif').checked = settings.messageNotif;
-            document.getElementById('vibrate').checked = settings.vibrate;
             document.getElementById('callNotif').checked = settings.callNotif;
             document.getElementById('lowData').checked = settings.lowData;
-            document.getElementById('noiseSuppression').checked = settings.noiseSuppression;
             document.getElementById('autoDownload').checked = settings.autoDownload;
         }
         
@@ -574,12 +784,9 @@
             const settings = {
                 lastSeen: document.getElementById('lastSeen').checked,
                 readReceipts: document.getElementById('readReceipts').checked,
-                groupAdd: document.getElementById('groupAdd').checked,
                 messageNotif: document.getElementById('messageNotif').checked,
-                vibrate: document.getElementById('vibrate').checked,
                 callNotif: document.getElementById('callNotif').checked,
                 lowData: document.getElementById('lowData').checked,
-                noiseSuppression: document.getElementById('noiseSuppression').checked,
                 autoDownload: document.getElementById('autoDownload').checked
             };
             
