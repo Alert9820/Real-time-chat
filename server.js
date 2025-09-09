@@ -60,6 +60,9 @@ function generateUID() {
   return Math.floor(100000 + Math.random() * 900000).toString();
 }
 
+// 🧠 Bot active state
+let botActive = false;  // ✅ Add this line near the top of server.js
+
 // 🤖 Gemini Bot Reply (Short Hinglish)
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
 async function generateBotReply(prompt) {
