@@ -382,8 +382,6 @@ app.post("/rename-group", async (req, res) => {
     res.status(500).send("Error renaming group");
   }
 });
-
-// 🧠 Socket.IO Logic
 // 🧠 Socket.IO Logic
 const users = {};       // socketId -> { uid, name, socketId }
 const activeCalls = {}; // uid -> call state
@@ -535,41 +533,7 @@ io.on("connection", (socket) => {
       delete users[socket.id];
     }
   });
-});
-  
-
-  // 📞 NEW: Handle call acceptance
-  
-
-  // 📞 NEW: Handle call rejection
-  
-  
-
-  // 📞 NEW: Handle call end
-  
-
-  // 📞 NEW: WebRTC signaling
-  
-
-  // 🆕 GROUP CHAT SOCKET EVENTS
-  
-
-  // 📞 Handle call request
-  
-
-  // 📞 Handle call acceptance
-  
-
-  // 📞 Handle call rejection
-  
-
-  // 📞 Handle call end
-  
-  // 📞 WebRTC signaling
-  
-  // 🧹 Handle disconnect
-  
-    {
+});{
     socket.leave(`group-${groupId}`);
     console.log(`User left group: ${groupId}`);
   });
