@@ -382,15 +382,15 @@ app.post("/rename-group", async (req, res) => {
     res.status(500).send("Error renaming group");
   }
 });
+
 // 🧠 Socket.IO Logic
-const users = {};       // socketId -> { uid, name, socketId }
-const activeCalls = {}; // uid -> call state
+const users = {};
+const activeCalls = {};
 let botActive = false;
 
 io.on("connection", (socket) => {
   console.log("🔌 User connected:", socket.id);
 
-  // ✅ Set user name/uid
   socket.on("set_name", (data) => {
     if (!data) return;
     if (typeof data === "string") {
@@ -401,139 +401,161 @@ io.on("connection", (socket) => {
     }
   });
 
-  // 📞 Register user for calling
+  // 📞 NEW: Register user for calling
   socket.on("register-call-user", (data) => {
     if (data && data.uid) {
-      users[socket.id] = { uid: data.uid, name: data.name || "Unknown", socketId: socket.id };
+      users[socket.id] = { 
+        uid: data.uid, 
+        name: data.name || "Unknown",
+        socketId: socket.id
+      };
       console.log("📞 User registered for calling:", data.uid);
     }
   });
 
-  // 📞 Call Request
+  // 📞 NEW: Handle call requests
   socket.on("call-request", (data) => {
     if (!data.to || !data.callerId) return;
-
+    
+    console.log("📞 Call request from:", data.callerId, "to:", data.to);
+    
+    // Find recipient's socket ID
     const recipientEntry = Object.entries(users).find(([_, user]) => user.uid === data.to);
+    
     if (recipientEntry) {
       const [recipientSocketId, recipient] = recipientEntry;
-
-      activeCalls[data.callerId] = { recipient: data.to, status: "calling", socketId: socket.id };
-      activeCalls[data.to] = { caller: data.callerId, status: "ringing", socketId: recipientSocketId };
-
-      io.to(recipientSocketId).emit("incoming-call", { callerId: data.callerId, callerName: data.callerName || "Unknown" });
+      
+      // Store call info
+      activeCalls[data.callerId] = {
+        recipient: data.to,
+        status: 'calling',
+        socketId: socket.id
+      };
+      
+      activeCalls[data.to] = {
+        caller: data.callerId,
+        status: 'ringing',
+        socketId: recipientSocketId
+      };
+      
+      // Send call request to recipient
+      io.to(recipientSocketId).emit("incoming-call", {
+        callerId: data.callerId,
+        callerName: data.callerName || "Unknown"
+      });
     } else {
-      socket.emit("call-error", { message: "User is offline or unavailable" });
+      // Recipient not found or offline
+      socket.emit("call-error", {
+        message: "User is offline or unavailable"
+      });
     }
   });
 
-  // 📞 Call Accepted
+  // 📞 NEW: Handle call acceptance
   socket.on("call-accepted", (data) => {
     if (!data.to || !data.callerId) return;
-
+    
+    console.log("✅ Call accepted by:", data.callerId);
+    
+    // Find caller's socket ID from activeCalls
     const callInfo = activeCalls[data.callerId];
     if (callInfo && callInfo.socketId) {
-      activeCalls[data.callerId].status = "connected";
-      activeCalls[data.to].status = "connected";
-
-      io.to(callInfo.socketId).emit("call-accepted", { callerId: data.callerId });
+      // Update call status
+      activeCalls[data.callerId].status = 'connected';
+      activeCalls[data.to].status = 'connected';
+      
+      // Notify caller
+      io.to(callInfo.socketId).emit("call-accepted", {
+        callerId: data.callerId
+      });
     }
   });
 
-  // 📞 Call Rejected
+  // 📞 NEW: Handle call rejection
   socket.on("call-rejected", (data) => {
     if (!data.to || !data.callerId) return;
-
+    
+    console.log("❌ Call rejected by:", data.callerId);
+    
+    // Find caller's socket ID from activeCalls
     const callInfo = activeCalls[data.callerId];
     if (callInfo && callInfo.socketId) {
+      // Remove call info
       delete activeCalls[data.callerId];
       delete activeCalls[data.to];
-
-      io.to(callInfo.socketId).emit("call-rejected", { callerId: data.callerId });
+      
+      // Notify caller
+      io.to(callInfo.socketId).emit("call-rejected", {
+        callerId: data.callerId
+      });
     }
   });
 
-  // 📞 Call Ended
+  // 📞 NEW: Handle call end
   socket.on("call-ended", (data) => {
     if (!data.to || !data.callerId) return;
-
+    
+    console.log("📞 Call ended:", data.callerId);
+    
+    // Find other user's call info
     const callInfo = activeCalls[data.callerId] || activeCalls[data.to];
+    
     if (callInfo && callInfo.socketId) {
+      // Remove call info
       delete activeCalls[data.callerId];
       delete activeCalls[data.to];
-
-      io.to(callInfo.socketId).emit("call-ended", { callerId: data.callerId });
+      
+      // Notify other user
+      io.to(callInfo.socketId).emit("call-ended", {
+        callerId: data.callerId
+      });
     }
   });
 
-  // 🌐 WebRTC Signaling
+  // 📞 NEW: WebRTC signaling
   socket.on("webrtc-offer", (data) => {
     if (!data.to || !data.offer) return;
-    const recipient = Object.values(users).find(u => u.uid === data.to);
-    if (recipient) io.to(recipient.socketId).emit("webrtc-offer", { offer: data.offer, from: data.from || users[socket.id]?.uid });
+    
+    const recipient = Object.values(users).find(user => user.uid === data.to);
+    if (recipient && recipient.socketId) {
+      io.to(recipient.socketId).emit("webrtc-offer", {
+        offer: data.offer,
+        from: data.from
+      });
+    }
   });
 
   socket.on("webrtc-answer", (data) => {
     if (!data.to || !data.answer) return;
-    const recipient = Object.values(users).find(u => u.uid === data.to);
-    if (recipient) io.to(recipient.socketId).emit("webrtc-answer", { answer: data.answer, from: data.from || users[socket.id]?.uid });
+    
+    const recipient = Object.values(users).find(user => user.uid === data.to);
+    if (recipient && recipient.socketId) {
+      io.to(recipient.socketId).emit("webrtc-answer", {
+        answer: data.answer,
+        from: data.from
+      });
+    }
   });
 
   socket.on("webrtc-ice-candidate", (data) => {
     if (!data.to || !data.candidate) return;
-    const recipient = Object.values(users).find(u => u.uid === data.to);
-    if (recipient) io.to(recipient.socketId).emit("webrtc-ice-candidate", { candidate: data.candidate, from: data.from || users[socket.id]?.uid });
+    
+    const recipient = Object.values(users).find(user => user.uid === data.to);
+    if (recipient && recipient.socketId) {
+      io.to(recipient.socketId).emit("webrtc-ice-candidate", {
+        candidate: data.candidate,
+        from: data.from
+      });
+    }
   });
 
-  // 👥 Group Chat Events
+  // 🆕 GROUP CHAT SOCKET EVENTS
   socket.on("join-group", (groupId) => {
     socket.join(`group-${groupId}`);
     console.log(`User joined group: ${groupId}`);
   });
 
   socket.on("leave-group", (groupId) => {
-    socket.leave(`group-${groupId}`);
-    console.log(`User left group: ${groupId}`);
-  });
-
-  socket.on("group-message", async (data) => {
-    try {
-      const { groupId, sender, senderName, text } = data;
-      if (!groupId || !text) return;
-
-      const messageData = { groupId, sender, senderName, text, timestamp: new Date() };
-      await groupMessageCollection.insertOne(messageData);
-
-      io.to(`group-${groupId}`).emit("group-message", messageData);
-
-      // 🤖 Bot auto-reply
-      if (text.toLowerCase().includes("bot")) {
-        const prompt = text.replace(/bot/gi, "").trim();
-        if (prompt) {
-          const reply = await generateBotReply(prompt);
-          io.to(`group-${groupId}`).emit("group-message", {
-            groupId,
-            sender: "BotX",
-            senderName: "BotX",
-            text: reply,
-            timestamp: new Date()
-          });
-        }
-      }
-    } catch (e) {
-      console.error("❌ Group message error:", e);
-    }
-  });
-
-  // 🧹 Handle disconnect
-  socket.on("disconnect", () => {
-    console.log("❌ Disconnected:", socket.id);
-    const user = users[socket.id];
-    if (user) {
-      delete activeCalls[user.uid];
-      delete users[socket.id];
-    }
-  });
-});{
     socket.leave(`group-${groupId}`);
     console.log(`User left group: ${groupId}`);
   });
@@ -725,3 +747,4 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
+    
