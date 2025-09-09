@@ -527,7 +527,7 @@ io.on("connection", (socket) => {
       delete users[socket.id];
     }
   });
-});
+
 
   // 🆕 GROUP CHAT SOCKET EVENTS
   socket.on("join-group", (groupId) => {
