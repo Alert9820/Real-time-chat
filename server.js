@@ -514,40 +514,6 @@ io.on("connection", (socket) => {
 
   // 📞 NEW: WebRTC signaling
   socket.on("webrtc-offer", (data) => {
-    if (!data.to || !data.offer) return;
-    
-    const recipient = Object.values(users).find(user => user.uid === data.to);
-    if (recipient && recipient.socketId) {
-      io.to(recipient.socketId).emit("webrtc-offer", {
-        offer: data.offer,
-        from: data.from
-      });
-    }
-  });
-
-  socket.on("webrtc-answer", (data) => {
-    if (!data.to || !data.answer) return;
-    
-    const recipient = Object.values(users).find(user => user.uid === data.to);
-    if (recipient && recipient.socketId) {
-      io.to(recipient.socketId).emit("webrtc-answer", {
-        answer: data.answer,
-        from: data.from
-      });
-    }
-  });
-
-  socket.on("webrtc-ice-candidate", (data) => {
-    if (!data.to || !data.candidate) return;
-    
-    const recipient = Object.values(users).find(user => user.uid === data.to);
-    if (recipient && recipient.socketId) {
-      io.to(recipient.socketId).emit("webrtc-ice-candidate", {
-        candidate: data.candidate,
-        from: data.from
-      });
-    }
-  });
 
   // 🆕 GROUP CHAT SOCKET EVENTS
   socket.on("join-group", (groupId) => {
@@ -555,7 +521,150 @@ io.on("connection", (socket) => {
     console.log(`User joined group: ${groupId}`);
   });
 
-  socket.on("leave-group", (groupId) => {
+  socket.on("leave-group", (groupId) => // 🧠 Socket.IO Logic
+const users = {};       // socketId -> { uid, name, socketId }
+const activeCalls = {}; // uid -> call state
+
+io.on("connection", (socket) => {
+  console.log("🔌 User connected:", socket.id);
+
+  // Register user with name/uid
+  socket.on("register-call-user", (data) => {
+    if (data && data.uid) {
+      users[socket.id] = {
+        uid: data.uid,
+        name: data.name || "Unknown",
+        socketId: socket.id
+      };
+      console.log("📞 Registered:", data.uid, "->", socket.id);
+    }
+  });
+
+  // 📞 Handle call request
+  socket.on("call-request", (data) => {
+    if (!data.to || !data.callerId) return;
+
+    console.log("📞 Call request:", data.callerId, "->", data.to);
+
+    // Find recipient
+    const recipient = Object.values(users).find(u => u.uid === data.to);
+
+    if (recipient) {
+      // Save active call
+      activeCalls[data.callerId] = { with: data.to, status: "calling", socketId: socket.id };
+      activeCalls[data.to] = { with: data.callerId, status: "ringing", socketId: recipient.socketId };
+
+      // Notify recipient
+      io.to(recipient.socketId).emit("incoming-call", {
+        callerId: data.callerId,
+        callerName: data.callerName || "Unknown"
+      });
+    } else {
+      socket.emit("call-error", { message: "User is offline or unavailable" });
+    }
+  });
+
+  // 📞 Handle call acceptance
+  socket.on("call-accepted", (data) => {
+    if (!data.to || !data.callerId) return;
+
+    console.log("✅ Call accepted by:", data.callerId);
+
+    const callerCall = activeCalls[data.callerId];
+    if (callerCall && callerCall.socketId) {
+      activeCalls[data.callerId].status = "connected";
+      activeCalls[data.to].status = "connected";
+
+      io.to(callerCall.socketId).emit("call-accepted", {
+        callerId: data.callerId
+      });
+    }
+  });
+
+  // 📞 Handle call rejection
+  socket.on("call-rejected", (data) => {
+    if (!data.to || !data.callerId) return;
+
+    console.log("❌ Call rejected by:", data.callerId);
+
+    const callerCall = activeCalls[data.callerId];
+    if (callerCall && callerCall.socketId) {
+      delete activeCalls[data.callerId];
+      delete activeCalls[data.to];
+
+      io.to(callerCall.socketId).emit("call-rejected", {
+        callerId: data.callerId
+      });
+    }
+  });
+
+  // 📞 Handle call end
+  socket.on("call-ended", (data) => {
+    if (!data.to || !data.callerId) return;
+
+    console.log("📞 Call ended:", data.callerId);
+
+    const callInfo = activeCalls[data.callerId] || activeCalls[data.to];
+
+    if (callInfo && callInfo.socketId) {
+      delete activeCalls[data.callerId];
+      delete activeCalls[data.to];
+
+      io.to(callInfo.socketId).emit("call-ended", {
+        callerId: data.callerId
+      });
+    }
+  });
+
+  // 📞 WebRTC signaling
+  socket.on("webrtc-offer", (data) => {
+    if (!data.to || !data.offer) return;
+
+    const recipient = Object.values(users).find(u => u.uid === data.to);
+    if (recipient) {
+      io.to(recipient.socketId).emit("webrtc-offer", {
+        offer: data.offer,
+        from: data.from || users[socket.id]?.uid
+      });
+    }
+  });
+
+  socket.on("webrtc-answer", (data) => {
+    if (!data.to || !data.answer) return;
+
+    const recipient = Object.values(users).find(u => u.uid === data.to);
+    if (recipient) {
+      io.to(recipient.socketId).emit("webrtc-answer", {
+        answer: data.answer,
+        from: data.from || users[socket.id]?.uid
+      });
+    }
+  });
+
+  socket.on("webrtc-ice-candidate", (data) => {
+    if (!data.to || !data.candidate) return;
+
+    const recipient = Object.values(users).find(u => u.uid === data.to);
+    if (recipient) {
+      io.to(recipient.socketId).emit("webrtc-ice-candidate", {
+        candidate: data.candidate,
+        from: data.from || users[socket.id]?.uid
+      });
+    }
+  });
+
+  // 🧹 Handle disconnect
+  socket.on("disconnect", () => {
+    console.log("❌ Disconnected:", socket.id);
+
+    const user = users[socket.id];
+    if (user) {
+      // Clean up active calls
+      delete activeCalls[user.uid];
+      delete users[socket.id];
+    }
+  });
+});{
     socket.leave(`group-${groupId}`);
     console.log(`User left group: ${groupId}`);
   });
