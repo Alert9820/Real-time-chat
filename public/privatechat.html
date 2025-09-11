@@ -270,11 +270,21 @@
       color: #ff6b6b;
       font-style: italic;
       margin: 10px 0;
+      background: rgba(255, 107, 107, 0.1);
+      padding: 8px;
+      border-radius: 8px;
     }
 
     .locked-chat {
       background: #3a3a3a !important;
       cursor: not-allowed !important;
+      opacity: 0.6;
+    }
+
+    .countdown-timer {
+      color: #ff6b6b;
+      font-weight: bold;
+      margin-left: 10px;
     }
   </style>
 </head>
@@ -290,7 +300,6 @@
       </div>
       <div class="header-icons">
         <button class="icon-btn" onclick="toggleBot()"><i class="fas fa-robot"></i></button>
-        <button class="icon-btn" onclick="unlockChat()" title="Unlock Chat" id="unlockBtn"><i class="fas fa-lock-open"></i></button>
         <button class="icon-btn" onclick="clearChat()"><i class="fas fa-trash"></i></button>
       </div>
     </div>
@@ -334,7 +343,7 @@
 
     const room = [currentUser.uid, friendUid].sort().join("_");
 
-    // ✅ Toxicity Check Functions
+    // ✅ Enhanced Toxicity Check Functions
     async function checkToxicity(message) {
       try {
         const response = await fetch('/check-toxicity', {
@@ -365,46 +374,114 @@
       const currentWarnings = getWarnings();
       const newWarnings = currentWarnings + 1;
       setWarnings(newWarnings);
+      
+      // Start 30 second lock on 5th warning
+      if (newWarnings >= 5) {
+        startChatLock();
+      }
+      
       return newWarnings;
     }
 
     function resetWarnings() {
       setWarnings(0);
+      clearChatLock();
     }
 
-    function checkIfChatLocked() {
-      return getWarnings() >= 5;
+    function getLockTime() {
+      return parseInt(localStorage.getItem(`${room}_lock_time`) || '0');
+    }
+
+    function setLockTime(timestamp) {
+      localStorage.setItem(`${room}_lock_time`, timestamp.toString());
+    }
+
+    function clearChatLock() {
+      localStorage.removeItem(`${room}_lock_time`);
+      updateWarningDisplay();
+    }
+
+    function isChatLocked() {
+      const lockTime = getLockTime();
+      if (!lockTime) return false;
+      
+      const currentTime = Math.floor(Date.now() / 1000);
+      const timeRemaining = lockTime - currentTime;
+      
+      return timeRemaining > 0;
+    }
+
+    function startChatLock() {
+      const lockDuration = 30; // 30 seconds
+      const unlockTime = Math.floor(Date.now() / 1000) + lockDuration;
+      setLockTime(unlockTime);
+      updateWarningDisplay();
+      
+      // Start countdown timer
+      startLockCountdown();
+    }
+
+    function startLockCountdown() {
+      const countdownInterval = setInterval(() => {
+        const lockTime = getLockTime();
+        if (!lockTime) {
+          clearInterval(countdownInterval);
+          return;
+        }
+        
+        const currentTime = Math.floor(Date.now() / 1000);
+        const timeRemaining = lockTime - currentTime;
+        
+        if (timeRemaining <= 0) {
+          clearInterval(countdownInterval);
+          clearChatLock();
+          addSystemMessage("Chat unlocked. You can message now.");
+          return;
+        }
+        
+        updateCountdownDisplay(timeRemaining);
+      }, 1000);
+    }
+
+    function updateCountdownDisplay(seconds) {
+      const statusElement = document.getElementById('userStatus');
+      if (statusElement) {
+        statusElement.innerHTML = `Locked: <span class="countdown-timer">${seconds}s</span>`;
+      }
     }
 
     function updateWarningDisplay() {
       const warnings = getWarnings();
-      document.getElementById('userStatus').textContent = warnings > 0 ? 
-        `Online (Warnings: ${warnings}/5)` : 'Online';
+      const statusElement = document.getElementById('userStatus');
       
-      if (warnings >= 5) {
+      if (isChatLocked()) {
+        const lockTime = getLockTime();
+        const currentTime = Math.floor(Date.now() / 1000);
+        const timeRemaining = lockTime - currentTime;
+        
         document.getElementById("messageInput").disabled = true;
         document.getElementById("messageInput").classList.add('locked-chat');
         document.getElementById("messageInput").placeholder = "Chat locked - too many warnings";
         document.getElementById("sendBtn").disabled = true;
-        document.getElementById('userStatus').textContent = 'Chat Locked';
-        document.getElementById('userStatus').style.color = '#ff6b6b';
-      }
-    }
-
-    function unlockChat() {
-      if (confirm("Unlock chat and reset warnings?")) {
-        resetWarnings();
+        
+        if (statusElement) {
+          statusElement.innerHTML = `Locked: <span class="countdown-timer">${timeRemaining}s</span>`;
+          statusElement.style.color = '#ff6b6b';
+        }
+      } else {
         document.getElementById("messageInput").disabled = false;
         document.getElementById("messageInput").classList.remove('locked-chat');
         document.getElementById("messageInput").placeholder = "Type a message...";
         document.getElementById("sendBtn").disabled = false;
-        document.getElementById('userStatus').textContent = 'Online';
-        document.getElementById('userStatus').style.color = '';
-        addSystemMessage("Chat unlocked. Please maintain respectful conversation.");
+        
+        if (statusElement) {
+          statusElement.textContent = warnings > 0 ? `Online (Warnings: ${warnings}/5)` : 'Online';
+          statusElement.style.color = '';
+        }
       }
     }
 
-    // ✅ Socket setup - FIXED duplicate message issue
+    // ✅ Socket setup
     const socket = io();
     let isSending = false;
     let botActive = false;
@@ -417,13 +494,15 @@
       socket.emit("set_name", { uid: currentUser.uid, name: currentUser.name });
       socket.emit("join-room", room);
 
-      // Initialize warnings display
+      // Initialize warnings and lock status
       updateWarningDisplay();
+      if (isChatLocked()) {
+        startLockCountdown();
+      }
 
       fetch(`/get-room-messages?room=${room}`)
         .then(res => res.json())
         .then(msgs => msgs.forEach(m => {
-          // ✅ Filter out WebRTC signals
           if (!m.text.includes('__signal')) {
             addMessage(m.sender, m.text, m.sender === currentUser.name, m.sender === 'BotX');
           }
@@ -431,9 +510,7 @@
         .catch(err => console.error("Failed to load messages:", err));
     });
 
-    // ✅ FIX: Filter out WebRTC signals from messages
     socket.on("private-message", data => {
-      // ✅ Don't show WebRTC signaling messages in chat
       if (!data.text.includes('__signal')) {
         addMessage(data.sender, data.text, data.sender === currentUser.name);
       }
@@ -443,14 +520,12 @@
       addMessage(data.sender, data.text, false, true);
     });
 
-    // NEW: Handle image messages
     socket.on("image-message", data => {
       if (data.room === room) {
         addImageMessage(data.sender, data.imageData, data.sender === currentUser.name);
       }
     });
 
-    // NEW: Typing indicator
     socket.on("typing", (data) => {
       if (data.room === room && data.sender !== currentUser.name) {
         const indicator = document.getElementById('typingIndicator');
@@ -464,7 +539,6 @@
       }
     });
 
-    // NEW: Bot status updates
     socket.on("message", (data) => {
       if (data.sender === "System" && data.text.includes("Bot")) {
         addSystemMessage(data.text);
@@ -484,8 +558,11 @@
       if (!text) return;
 
       // Chat locked check
-      if (checkIfChatLocked()) {
-        addWarningMessage("Chat locked! Too many warnings for abusive language.");
+      if (isChatLocked()) {
+        const lockTime = getLockTime();
+        const currentTime = Math.floor(Date.now() / 1000);
+        const timeRemaining = lockTime - currentTime;
+        addWarningMessage(`Chat locked! Please wait ${timeRemaining} seconds.`);
         document.getElementById("messageInput").value = "";
         return;
       }
@@ -495,10 +572,10 @@
         const isToxic = await checkToxicity(text);
         if (isToxic) {
           const warnings = addWarning();
-          addWarningMessage(`Warning ${warnings}/5: Please avoid abusive language!`);
+          addWarningMessage(`⚠️ Warning ${warnings}/5: Please avoid abusive language!`);
           
           if (warnings >= 5) {
-            addWarningMessage("Chat locked! Too many warnings.");
+            addWarningMessage("🔒 Chat locked for 30 seconds due to multiple warnings!");
           }
           
           document.getElementById("messageInput").value = "";
@@ -508,7 +585,7 @@
 
       isSending = true;
       
-      // Handle bot commands in global chat (not private)
+      // Handle bot commands in global chat
       if (text === ">>bot" || text === "<<bot") {
         socket.emit("message", text);
         document.getElementById("messageInput").value = "";
@@ -536,7 +613,7 @@
       setTimeout(() => { isSending = false; }, 300);
     }
 
-    // ✅ Improved message display function with actions
+    // ✅ Message display functions
     function addMessage(sender, text, mine = false, isBot = false) {
       const messageEl = document.createElement("div");
       messageEl.className = "message " + (mine ? "mine" : "other");
@@ -563,7 +640,6 @@
       document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
     }
 
-    // NEW: Add image message
     function addImageMessage(sender, imageData, mine = false) {
       const messageEl = document.createElement("div");
       messageEl.className = "message " + (mine ? "mine" : "other");
@@ -586,7 +662,6 @@
       document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
     }
 
-    // NEW: Add system message
     function addSystemMessage(text) {
       const messageEl = document.createElement("div");
       messageEl.className = "system-message";
@@ -596,7 +671,6 @@
       document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
     }
 
-    // NEW: Add warning message
     function addWarningMessage(text) {
       const messageEl = document.createElement("div");
       messageEl.className = "warning-message";
@@ -606,21 +680,18 @@
       document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
     }
 
-    // NEW: Handle typing indicator
     function handleTyping() {
       if (socket && room) {
         socket.emit("typing", { room, sender: currentUser.name });
       }
     }
 
-    // NEW: Handle key press
     function handleKeyPress(e) {
       if (e.key === 'Enter') {
         sendMessage();
       }
     }
 
-    // ✅ Additional functions for new features
     function toggleBot() {
       if (botActive) {
         socket.emit("message", "<<bot");
@@ -644,17 +715,11 @@
           addSystemMessage("Chat cleared successfully");
           // Reset warnings when chat is cleared
           resetWarnings();
-          document.getElementById("messageInput").disabled = false;
-          document.getElementById("messageInput").classList.remove('locked-chat');
-          document.getElementById("sendBtn").disabled = false;
-          document.getElementById('userStatus').textContent = 'Online';
-          document.getElementById('userStatus').style.color = '';
         })
         .catch(error => console.error('Error clearing chat:', error));
       }
     }
 
-    // NEW: Reaction to message
     function reactToMessage(btn, reaction) {
       const messageEl = btn.closest('.message');
       let reactionContainer = messageEl.querySelector('.message-reaction');
@@ -668,7 +733,6 @@
       reactionContainer.textContent = `${reaction} (You)`;
     }
     
-    // NEW: Reply to message
     function replyToMessage(btn) {
       const messageEl = btn.closest('.message');
       const sender = messageEl.dataset.sender;
@@ -679,7 +743,6 @@
       replyToMessageId = messageEl;
     }
     
-    // NEW: Edit message
     function editMessage(btn) {
       const messageEl = btn.closest('.message');
       const text = messageEl.dataset.text;
@@ -693,7 +756,6 @@
       editingMessageId = messageEl;
     }
     
-    // NEW: Delete message
     function deleteMessage(btn) {
       if (confirm("Delete this message?")) {
         const messageEl = btn.closest('.message');
@@ -701,7 +763,6 @@
       }
     }
     
-    // NEW: Handle file selection - FIXED for both users
     function handleFileSelect(event) {
       const file = event.target.files[0];
       if (!file) return;
@@ -711,10 +772,8 @@
         reader.onload = function(e) {
           const imageData = e.target.result;
           
-          // Show image immediately for sender
           addImageMessage(currentUser.name, imageData, true);
           
-          // Send image to other user via socket
           socket.emit("image-message", {
             room: room,
             sender: currentUser.name,
@@ -726,12 +785,10 @@
         alert('Please select an image file');
       }
       
-      // Reset file input
       event.target.value = '';
     }
 
     function toggleEmojiPicker() {
-      // Simple emoji picker implementation
       const emojis = ['😀', '😂', '😍', '🥰', '😎', '🙏', '🔥', '👍', '❤️', '🎉'];
       const picker = document.createElement('div');
       picker.style.position = 'absolute';
@@ -759,7 +816,6 @@
       
       document.body.appendChild(picker);
       
-      // Remove picker when clicking outside
       setTimeout(() => {
         const clickHandler = (e) => {
           if (!picker.contains(e.target)) {
