@@ -298,354 +298,449 @@
     </div>
   </div>
 
-  <script src="/socket.io/socket.io.js"></script>
-  <script>
-    // ✅ Get current user
-    const currentUser = JSON.parse(localStorage.getItem("user"));
-    if (!currentUser || !currentUser.uid || !currentUser.name) {
-      alert("❌ User not logged in. Redirecting...");
-      window.location.href = "login.html";
-    }
-
-    // ✅ Set user info in UI
-    document.getElementById('userName').textContent = currentUser.name;
-    document.getElementById('userAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
-
-    // ✅ Friend UID
-    const params = new URLSearchParams(window.location.search);
-    const friendUid = params.get("uid");
-    if (!friendUid) {
-      alert("❌ Friend UID missing in URL!");
-      throw new Error("Friend UID missing");
-    }
-
-    const room = [currentUser.uid, friendUid].sort().join("_");
-
-    // ✅ Socket setup - FIXED duplicate message issue
-    const socket = io();
-    let isSending = false;
-    let botActive = false;
-    let isEditing = false;
-    let editingMessageId = null;
-    let replyToMessageId = null;
-
-    socket.on("connect", () => {
-      console.log("Connected:", socket.id);
-      socket.emit("set_name", { uid: currentUser.uid, name: currentUser.name });
-      socket.emit("join-room", room);
-
-      fetch(`/get-room-messages?room=${room}`)
-        .then(res => res.json())
-        .then(msgs => msgs.forEach(m => {
-          // ✅ Filter out WebRTC signals
-          if (!m.text.includes('__signal')) {
-            addMessage(m.sender, m.text, m.sender === currentUser.name, m.sender === 'BotX');
-          }
-        }))
-        .catch(err => console.error("Failed to load messages:", err));
-    });
-
-    // ✅ FIX: Filter out WebRTC signals from messages
-    socket.on("private-message", data => {
-      // ✅ Don't show WebRTC signaling messages in chat
-      if (!data.text.includes('__signal')) {
-        addMessage(data.sender, data.text, data.sender === currentUser.name);
-      }
-    });
-    
-    socket.on("bot-reply", data => {
-      addMessage(data.sender, data.text, false, true);
-    });
-
-    // NEW: Handle image messages
-    socket.on("image-message", data => {
-      if (data.room === room) {
-        addImageMessage(data.sender, data.imageData, data.sender === currentUser.name);
-      }
-    });
-
-    // NEW: Typing indicator
-    socket.on("typing", (data) => {
-      if (data.room === room && data.sender !== currentUser.name) {
-        const indicator = document.getElementById('typingIndicator');
-        indicator.textContent = `${data.sender} is typing...`;
-        indicator.style.display = 'block';
         
-        clearTimeout(window.typingTimeout);
-        window.typingTimeout = setTimeout(() => {
-          indicator.style.display = 'none';
-        }, 2000);
-      }
-    });
+    <script src="/socket.io/socket.io.js"></script>
+<script>
+  // ✅ Get current user
+  const currentUser = JSON.parse(localStorage.getItem("user"));
+  if (!currentUser || !currentUser.uid || !currentUser.name) {
+    alert("❌ User not logged in. Redirecting...");
+    window.location.href = "login.html";
+  }
 
-    // NEW: Bot status updates
-    socket.on("message", (data) => {
-      if (data.sender === "System" && data.text.includes("Bot")) {
-        addSystemMessage(data.text);
-      }
-    });
+  // ✅ Set user info in UI
+  document.getElementById('userName').textContent = currentUser.name;
+  document.getElementById('userAvatar').textContent = currentUser.name.charAt(0).toUpperCase();
 
-    document.getElementById("sendBtn").addEventListener("click", sendMessage);
-    document.getElementById("messageInput").addEventListener("keypress", e => { 
-      if (e.key === "Enter") sendMessage(); 
-    });
+  // ✅ Friend UID
+  const params = new URLSearchParams(window.location.search);
+  const friendUid = params.get("uid");
+  if (!friendUid) {
+    alert("❌ Friend UID missing in URL!");
+    throw new Error("Friend UID missing");
+  }
 
-    // ✅ FIXED: Send message function without duplication
-    function sendMessage() {
-      if (isSending) return;
+  const room = [currentUser.uid, friendUid].sort().join("_");
+
+  // ✅ Toxicity Check Functions
+  async function checkToxicity(message) {
+    try {
+      const API_KEY = "AIzaSyD6d5KaqGl__FBgabbAyw7vzApf08xaKbk";
+      const body = {
+        comment: { text: message },
+        languages: ["en"],
+        requestedAttributes: { TOXICITY: {} }
+      };
+
+      const res = await fetch(`https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=${API_KEY}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(body)
+      });
+
+      const data = await res.json();
+      const toxicityScore = data.attributeScores.TOXICITY.summaryScore.value;
       
-      const text = document.getElementById("messageInput").value.trim();
-      if (!text) return;
+      return toxicityScore > 0.7;
+    } catch (error) {
+      console.error("Toxicity check error:", error);
+      return false;
+    }
+  }
 
-      isSending = true;
+  function getWarnings() {
+    return parseInt(localStorage.getItem(`${room}_warnings`) || '0');
+  }
+
+  function setWarnings(count) {
+    localStorage.setItem(`${room}_warnings`, count.toString());
+    return count;
+  }
+
+  function addWarning() {
+    const currentWarnings = getWarnings();
+    const newWarnings = currentWarnings + 1;
+    setWarnings(newWarnings);
+    return newWarnings;
+  }
+
+  function resetWarnings() {
+    setWarnings(0);
+  }
+
+  function checkIfChatLocked() {
+    return getWarnings() >= 5;
+  }
+
+  function unlockChat() {
+    resetWarnings();
+    document.getElementById("messageInput").disabled = false;
+    document.getElementById("sendBtn").disabled = false;
+    addSystemMessage("Chat unlocked. Please maintain respectful conversation.");
+  }
+
+  // ✅ Socket setup - FIXED duplicate message issue
+  const socket = io();
+  let isSending = false;
+  let botActive = false;
+  let isEditing = false;
+  let editingMessageId = null;
+  let replyToMessageId = null;
+
+  socket.on("connect", () => {
+    console.log("Connected:", socket.id);
+    socket.emit("set_name", { uid: currentUser.uid, name: currentUser.name });
+    socket.emit("join-room", room);
+
+    // Reset warnings when joining room
+    resetWarnings();
+
+    fetch(`/get-room-messages?room=${room}`)
+      .then(res => res.json())
+      .then(msgs => msgs.forEach(m => {
+        // ✅ Filter out WebRTC signals
+        if (!m.text.includes('__signal')) {
+          addMessage(m.sender, m.text, m.sender === currentUser.name, m.sender === 'BotX');
+        }
+      }))
+      .catch(err => console.error("Failed to load messages:", err));
+  });
+
+  // ✅ FIX: Filter out WebRTC signals from messages
+  socket.on("private-message", data => {
+    // ✅ Don't show WebRTC signaling messages in chat
+    if (!data.text.includes('__signal')) {
+      addMessage(data.sender, data.text, data.sender === currentUser.name);
+    }
+  });
+  
+  socket.on("bot-reply", data => {
+    addMessage(data.sender, data.text, false, true);
+  });
+
+  // NEW: Handle image messages
+  socket.on("image-message", data => {
+    if (data.room === room) {
+      addImageMessage(data.sender, data.imageData, data.sender === currentUser.name);
+    }
+  });
+
+  // NEW: Typing indicator
+  socket.on("typing", (data) => {
+    if (data.room === room && data.sender !== currentUser.name) {
+      const indicator = document.getElementById('typingIndicator');
+      indicator.textContent = `${data.sender} is typing...`;
+      indicator.style.display = 'block';
       
-      // Handle bot commands in global chat (not private)
-      if (text === ">>bot" || text === "<<bot") {
-        socket.emit("message", text);
+      clearTimeout(window.typingTimeout);
+      window.typingTimeout = setTimeout(() => {
+        indicator.style.display = 'none';
+      }, 2000);
+    }
+  });
+
+  // NEW: Bot status updates
+  socket.on("message", (data) => {
+    if (data.sender === "System" && data.text.includes("Bot")) {
+      addSystemMessage(data.text);
+    }
+  });
+
+  document.getElementById("sendBtn").addEventListener("click", sendMessage);
+  document.getElementById("messageInput").addEventListener("keypress", e => { 
+    if (e.key === "Enter") sendMessage(); 
+  });
+
+  // ✅ MODIFIED: Send message function with toxicity check
+  async function sendMessage() {
+    if (isSending) return;
+    
+    const text = document.getElementById("messageInput").value.trim();
+    if (!text) return;
+
+    // Chat locked check
+    if (checkIfChatLocked()) {
+      addSystemMessage("Chat locked! Too many warnings for abusive language.");
+      document.getElementById("messageInput").value = "";
+      return;
+    }
+
+    // Toxicity check - skip for bot commands
+    if (text !== ">>bot" && text !== "<<bot") {
+      const isToxic = await checkToxicity(text);
+      if (isToxic) {
+        const warnings = addWarning();
+        addSystemMessage(`Warning ${warnings}/5: Please avoid abusive language!`);
+        
+        if (warnings >= 5) {
+          addSystemMessage("Chat locked! Too many warnings.");
+          document.getElementById("messageInput").disabled = true;
+          document.getElementById("sendBtn").disabled = true;
+        }
+        
         document.getElementById("messageInput").value = "";
-        isSending = false;
         return;
       }
-      
-      const payload = { room, sender: currentUser.name, text };
-      socket.emit("private-message", payload);
-      
-      // ✅ DON'T add message here - wait for server confirmation
+    }
+
+    isSending = true;
+    
+    // Handle bot commands in global chat (not private)
+    if (text === ">>bot" || text === "<<bot") {
+      socket.emit("message", text);
       document.getElementById("messageInput").value = "";
-      
-      // Reset edit and reply modes
-      if (isEditing) {
-        isEditing = false;
-        editingMessageId = null;
-        document.getElementById('messageInput').placeholder = "Type a message...";
-        document.getElementById('messageInput').classList.remove('edit-mode');
-      }
-      
-      if (replyToMessageId) {
-        replyToMessageId = null;
-      }
-      
-      // Reset sending flag after a short delay
-      setTimeout(() => { isSending = false; }, 300);
+      isSending = false;
+      return;
     }
-
-    // ✅ Improved message display function with actions
-    function addMessage(sender, text, mine = false, isBot = false) {
-      const messageEl = document.createElement("div");
-      messageEl.className = "message " + (mine ? "mine" : "other");
-      messageEl.dataset.sender = sender;
-      messageEl.dataset.text = text;
-      
-      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      
-      messageEl.innerHTML = `
-        ${!mine ? `<div class="message-sender">${sender} ${isBot ? '<span class="bot-indicator">BOT</span>' : ''}</div>` : ''}
-        <div class="message-content">
-          <div class="message-text ${isBot ? 'bot-message' : ''}">${text}</div>
-          <div class="message-meta">${timestamp} ${mine ? '<i class="fas fa-check-double" style="color: #00af9c; margin-left: 3px;"></i>' : ''}</div>
-        </div>
-        <div class="message-actions">
-          <div class="action-btn reaction-btn" onclick="reactToMessage(this, '😊')">😊</div>
-          <div class="action-btn" onclick="replyToMessage(this)"><i class="fas fa-reply"></i></div>
-          ${mine && !isBot ? `<div class="action-btn" onclick="editMessage(this)"><i class="fas fa-edit"></i></div>
-          <div class="action-btn" onclick="deleteMessage(this)"><i class="fas fa-trash"></i></div>` : ''}
-        </div>
-      `;
-      
-      document.getElementById("chat").appendChild(messageEl);
-      document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+    
+    const payload = { room, sender: currentUser.name, text };
+    socket.emit("private-message", payload);
+    
+    document.getElementById("messageInput").value = "";
+    
+    // Reset edit and reply modes
+    if (isEditing) {
+      isEditing = false;
+      editingMessageId = null;
+      document.getElementById('messageInput').placeholder = "Type a message...";
+      document.getElementById('messageInput').classList.remove('edit-mode');
     }
-
-    // NEW: Add image message
-    function addImageMessage(sender, imageData, mine = false) {
-      const messageEl = document.createElement("div");
-      messageEl.className = "message " + (mine ? "mine" : "other");
-      
-      const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-      
-      messageEl.innerHTML = `
-        ${!mine ? `<div class="message-sender">${sender}</div>` : ''}
-        <div class="message-content">
-          <div class="media-preview"><img src="${imageData}" alt="Shared image"></div>
-          <div class="message-meta">${timestamp} ${mine ? '<i class="fas fa-check-double" style="color: #00af9c; margin-left: 3px;"></i>' : ''}</div>
-        </div>
-        <div class="message-actions">
-          <div class="action-btn reaction-btn" onclick="reactToMessage(this, '😊')">😊</div>
-          <div class="action-btn" onclick="replyToMessage(this)"><i class="fas fa-reply"></i></div>
-        </div>
-      `;
-      
-      document.getElementById("chat").appendChild(messageEl);
-      document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+    
+    if (replyToMessageId) {
+      replyToMessageId = null;
     }
+    
+    setTimeout(() => { isSending = false; }, 300);
+  }
 
-    // NEW: Add system message
-    function addSystemMessage(text) {
-      const messageEl = document.createElement("div");
-      messageEl.className = "system-message";
-      messageEl.textContent = text;
-      
-      document.getElementById("chat").appendChild(messageEl);
-      document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+  // ✅ Improved message display function with actions
+  function addMessage(sender, text, mine = false, isBot = false) {
+    const messageEl = document.createElement("div");
+    messageEl.className = "message " + (mine ? "mine" : "other");
+    messageEl.dataset.sender = sender;
+    messageEl.dataset.text = text;
+    
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    messageEl.innerHTML = `
+      ${!mine ? `<div class="message-sender">${sender} ${isBot ? '<span class="bot-indicator">BOT</span>' : ''}</div>` : ''}
+      <div class="message-content">
+        <div class="message-text ${isBot ? 'bot-message' : ''}">${text}</div>
+        <div class="message-meta">${timestamp} ${mine ? '<i class="fas fa-check-double" style="color: #00af9c; margin-left: 3px;"></i>' : ''}</div>
+      </div>
+      <div class="message-actions">
+        <div class="action-btn reaction-btn" onclick="reactToMessage(this, '😊')">😊</div>
+        <div class="action-btn" onclick="replyToMessage(this)"><i class="fas fa-reply"></i></div>
+        ${mine && !isBot ? `<div class="action-btn" onclick="editMessage(this)"><i class="fas fa-edit"></i></div>
+        <div class="action-btn" onclick="deleteMessage(this)"><i class="fas fa-trash"></i></div>` : ''}
+      </div>
+    `;
+    
+    document.getElementById("chat").appendChild(messageEl);
+    document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+  }
+
+  // NEW: Add image message
+  function addImageMessage(sender, imageData, mine = false) {
+    const messageEl = document.createElement("div");
+    messageEl.className = "message " + (mine ? "mine" : "other");
+    
+    const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+    
+    messageEl.innerHTML = `
+      ${!mine ? `<div class="message-sender">${sender}</div>` : ''}
+      <div class="message-content">
+        <div class="media-preview"><img src="${imageData}" alt="Shared image"></div>
+        <div class="message-meta">${timestamp} ${mine ? '<i class="fas fa-check-double" style="color: #00af9c; margin-left: 3px;"></i>' : ''}</div>
+      </div>
+      <div class="message-actions">
+        <div class="action-btn reaction-btn" onclick="reactToMessage(this, '😊')">😊</div>
+        <div class="action-btn" onclick="replyToMessage(this)"><i class="fas fa-reply"></i></div>
+      </div>
+    `;
+    
+    document.getElementById("chat").appendChild(messageEl);
+    document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+  }
+
+  // NEW: Add system message
+  function addSystemMessage(text) {
+    const messageEl = document.createElement("div");
+    messageEl.className = "system-message";
+    messageEl.textContent = text;
+    
+    document.getElementById("chat").appendChild(messageEl);
+    document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+  }
+
+  // NEW: Handle typing indicator
+  function handleTyping() {
+    if (socket && room) {
+      socket.emit("typing", { room, sender: currentUser.name });
     }
+  }
 
-    // NEW: Handle typing indicator
-    function handleTyping() {
-      if (socket && room) {
-        socket.emit("typing", { room, sender: currentUser.name });
-      }
+  // NEW: Handle key press
+  function handleKeyPress(e) {
+    if (e.key === 'Enter') {
+      sendMessage();
     }
+  }
 
-    // NEW: Handle key press
-    function handleKeyPress(e) {
-      if (e.key === 'Enter') {
-        sendMessage();
-      }
+  // ✅ Additional functions for new features
+  function toggleBot() {
+    if (botActive) {
+      socket.emit("message", "<<bot");
+      botActive = false;
+    } else {
+      socket.emit("message", ">>bot");
+      botActive = true;
     }
+  }
 
-    // ✅ Additional functions for new features
-    function toggleBot() {
-      if (botActive) {
-        socket.emit("message", "<<bot");
-        botActive = false;
-      } else {
-        socket.emit("message", ">>bot");
-        botActive = true;
-      }
+  function clearChat() {
+    if (confirm("Clear all messages in this chat?")) {
+      fetch('/clear-room', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ room })
+      })
+      .then(response => response.text())
+      .then(result => {
+        document.getElementById("chat").innerHTML = '<div class="typing-indicator" id="typingIndicator"></div>';
+        addSystemMessage("Chat cleared successfully");
+        // Reset warnings when chat is cleared
+        resetWarnings();
+        document.getElementById("messageInput").disabled = false;
+        document.getElementById("sendBtn").disabled = false;
+      })
+      .catch(error => console.error('Error clearing chat:', error));
     }
+  }
 
-    function clearChat() {
-      if (confirm("Clear all messages in this chat?")) {
-        fetch('/clear-room', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ room })
-        })
-        .then(response => response.text())
-        .then(result => {
-          document.getElementById("chat").innerHTML = '<div class="typing-indicator" id="typingIndicator"></div>';
-          addSystemMessage("Chat cleared successfully");
-        })
-        .catch(error => console.error('Error clearing chat:', error));
-      }
+  // NEW: Reaction to message
+  function reactToMessage(btn, reaction) {
+    const messageEl = btn.closest('.message');
+    let reactionContainer = messageEl.querySelector('.message-reaction');
+    
+    if (!reactionContainer) {
+      reactionContainer = document.createElement('div');
+      reactionContainer.className = 'message-reaction';
+      messageEl.querySelector('.message-content').appendChild(reactionContainer);
     }
-
-    // NEW: Reaction to message
-    function reactToMessage(btn, reaction) {
+    
+    reactionContainer.textContent = `${reaction} (You)`;
+  }
+  
+  // NEW: Reply to message
+  function replyToMessage(btn) {
+    const messageEl = btn.closest('.message');
+    const sender = messageEl.dataset.sender;
+    const text = messageEl.dataset.text;
+    
+    document.getElementById('messageInput').placeholder = `Replying to ${sender}: ${text}`;
+    document.getElementById('messageInput').focus();
+    replyToMessageId = messageEl;
+  }
+  
+  // NEW: Edit message
+  function editMessage(btn) {
+    const messageEl = btn.closest('.message');
+    const text = messageEl.dataset.text;
+    
+    document.getElementById('messageInput').value = text;
+    document.getElementById('messageInput').placeholder = "Editing message...";
+    document.getElementById('messageInput').classList.add('edit-mode');
+    document.getElementById('messageInput').focus();
+    
+    isEditing = true;
+    editingMessageId = messageEl;
+  }
+  
+  // NEW: Delete message
+  function deleteMessage(btn) {
+    if (confirm("Delete this message?")) {
       const messageEl = btn.closest('.message');
-      let reactionContainer = messageEl.querySelector('.message-reaction');
-      
-      if (!reactionContainer) {
-        reactionContainer = document.createElement('div');
-        reactionContainer.className = 'message-reaction';
-        messageEl.querySelector('.message-content').appendChild(reactionContainer);
-      }
-      
-      reactionContainer.textContent = `${reaction} (You)`;
+      messageEl.remove();
+    }
+  }
+  
+  // NEW: Handle file selection - FIXED for both users
+  function handleFileSelect(event) {
+    const file = event.target.files[0];
+    if (!file) return;
+    
+    if (file.type.startsWith('image/')) {
+      const reader = new FileReader();
+      reader.onload = function(e) {
+        const imageData = e.target.result;
+        
+        // Show image immediately for sender
+        addImageMessage(currentUser.name, imageData, true);
+        
+        // Send image to other user via socket
+        socket.emit("image-message", {
+          room: room,
+          sender: currentUser.name,
+          imageData: imageData
+        });
+      };
+      reader.readAsDataURL(file);
+    } else {
+      alert('Please select an image file');
     }
     
-    // NEW: Reply to message
-    function replyToMessage(btn) {
-      const messageEl = btn.closest('.message');
-      const sender = messageEl.dataset.sender;
-      const text = messageEl.dataset.text;
-      
-      document.getElementById('messageInput').placeholder = `Replying to ${sender}: ${text}`;
-      document.getElementById('messageInput').focus();
-      replyToMessageId = messageEl;
-    }
-    
-    // NEW: Edit message
-    function editMessage(btn) {
-      const messageEl = btn.closest('.message');
-      const text = messageEl.dataset.text;
-      
-      document.getElementById('messageInput').value = text;
-      document.getElementById('messageInput').placeholder = "Editing message...";
-      document.getElementById('messageInput').classList.add('edit-mode');
-      document.getElementById('messageInput').focus();
-      
-      isEditing = true;
-      editingMessageId = messageEl;
-    }
-    
-    // NEW: Delete message
-    function deleteMessage(btn) {
-      if (confirm("Delete this message?")) {
-        const messageEl = btn.closest('.message');
-        messageEl.remove();
-      }
-    }
-    
-    // NEW: Handle file selection - FIXED for both users
-    function handleFileSelect(event) {
-      const file = event.target.files[0];
-      if (!file) return;
-      
-      if (file.type.startsWith('image/')) {
-        const reader = new FileReader();
-        reader.onload = function(e) {
-          const imageData = e.target.result;
-          
-          // Show image immediately for sender
-          addImageMessage(currentUser.name, imageData, true);
-          
-          // Send image to other user via socket
-          socket.emit("image-message", {
-            room: room,
-            sender: currentUser.name,
-            imageData: imageData
-          });
-        };
-        reader.readAsDataURL(file);
-      } else {
-        alert('Please select an image file');
-      }
-      
-      // Reset file input
-      event.target.value = '';
-    }
+    // Reset file input
+    event.target.value = '';
+  }
 
-    function toggleEmojiPicker() {
-      // Simple emoji picker implementation
-      const emojis = ['😀', '😂', '😍', '🥰', '😎', '🙏', '🔥', '👍', '❤️', '🎉'];
-      const picker = document.createElement('div');
-      picker.style.position = 'absolute';
-      picker.style.bottom = '60px';
-      picker.style.right = '20px';
-      picker.style.background = '#222';
-      picker.style.borderRadius = '10px';
-      picker.style.padding = '10px';
-      picker.style.display = 'grid';
-      picker.style.gridTemplateColumns = 'repeat(5, 1fr)';
-      picker.style.gap = '5px';
-      picker.style.zIndex = '1000';
-      
-      emojis.forEach(emoji => {
-        const span = document.createElement('span');
-        span.textContent = emoji;
-        span.style.cursor = 'pointer';
-        span.style.fontSize = '20px';
-        span.onclick = () => {
-          document.getElementById('messageInput').value += emoji;
+  function toggleEmojiPicker() {
+    // Simple emoji picker implementation
+    const emojis = ['😀', '😂', '😍', '🥰', '😎', '🙏', '🔥', '👍', '❤️', '🎉'];
+    const picker = document.createElement('div');
+    picker.style.position = 'absolute';
+    picker.style.bottom = '60px';
+    picker.style.right = '20px';
+    picker.style.background = '#222';
+    picker.style.borderRadius = '10px';
+    picker.style.padding = '10px';
+    picker.style.display = 'grid';
+    picker.style.gridTemplateColumns = 'repeat(5, 1fr)';
+    picker.style.gap = '5px';
+    picker.style.zIndex = '1000';
+    
+    emojis.forEach(emoji => {
+      const span = document.createElement('span');
+      span.textContent = emoji;
+      span.style.cursor = 'pointer';
+      span.style.fontSize = '20px';
+      span.onclick = () => {
+        document.getElementById('messageInput').value += emoji;
+        document.body.removeChild(picker);
+      };
+      picker.appendChild(span);
+    });
+    
+    document.body.appendChild(picker);
+    
+    // Remove picker when clicking outside
+    setTimeout(() => {
+      const clickHandler = (e) => {
+        if (!picker.contains(e.target)) {
           document.body.removeChild(picker);
-        };
-        picker.appendChild(span);
-      });
-      
-      document.body.appendChild(picker);
-      
-      // Remove picker when clicking outside
-      setTimeout(() => {
-        const clickHandler = (e) => {
-          if (!picker.contains(e.target)) {
-            document.body.removeChild(picker);
-            document.removeEventListener('click', clickHandler);
-          }
-        };
-        document.addEventListener('click', clickHandler);
-      }, 100);
-    }
-  </script>
+          document.removeEventListener('click', clickHandler);
+        }
+      };
+      document.addEventListener('click', clickHandler);
+    }, 100);
+  }
+
+  // Add unlock button to header
+  document.querySelector('.header-icons').innerHTML = `
+    <button class="icon-btn" onclick="toggleBot()"><i class="fas fa-robot"></i></button>
+    <button class="icon-btn" onclick="unlockChat()" title="Unlock Chat"><i class="fas fa-lock-open"></i></button>
+    <button class="icon-btn" onclick="clearChat()"><i class="fas fa-trash"></i></button>
+  `;
+</script>
 </body>
 </html>
