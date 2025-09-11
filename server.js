@@ -250,6 +250,7 @@ app.post("/clear-room", async (req, res) => {
 });
 
 // ✅ Toxicity Check Endpoint (Google Perspective API)
+// ✅ Toxicity Check Endpoint (Google Perspective API)
 app.post('/check-toxicity', async (req, res) => {
   try {
     const { message } = req.body;
@@ -267,25 +268,53 @@ app.post('/check-toxicity', async (req, res) => {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           comment: { text: message },
-          languages: ['en'],
-          requestedAttributes: { TOXICITY: {} }
+          languages: ['en', 'hi'],
+          requestedAttributes: { 
+            TOXICITY: {},
+            SEVERE_TOXICITY: {},
+            IDENTITY_ATTACK: {},
+            THREAT: {},
+            INSULT: {},
+            PROFANITY: {}
+          }
         })
       }
     );
 
     const data = await response.json();
-    const toxicityScore = data.attributeScores?.TOXICITY?.summaryScore?.value || 0;
+    
+    // Check multiple toxicity attributes
+    const attributes = ['TOXICITY', 'SEVERE_TOXICITY', 'IDENTITY_ATTACK', 'THREAT', 'INSULT', 'PROFANITY'];
+    let isToxic = false;
+    let maxScore = 0;
+
+    attributes.forEach(attr => {
+      const score = data.attributeScores?.[attr]?.summaryScore?.value || 0;
+      if (score > maxScore) maxScore = score;
+      if (score > 0.7) isToxic = true;
+    });
+
+    // Additional Hindi/Hinglish word check
+    const hindiBadWords = ['madarchod', 'bhenchod', 'chutiya', 'lund', 'gaand', 'maa ki', 'behen ki', 'kutta', 'kamina', 'harami'];
+    const containsHindiBadWord = hindiBadWords.some(word => 
+      message.toLowerCase().includes(word.toLowerCase())
+    );
+
+    if (containsHindiBadWord) {
+      isToxic = true;
+      maxScore = Math.max(maxScore, 0.9);
+    }
     
     res.json({ 
-      isToxic: toxicityScore > 0.7, 
-      score: toxicityScore 
+      isToxic: isToxic || containsHindiBadWord, 
+      score: maxScore,
+      detected: containsHindiBadWord ? 'Hindi bad word' : 'Toxic content'
     });
   } catch (error) {
     console.error('❌ Toxicity check error:', error);
     res.status(500).json({ error: 'Toxicity check failed' });
   }
 });
-
 // 🆕 GROUP CHAT ROUTES
 
 // 📋 Create Group
