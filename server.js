@@ -249,6 +249,43 @@ app.post("/clear-room", async (req, res) => {
   }
 });
 
+// ✅ Toxicity Check Endpoint (Google Perspective API)
+app.post('/check-toxicity', async (req, res) => {
+  try {
+    const { message } = req.body;
+    
+    if (!message) {
+      return res.status(400).json({ error: 'Message is required' });
+    }
+
+    const PERSPECTIVE_API_KEY = process.env.PERSPECTIVE_API_KEY;
+    
+    const response = await fetch(
+      `https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=${PERSPECTIVE_API_KEY}`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          comment: { text: message },
+          languages: ['en'],
+          requestedAttributes: { TOXICITY: {} }
+        })
+      }
+    );
+
+    const data = await response.json();
+    const toxicityScore = data.attributeScores?.TOXICITY?.summaryScore?.value || 0;
+    
+    res.json({ 
+      isToxic: toxicityScore > 0.7, 
+      score: toxicityScore 
+    });
+  } catch (error) {
+    console.error('❌ Toxicity check error:', error);
+    res.status(500).json({ error: 'Toxicity check failed' });
+  }
+});
+
 // 🆕 GROUP CHAT ROUTES
 
 // 📋 Create Group
