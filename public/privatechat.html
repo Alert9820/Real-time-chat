@@ -275,6 +275,17 @@
       border-radius: 8px;
     }
 
+    .phishing-warning {
+      text-align: center;
+      color: #ff9c2a;
+      font-style: italic;
+      margin: 10px 0;
+      background: rgba(255, 156, 42, 0.1);
+      padding: 8px;
+      border-radius: 8px;
+      border: 1px solid #ff9c2a;
+    }
+
     .locked-chat {
       background: #3a3a3a !important;
       cursor: not-allowed !important;
@@ -356,6 +367,54 @@
         return result.isToxic;
       } catch (error) {
         console.error("Toxicity check error:", error);
+        return false;
+      }
+    }
+
+    // ✅ NEW: Phishing Check Function
+    async function checkPhishing(text) {
+      try {
+        const response = await fetch('https://phishing-t66c.onrender.com/check', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text })
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP error! status: ${response.status}`);
+        }
+        
+        const data = await response.json();
+        
+        // Handle different response formats from Hugging Face
+        if (Array.isArray(data) && data.length > 0) {
+          const firstItem = data[0];
+          
+          // Handle nested array format
+          if (Array.isArray(firstItem)) {
+            const phishingData = firstItem.find(item => item.label && item.label.toLowerCase().includes('phishing'));
+            if (phishingData) {
+              return phishingData.score > 0.7;
+            }
+            return false;
+          }
+          
+          // Handle flat array format
+          if (firstItem.label && firstItem.score) {
+            const isPhishing = firstItem.label.toLowerCase().includes('phishing');
+            return isPhishing && firstItem.score > 0.7;
+          }
+        }
+        
+        // Handle single object format
+        if (data.label && data.score) {
+          const isPhishing = data.label.toLowerCase().includes('phishing');
+          return isPhishing && data.score > 0.7;
+        }
+        
+        return false;
+      } catch (error) {
+        console.error("Phishing check error:", error);
         return false;
       }
     }
@@ -550,7 +609,7 @@
       if (e.key === "Enter") sendMessage(); 
     });
 
-    // ✅ MODIFIED: Send message function with toxicity check
+    // ✅ MODIFIED: Send message function with toxicity AND phishing check
     async function sendMessage() {
       if (isSending) return;
       
@@ -567,31 +626,39 @@
         return;
       }
 
-      // Toxicity check - skip for bot commands
-      if (text !== ">>bot" && text !== "<<bot") {
-        const isToxic = await checkToxicity(text);
-        if (isToxic) {
-          const warnings = addWarning();
-          addWarningMessage(`⚠️ Warning ${warnings}/5: Please avoid abusive language!`);
-          
-          if (warnings >= 5) {
-            addWarningMessage("🔒 Chat locked for 30 seconds due to multiple warnings!");
-          }
-          
-          document.getElementById("messageInput").value = "";
-          return;
-        }
-      }
-
-      isSending = true;
-      
-      // Handle bot commands in global chat
+      // Skip checks for bot commands
       if (text === ">>bot" || text === "<<bot") {
+        isSending = true;
         socket.emit("message", text);
         document.getElementById("messageInput").value = "";
         isSending = false;
         return;
       }
+
+      // Check for phishing first
+      const isPhishing = await checkPhishing(text);
+      if (isPhishing) {
+        addPhishingWarning(text);
+        document.getElementById("messageInput").value = "";
+        return;
+      }
+
+      // Then check for toxicity
+      const isToxic = await checkToxicity(text);
+      if (isToxic) {
+        const warnings = addWarning();
+        addWarningMessage(`⚠️ Warning ${warnings}/5: Please avoid abusive language!`);
+        
+        if (warnings >= 5) {
+          addWarningMessage("🔒 Chat locked for 30 seconds due to multiple warnings!");
+        }
+        
+        document.getElementById("messageInput").value = "";
+        return;
+      }
+
+      // If all checks pass, send the message
+      isSending = true;
       
       const payload = { room, sender: currentUser.name, text };
       socket.emit("private-message", payload);
@@ -611,6 +678,25 @@
       }
       
       setTimeout(() => { isSending = false; }, 300);
+    }
+
+    // ✅ NEW: Phishing warning function
+    function addPhishingWarning(originalText) {
+      // Show warning to sender
+      const warningMessage = `🚫 Phishing link detected! Message deleted: "${truncateText(originalText, 50)}"`;
+      addPhishingMessage(warningMessage);
+      
+      // Also send a warning to the other user
+      const phishingPayload = {
+        room,
+        sender: "System",
+        text: `⚠️ ${currentUser.name} tried to send a phishing link that was automatically blocked`
+      };
+      socket.emit("private-message", phishingPayload);
+    }
+
+    function truncateText(text, maxLength) {
+      return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
     }
 
     // ✅ Message display functions
@@ -674,6 +760,15 @@
     function addWarningMessage(text) {
       const messageEl = document.createElement("div");
       messageEl.className = "warning-message";
+      messageEl.textContent = text;
+      
+      document.getElementById("chat").appendChild(messageEl);
+      document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+    }
+
+    function addPhishingMessage(text) {
+      const messageEl = document.createElement("div");
+      messageEl.className = "phishing-warning";
       messageEl.textContent = text;
       
       document.getElementById("chat").appendChild(messageEl);
