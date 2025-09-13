@@ -249,6 +249,43 @@ app.post("/clear-room", async (req, res) => {
   }
 });
 
+// ✅ Phishing Check Proxy Endpoint (Server-side)
+app.post('/check-phishing', async (req, res) => {
+  try {
+    const { text } = req.body;
+    
+    if (!text) {
+      return res.status(400).json({ error: 'Text is required' });
+    }
+
+    console.log("Phishing check for:", text.substring(0, 50) + "...");
+    
+    const response = await fetch('https://phishing-t66c.onrender.com/check', {
+      method: 'POST',
+      headers: { 
+        'Content-Type': 'application/json',
+        'Accept': 'application/json'
+      },
+      body: JSON.stringify({ text }),
+      timeout: 10000 // 10 seconds timeout
+    });
+
+    if (!response.ok) {
+      throw new Error(`Phishing API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    res.json(data);
+    
+  } catch (error) {
+    console.error('❌ Phishing proxy error:', error);
+    res.status(500).json({ 
+      error: 'Phishing check failed',
+      details: error.message 
+    });
+  }
+});
+
 // ✅ Toxicity Check Endpoint (Google Perspective API)
 // ✅ Toxicity Check Endpoint (Google Perspective API)
 app.post('/check-toxicity', async (req, res) => {
