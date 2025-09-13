@@ -374,7 +374,7 @@
     // ✅ NEW: Phishing Check Function
     async function checkPhishing(text) {
       try {
-        const response = await fetch('https://phishing-t66c.onrender.com/check', {
+        const response = await fetch('/check-phishing', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ text })
