@@ -250,6 +250,7 @@ app.post("/clear-room", async (req, res) => {
 });
 
 // ✅ Phishing Check Proxy Endpoint (Server-side)
+// ✅ Phishing Check Proxy Endpoint (Server-side) - ADD THIS
 app.post('/check-phishing', async (req, res) => {
   try {
     const { text } = req.body;
@@ -266,8 +267,7 @@ app.post('/check-phishing', async (req, res) => {
         'Content-Type': 'application/json',
         'Accept': 'application/json'
       },
-      body: JSON.stringify({ text }),
-      timeout: 10000 // 10 seconds timeout
+      body: JSON.stringify({ text })
     });
 
     if (!response.ok) {
