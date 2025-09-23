@@ -193,6 +193,27 @@
       background: #888; 
     }
 
+    .friend-actions {
+      display: flex;
+      gap: 10px;
+    }
+
+    .delete-btn {
+      background: #f44336;
+      color: white;
+      border: none;
+      padding: 6px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 12px;
+      transition: all 0.3s ease;
+    }
+
+    .delete-btn:hover {
+      background: #d32f2f;
+      transform: scale(1.05);
+    }
+
     .mailbox-popup {
       position: fixed;
       top: 80px;
@@ -265,7 +286,7 @@
       font-weight: bold;
     }
 
-    .mail-request button {
+    .accept-btn {
       background: linear-gradient(45deg, #6cf, #39f);
       color: #000;
       border: none;
@@ -275,10 +296,34 @@
       cursor: pointer;
       font-weight: 600;
       transition: all 0.3s ease;
+      min-width: 80px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 5px;
     }
 
-    .mail-request button:hover {
+    .accept-btn:hover:not(:disabled) {
       transform: scale(1.05);
+    }
+
+    .accept-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+
+    .loading-spinner {
+      width: 16px;
+      height: 16px;
+      border: 2px solid transparent;
+      border-top: 2px solid #000;
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+
+    @keyframes spin {
+      0% { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
     }
 
     .no-requests {
@@ -333,6 +378,11 @@
         right: 5%;
         left: 5%;
       }
+      
+      .friend-actions {
+        flex-direction: column;
+        gap: 5px;
+      }
     }
   </style>
 </head>
@@ -344,7 +394,10 @@
     <div class="nav-icons">
       <a href="/dashboard.html" title="Dashboard"><i class="fas fa-home"></i></a>
       <a href="/privatechat.html" title="Chat"><i class="fas fa-comment"></i></a>
-      <a href="#" onclick="toggleMailbox()" title="Friend Requests"><i class="fas fa-envelope"></i></a>
+      <a href="#" onclick="toggleMailbox()" title="Friend Requests">
+        <i class="fas fa-envelope"></i>
+        <span id="requestCount" style="display: none;"></span>
+      </a>
       <a href="#" onclick="logout()" title="Logout"><i class="fas fa-sign-out-alt"></i></a>
     </div>
   </div>
@@ -386,6 +439,7 @@
   const uidInput = document.getElementById("uidInput");
   const friendList = document.getElementById("friendList");
   const toast = document.getElementById("toast");
+  const requestCount = document.getElementById("requestCount");
 
   // Check if user is logged in
   const storedUser = localStorage.getItem("user");
@@ -394,6 +448,7 @@
   const { name, uid } = JSON.parse(storedUser);
   let friends = [];
   let requests = [];
+  let acceptingRequests = new Set(); // Track requests being accepted
 
   function showToast(message, type = "default") {
     toast.textContent = message;
@@ -457,6 +512,14 @@
       const names = await res.json();
       requests = names;
 
+      // Update request count badge
+      if (names.length > 0) {
+        requestCount.textContent = names.length;
+        requestCount.style.display = 'inline';
+      } else {
+        requestCount.style.display = 'none';
+      }
+
       const mailboxContent = mailboxPopup.querySelector(".no-requests");
       
       if (names.length === 0) {
@@ -480,7 +543,10 @@
               <div class="mail-request-avatar">${n.charAt(0).toUpperCase()}</div>
               <div>${n} sent you a request</div>
             </div>
-            <button onclick="acceptFriend('${n}')">Accept</button>
+            <button class="accept-btn" onclick="acceptFriend('${n}', this)" ${acceptingRequests.has(n) ? 'disabled' : ''}>
+              ${acceptingRequests.has(n) ? '<div class="loading-spinner"></div>' : '<i class="fas fa-check"></i>'}
+              ${acceptingRequests.has(n) ? 'Accepting...' : 'Accept'}
+            </button>
           `;
           mailboxPopup.appendChild(div);
         });
@@ -490,7 +556,20 @@
     }
   }
 
-  async function acceptFriend(friendName) {
+  async function acceptFriend(friendName, button) {
+    // Prevent multiple clicks
+    if (acceptingRequests.has(friendName)) {
+      return;
+    }
+
+    acceptingRequests.add(friendName);
+    
+    // Update button to loading state
+    if (button) {
+      button.innerHTML = '<div class="loading-spinner"></div> Accepting...';
+      button.disabled = true;
+    }
+
     try {
       const res = await fetch("/get-users");
       const users = await res.json();
@@ -510,10 +589,44 @@
       const msg = await confirmAdd.text();
       showToast("Friend added successfully", "success");
       
+      // Remove the request from UI immediately
+      if (button) {
+        button.closest('.mail-request').style.opacity = '0';
+        setTimeout(() => {
+          button.closest('.mail-request').remove();
+        }, 300);
+      }
+      
       getFriends();
       getRequests();
     } catch (error) {
       showToast("Error accepting request", "error");
+    } finally {
+      acceptingRequests.delete(friendName);
+    }
+  }
+
+  async function deleteFriend(friendUid, friendName) {
+    if (!confirm(`Are you sure you want to remove ${friendName} from your friends?`)) {
+      return;
+    }
+
+    try {
+      // You'll need to implement this endpoint on your server
+      const res = await fetch("/delete-friend", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ uid1: uid, uid2: friendUid })
+      });
+      
+      if (res.ok) {
+        showToast("Friend removed successfully", "success");
+        getFriends();
+      } else {
+        showToast("Error removing friend", "error");
+      }
+    } catch (error) {
+      showToast("Error removing friend", "error");
     }
   }
 
@@ -541,9 +654,16 @@
             <div class="friend-avatar">${f.name.charAt(0).toUpperCase()}</div>
             <div class="friend-name">${f.name}</div>
           </div>
-          <div class="friend-status">
-            <div class="status ${f.online ? 'online' : 'offline'}"></div>
-            <span>${f.online ? 'Online' : 'Offline'}</span>
+          <div style="display: flex; align-items: center; gap: 15px;">
+            <div class="friend-status">
+              <div class="status ${f.online ? 'online' : 'offline'}"></div>
+              <span>${f.online ? 'Online' : 'Offline'}</span>
+            </div>
+            <div class="friend-actions">
+              <button class="delete-btn" onclick="deleteFriend('${f.uid}', '${f.name}')">
+                <i class="fas fa-trash"></i> Remove
+              </button>
+            </div>
           </div>
         `;
         friendList.appendChild(div);
@@ -556,6 +676,13 @@
   // Load data on page load
   window.onload = () => {
     getFriends();
+    getRequests();
+    
+    // Refresh friends list every 30 seconds to update online status
+    setInterval(getFriends, 30000);
+    
+    // Refresh requests every minute
+    setInterval(getRequests, 60000);
   };
 </script>
 
