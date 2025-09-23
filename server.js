@@ -28,6 +28,44 @@ app.use(express.json());
 app.use(bodyParser.urlencoded({ extended: true }));
 app.use(express.static(path.join(__dirname, "public")));
 
+import rateLimit from 'express-rate-limit';
+import AbortController from 'abort-controller';
+
+// ✅ 1. Rate Limiter define karo
+const smallLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 100, // maximum 100 requests per minute
+  message: 'Too many requests, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// ✅ 2. Origin Validation function (Tumhare exact URL ke saath)
+function validateOrigin(req) {
+  const origin = req.get('origin');
+  if (!origin) return true;
+  
+  const ALLOWED_ORIGINS = [
+    'http://localhost:3000',
+    'http://localhost:4000',
+    'https://real-time-chat-1-pa6c.onrender.com' // ← TUMHARA EXACT URL
+  ];
+  
+  return ALLOWED_ORIGINS.includes(origin);
+}
+
+// ✅ 3. Safe Fetch with timeout
+async function safeFetch(url, options = {}, timeoutMs = 7000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
 // 🗃️ MongoDB Setup
 const uri = process.env.MONGO_URI;
 const client = new MongoClient(uri, {
