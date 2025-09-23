@@ -355,39 +355,36 @@
   const room = [currentUser.uid, friendUid].sort().join("_");
 
   // ✅ Toxicity check using your API
-  async function checkToxicity(message) {
-    try {
-      const response = await fetch('https://YOUR_RENDER_API_URL/check-toxicity', { // <- Replace with your Render API endpoint
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message })
-      });
-      const result = await response.json();
-      return result.isToxic; // API should return { isToxic: true/false }
-    } catch (err) {
-      console.error("Toxicity check error:", err);
-      return false;
-    }
+  // ✅ YEH PERFECT HAI - CHANGE MAT KARO!
+async function checkToxicity(message) {
+  try {
+    const response = await fetch('/check-toxicity', {  // ✅ '/' se start - relative path
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message })
+    });
+    const result = await response.json();
+    return result.isToxic;
+  } catch (err) {
+    console.error("Toxicity check error:", err);
+    return false;
   }
+}
 
-  // ✅ Phishing check using your API key
-  async function checkPhishing(text) {
-    try {
-      const response = await fetch('https://YOUR_RENDER_API_URL/check-phishing', { // <- Replace with your Render API endpoint
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer YOUR_API_KEY' // <- Use your actual API key
-        },
-        body: JSON.stringify({ text })
-      });
-      const data = await response.json();
-      return data.isPhishing; // API should return { isPhishing: true/false }
-    } catch (err) {
-      console.error("Phishing check error:", err);
-      return false;
-    }
+async function checkPhishing(text) {
+  try {
+    const response = await fetch('/check-phishing', {  // ✅ '/' se start - relative path
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
+    });
+    const data = await response.json();
+    return data.isPhishing;
+  } catch (err) {
+    console.error("Phishing check error:", err);
+    return false;
   }
+}
 
   // ✅ Warning & Lock logic
   function getWarnings() { return parseInt(localStorage.getItem(`${room}_warnings`) || '0'); }
