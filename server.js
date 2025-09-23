@@ -609,7 +609,29 @@ app.post("/rename-group", async (req, res) => {
   }
 });
 
-// ✅ ADD THIS AFTER ALL YOUR SOCKET.IO EVENT HANDLERS:
+
+
+
+// 🧠 Socket.IO Logic
+const users = {};       // socketId -> { uid, name, socketId }
+const activeCalls = {}; // uid -> call state
+
+io.on("connection", (socket) => {
+  console.log("🔌 User connected:", socket.id);
+
+  // Register user with name/uid
+  socket.on("register-call-user", (data) => {
+    if (data && data.uid) {
+      users[socket.id] = {
+        uid: data.uid,
+        name: data.name || "Unknown",
+        socketId: socket.id
+      };
+      console.log("📞 Registered:", data.uid, "->", socket.id);
+    }
+  });
+
+  // ✅ ADD THIS AFTER ALL YOUR SOCKET.IO EVENT HANDLERS:
 socket.on("private-message", async (data) => {
   try {
     // ✅ Server-side safety checks
@@ -660,26 +682,6 @@ socket.on("private-message", async (data) => {
     console.error("❌ Message validation error:", error);
   }
 });
-
-
-// 🧠 Socket.IO Logic
-const users = {};       // socketId -> { uid, name, socketId }
-const activeCalls = {}; // uid -> call state
-
-io.on("connection", (socket) => {
-  console.log("🔌 User connected:", socket.id);
-
-  // Register user with name/uid
-  socket.on("register-call-user", (data) => {
-    if (data && data.uid) {
-      users[socket.id] = {
-        uid: data.uid,
-        name: data.name || "Unknown",
-        socketId: socket.id
-      };
-      console.log("📞 Registered:", data.uid, "->", socket.id);
-    }
-  });
 
   // 📞 Handle call request
   socket.on("call-request", (data) => {
