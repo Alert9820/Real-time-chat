@@ -265,236 +265,248 @@ app.post("/clear-room", async (req, res) => {
 });
 
 // ✅ Phishing Check Proxy Endpoint (Server-side)
-// ✅ Phishing Check Proxy Endpoint (Server-side) - ADD THIS
+// ✅ setTimeout(() => controller.abort(), 5000); // 5 second timeout
+// --- Replace your existing /check-phishing and /check-toxicity route blocks with this ---
 
-// ✅ Toxicity Check Endpoint (Google Perspective API)
-// ✅ Toxicity Check Endpoint (Google Perspective API)
-// ✅ Phishing Check Endpoint - Frontend ke hisab se optimized
+import rateLimit from 'express-rate-limit';
+import AbortController from 'abort-controller'; // if using Node < 18, else optional
 
-    
-// ✅ IMPROVED: Phishing Check Endpoint
-app.post('/check-phishing', async (req, res) => {
+// small rate limiter (per IP)
+const smallLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 80,             // adjust as needed
+  standardHeaders: true,
+  legacyHeaders: false
+});
+
+// Allowed origins - update as needed
+const ALLOWED_ORIGINS = [
+  'http://localhost:3000',
+  'http://localhost:4000',
+  'https://your-frontend-domain.com',
+  'https://your-backend.onrender.com'
+];
+
+function validateOrigin(req) {
+  const origin = req.get('origin');
+  if (!origin) return true;
+  return ALLOWED_ORIGINS.includes(origin);
+}
+
+async function safeFetch(url, options = {}, timeoutMs = 7000) {
+  const controller = new AbortController();
+  const id = setTimeout(() => controller.abort(), timeoutMs);
   try {
+    const res = await fetch(url, { ...options, signal: controller.signal });
+    return res;
+  } finally {
+    clearTimeout(id);
+  }
+}
+
+/**
+ * POST /check-phishing
+ * Uses (in order): GOOGLE_API_KEY -> PHISHING_API_URL (external provider) -> heuristic fallback
+ */
+app.post('/check-phishing', smallLimiter, express.json({ limit: '12kb' }), async (req, res) => {
+  try {
+    if (!validateOrigin(req)) return res.status(403).json({ error: 'Forbidden origin' });
+
     const { text } = req.body;
-    
     if (!text || typeof text !== 'string') {
-      return res.json({ 
-        isPhishing: false,
-        confidence: 0,
-        message: 'Invalid input'
-      });
+      return res.status(400).json({ isPhishing: false, confidence: 0, error: 'Invalid text' });
     }
 
-    console.log("🔍 Phishing check for:", text.substring(0, 50) + "...");
-    
-    // Quick local check first (fast)
-    const localPhishingPatterns = [
-      /(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+)\.(?:login|verify|secure|account)/gi,
-      /bit\.ly|tinyurl|goo\.gl|t\.co|shorte\.st/gi,
-      /(urgent|immediately|verify.*account|password.*expire)/gi
-    ];
-    
-    for (const pattern of localPhishingPatterns) {
-      if (pattern.test(text)) {
-        console.log("🛡️ Local phishing pattern matched");
-        return res.json({
-          isPhishing: true,
-          confidence: 0.8,
-          message: 'Suspicious pattern detected'
-        });
+    // 1) If GOOGLE_API_KEY set -> use Safe Browsing
+    const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
+    if (GOOGLE_API_KEY) {
+      const urlRegex = /https?:\/\/[^\s]+/g;
+      const urls = text.match(urlRegex) || [];
+      const threatEntries = urls.length
+        ? urls.map(u => ({ url: u }))
+        : (/^[\w-]+(\.[\w-]+)+.*$/.test(text) ? [{ url: text.startsWith('http') ? text : `http://${text}` }] : []);
+
+      if (threatEntries.length === 0) {
+        return res.json({ isPhishing: false, confidence: 0, raw: { note: 'No URL to check' } });
+      }
+
+      const payload = {
+        client: { clientId: "sunnyapp", clientVersion: "1.0" },
+        threatInfo: {
+          threatTypes: ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE", "POTENTIALLY_HARMFUL_APPLICATION"],
+          platformTypes: ["ANY_PLATFORM"],
+          threatEntryTypes: ["URL"],
+          threatEntries
+        }
+      };
+
+      const googleUrl = `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${GOOGLE_API_KEY}`;
+      const apiRes = await safeFetch(googleUrl, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }, 7000);
+
+      if (apiRes && apiRes.ok) {
+        const json = await apiRes.json().catch(() => ({}));
+        const isPhishing = !!(json && json.matches && json.matches.length > 0);
+        const confidence = isPhishing ? 0.95 : 0;
+        return res.json({ isPhishing, confidence, raw: json });
+      } else {
+        console.error('Google SafeBrowsing failed or returned non-ok');
+        // fall through to external provider or fallback
       }
     }
 
-    // Then API check
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000); // 5 second timeout
-    
-    const response = await fetch('https://phishing-t66c.onrender.com/check', {
-      method: 'POST',
-      headers: { 
-        'Content-Type': 'application/json',
-        'Accept': 'application/json'
-      },
-      body: JSON.stringify({ text }),
-      signal: controller.signal
-    });
+    // 2) External phishing provider
+    const PHISHING_API_URL = process.env.PHISHING_API_URL;
+    if (PHISHING_API_URL) {
+      const headers = { 'Content-Type': 'application/json' };
+      if (process.env.PHISHING_API_KEY) headers['X-API-KEY'] = process.env.PHISHING_API_KEY;
 
-    clearTimeout(timeoutId);
+      const extRes = await safeFetch(PHISHING_API_URL, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify({ text })
+      }, 7000);
 
-    if (!response.ok) {
-      throw new Error(`Phishing API error: ${response.status}`);
-    }
-
-    const data = await response.json();
-    
-    // Simplified response handling
-    let isPhishing = false;
-    let confidence = 0;
-
-    // Handle array response
-    if (Array.isArray(data)) {
-      const flatData = data.flat();
-      const phishingItem = flatData.find(item => 
-        item.label && item.label.toLowerCase().includes('phishing')
-      );
-      if (phishingItem) {
-        isPhishing = phishingItem.score > 0.6;
-        confidence = phishingItem.score;
+      if (!extRes || !extRes.ok) {
+        const txt = await (extRes ? extRes.text().catch(()=>'') : Promise.resolve('no response'));
+        console.error('External phishing provider error:', txt);
+        return res.json({ isPhishing: false, confidence: 0, error: 'External provider error', raw: txt });
       }
-    } 
-    // Handle object response
-    else if (data.label && data.score) {
-      isPhishing = data.label.toLowerCase().includes('phishing') && data.score > 0.6;
-      confidence = data.score;
+
+      const extJson = await extRes.json().catch(()=>({}));
+      // Normalize expected shapes
+      let isPhishing = false;
+      let confidence = 0;
+
+      if (typeof extJson.isPhishing === 'boolean') {
+        isPhishing = extJson.isPhishing;
+        confidence = extJson.confidence || (isPhishing ? 0.8 : 0);
+      } else if (Array.isArray(extJson) && extJson.length > 0) {
+        const first = extJson[0];
+        if (Array.isArray(first)) {
+          const cand = first.find(i => i.label && typeof i.score === 'number');
+          if (cand) {
+            const lab = String(cand.label).toLowerCase();
+            isPhishing = lab.includes('phish') || lab.includes('malicious');
+            confidence = cand.score;
+          }
+        } else if (first.label && typeof first.score === 'number') {
+          const lab = String(first.label).toLowerCase();
+          isPhishing = lab.includes('phish') || lab.includes('malicious');
+          confidence = first.score;
+        }
+      } else if (extJson.label && typeof extJson.score === 'number') {
+        const lab = String(extJson.label).toLowerCase();
+        isPhishing = lab.includes('phish') || lab.includes('malicious');
+        confidence = extJson.score;
+      }
+
+      return res.json({ isPhishing: !!isPhishing, confidence: Number(confidence) || 0, raw: extJson });
     }
-    // Handle direct boolean
-    else if (typeof data.isPhishing === 'boolean') {
-      isPhishing = data.isPhishing;
-      confidence = data.confidence || 0.7;
-    }
-    
-    console.log(`🛡️ Phishing result: ${isPhishing} (confidence: ${confidence})`);
-    
-    res.json({
-      isPhishing,
-      confidence,
-      message: isPhishing ? 'Potential phishing content detected' : 'Content appears safe'
+
+    // 3) Heuristic fallback
+    const phishingKeywords = /(login|verify|secure|account|update|confirm|bank|paypal|password|credit|urgent|immediately)/i;
+    const urlRegex = /https?:\/\/[^\s]+/g;
+    const urls = text.match(urlRegex) || [];
+    const hasSuspicious = phishingKeywords.test(text) || urls.some(u => phishingKeywords.test(u));
+    return res.json({
+      isPhishing: hasSuspicious,
+      confidence: hasSuspicious ? 0.45 : 0,
+      raw: { note: 'heuristic fallback used' }
     });
-    
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      console.error('❌ Phishing check timeout');
-      res.json({ 
-        isPhishing: false,
-        confidence: 0,
-        error: 'Phishing check timeout',
-        message: 'Safety check skipped due to timeout'
-      });
-    } else {
-      console.error('❌ Phishing proxy error:', error);
-      res.json({ 
-        isPhishing: false,
-        confidence: 0,
-        error: 'Phishing service unavailable',
-        message: 'Safety check temporarily unavailable'
-      });
-    }
+  } catch (err) {
+    console.error('❌ /check-phishing internal error:', err);
+    return res.json({ isPhishing: false, confidence: 0, error: 'Phishing check temporarily unavailable' });
   }
 });
 
-// ✅ Toxicity Check Endpoint - Frontend compatible
-
-// ✅ IMPROVED: Toxicity Check Endpoint
-app.post('/check-toxicity', async (req, res) => {
+/**
+ * POST /check-toxicity
+ * Uses PERSPECTIVE_API_KEY if present, otherwise local fallback
+ */
+app.post('/check-toxicity', smallLimiter, express.json({ limit: '12kb' }), async (req, res) => {
   try {
+    if (!validateOrigin(req)) return res.status(403).json({ error: 'Forbidden origin' });
+
     const { message } = req.body;
-    
     if (!message || typeof message !== 'string') {
-      return res.json({ 
-        isToxic: false,
-        score: 0,
-        message: 'Invalid input'
-      });
-    }
-
-    // Enhanced Hindi bad words detection
-    const hindiBadWords = [
-      'madarchod', 'bhenchod', 'chutiya', 'lund', 'gaand', 'maa ki', 'behen ki', 
-      'kutta', 'kamina', 'harami', 'gandu', 'bhosdi', 'chod', 'lavde', 'randi',
-      'kuttiya', 'saala', 'suar', 'kamine', 'bewakoof', 'nautankibaaz', 'badmash'
-    ];
-
-    const lowerMessage = message.toLowerCase();
-    const foundHindiBadWord = hindiBadWords.some(word => 
-      lowerMessage.includes(word.toLowerCase())
-    );
-
-    if (foundHindiBadWord) {
-      console.log("🚫 Hindi toxic word detected");
-      return res.json({
-        isToxic: true,
-        score: 0.9,
-        detected: 'HINDI_BAD_WORD',
-        message: 'Inappropriate language detected'
-      });
+      return res.status(400).json({ isToxic: false, score: 0, error: 'Invalid message' });
     }
 
     const PERSPECTIVE_API_KEY = process.env.PERSPECTIVE_API_KEY;
-    
     if (!PERSPECTIVE_API_KEY) {
-      console.log('⚠️ Using enhanced fallback toxicity check');
-      return enhancedToxicityCheck(message, res);
+      const fallback = basicToxicityCheck(message);
+      return res.json({ isToxic: fallback.isToxic, score: fallback.score, detected: fallback.detected, raw: { note: 'fallback' } });
     }
 
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 5000);
+    const payload = {
+      comment: { text: message },
+      languages: ['en', 'hi'],
+      requestedAttributes: { TOXICITY: {}, SEVERE_TOXICITY: {}, IDENTITY_ATTACK: {}, THREAT: {}, INSULT: {}, PROFANITY: {} }
+    };
 
-    const response = await fetch(
-      `https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=${PERSPECTIVE_API_KEY}`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          comment: { text: message },
-          languages: ['en', 'hi'],
-          requestedAttributes: {
-            TOXICITY: {},
-            SEVERE_TOXICITY: {},
-            IDENTITY_ATTACK: {},
-            THREAT: {},
-            INSULT: {},
-            PROFANITY: {}
-          }
-        }),
-        signal: controller.signal
+    const url = `https://commentanalyzer.googleapis.com/v1alpha1/comments:analyze?key=${PERSPECTIVE_API_KEY}`;
+    const apiRes = await safeFetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload)
+    }, 7000);
+
+    if (!apiRes || !apiRes.ok) {
+      const txt = await (apiRes ? apiRes.text().catch(()=>'') : Promise.resolve('no response'));
+      console.error('Perspective API error:', txt);
+      const fallback = basicToxicityCheck(message);
+      return res.json({ isToxic: fallback.isToxic, score: fallback.score, detected: fallback.detected, raw: { error: 'perspective_failed' } });
+    }
+
+    const json = await apiRes.json().catch(()=>({}));
+    const attrs = json.attributeScores || {};
+    let maxScore = 0;
+    let detectedAttr = '';
+
+    for (const key of Object.keys(attrs)) {
+      const v = attrs[key]?.summaryScore?.value || 0;
+      if (v > maxScore) {
+        maxScore = v;
+        detectedAttr = key;
       }
-    );
-
-    clearTimeout(timeoutId);
-
-    if (!response.ok) {
-      throw new Error(`Perspective API error: ${response.status}`);
     }
 
-    const data = await response.json();
-    const toxicityResult = analyzeToxicity(data, message);
-    
-    res.json(toxicityResult);
-    
-  } catch (error) {
-    if (error.name === 'AbortError') {
-      console.error('❌ Toxicity check timeout');
-      enhancedToxicityCheck(req.body.message, res);
-    } else {
-      console.error('❌ Toxicity check error:', error);
-      enhancedToxicityCheck(req.body.message, res);
+    const hindiBadWords = ['madarchod','bhenchod','chutiya','lund','gaand','kutta','kamina','harami','gandu','bhosdi','chod','lavde'];
+    const containsHindi = hindiBadWords.some(w => message.toLowerCase().includes(w));
+    if (containsHindi) {
+      maxScore = Math.max(maxScore, 0.95);
+      detectedAttr = detectedAttr || 'HINDI_BAD_WORD';
     }
+
+    return res.json({
+      isToxic: maxScore > 0.7 || containsHindi,
+      score: Number(maxScore.toFixed(3)),
+      detected: detectedAttr || 'NONE',
+      raw: json
+    });
+  } catch (err) {
+    console.error('❌ /check-toxicity internal error:', err);
+    const fallback = basicToxicityCheck(req.body?.message || '');
+    return res.json({ isToxic: fallback.isToxic, score: fallback.score, detected: fallback.detected, raw: { error: 'internal' } });
   }
 });
 
-// ✅ Enhanced toxicity check with more words
-function enhancedToxicityCheck(message, res) {
+// Helper: server-side basicToxicityCheck (returns object)
+function basicToxicityCheck(message) {
   const badWords = [
-    // English
-    'fuck', 'shit', 'bitch', 'asshole', 'dick', 'pussy', 'bastard', 'whore', 'cunt',
-    'motherfucker', 'bullshit', 'damn', 'hell', 'douche', 'retard', 'faggot', 'slag',
-    
-    // Hindi (already checked above, but for completeness)
-    'madarchod', 'bhenchod', 'chutiya', 'lund', 'gaand', 'maa ki', 'behen ki'
+    'fuck','shit','bitch','asshole','dick','pussy','bastard','whore',
+    'madarchod','bhenchod','chutiya','lund','gaand','maa ki','behen ki','kutta','kamina','harami'
   ];
-
-  const lowerMessage = message.toLowerCase();
-  const foundBadWords = badWords.filter(word => lowerMessage.includes(word));
-  const isToxic = foundBadWords.length > 0;
-
-  res.json({
-    isToxic,
-    score: isToxic ? 0.8 : 0.1,
-    detected: isToxic ? foundBadWords[0] : 'CLEAN',
-    message: isToxic ? `Contains inappropriate content` : 'Content is safe'
-  });
-}
-// ✅ Helper function for toxicity analysis
+  const lower = (message || '').toLowerCase();
+  const found = badWords.find(w => lower.includes(w));
+  const isToxic = !!found;
+  return { isToxic, score: isToxic ? 0.85 : 0.05, detected: found || 'CLEAN' };
+          }
+    
 
 
 // 📋 Create Group
