@@ -222,6 +222,21 @@ app.get("/get-friends", async (req, res) => {
     res.status(500).send("Server error");
   }
 });
+// Add this to your server.js
+app.post("/delete-friend", async (req, res) => {
+  try {
+    const { uid1, uid2 } = req.body;
+    await friendCollection.deleteMany({
+      $or: [
+        { uid1, uid2 },
+        { uid1: uid2, uid2: uid1 }
+      ]
+    });
+    res.send("Friend removed successfully");
+  } catch (e) {
+    res.status(500).send("Error removing friend");
+  }
+});
 
 // ✅ GET Saved Private Chat
 app.get("/get-room-messages", async (req, res) => {
