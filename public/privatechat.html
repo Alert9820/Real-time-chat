@@ -331,7 +331,7 @@
     </div>
   </div>
 
-  <script src="/socket.io/socket.io.js"></script>
+<script src="/socket.io/socket.io.js"></script>
 <script>
     // ✅ Get current user
     const currentUser = JSON.parse(localStorage.getItem("user"));
@@ -354,500 +354,179 @@
 
     const room = [currentUser.uid, friendUid].sort().join("_");
 
-    // ✅ IMPROVED: Advanced Phishing Check Function
+    // ✅ Advanced Phishing Check using API
     async function checkPhishing(text) {
         try {
-            // First check for common phishing patterns locally (fast)
-            const phishingPatterns = [
+            // Local pattern check (fast)
+            const patterns = [
                 /(?:https?:\/\/)?(?:www\.)?([a-zA-Z0-9-]+)\.(?:login|verify|secure|account|update|confirm)/gi,
                 /bit\.ly|tinyurl|goo\.gl|t\.co|shorte\.st|adf\.ly|bitly\.com/gi,
-                /(urgent|immediately|verify.*account|password.*expire|security.*alert)/gi,
-                /free.*money|win.*prize|click.*here|limited.*time/gi,
-                /bank.*details|credit.*card|password.*reset|account.*recovery/gi
+                /(urgent|immediately|verify.*account|password.*expire|security.*alert)/gi
             ];
-            
-            for (const pattern of phishingPatterns) {
-                if (pattern.test(text)) {
-                    console.log("🛡️ Local phishing pattern detected");
-                    return true;
-                }
-            }
+            if (patterns.some(p => p.test(text))) return true;
 
-            // Check for suspicious URLs
-            const urlRegex = /https?:\/\/[^\s]+/g;
-            const urls = text.match(urlRegex);
-            if (urls) {
-                const suspiciousDomains = ['login', 'verify', 'secure', 'account', 'bank', 'paypal'];
-                const isSuspicious = urls.some(url => 
-                    suspiciousDomains.some(domain => url.toLowerCase().includes(domain))
-                );
-                if (isSuspicious) {
-                    console.log("🛡️ Suspicious URL detected");
-                    return true;
-                }
-            }
+            // URL suspicion check
+            const urls = text.match(/https?:\/\/[^\s]+/g);
+            if (urls && urls.some(url => ['login','verify','secure','account','bank','paypal'].some(d => url.toLowerCase().includes(d)))) return true;
 
-            // Then use API for advanced detection
+            // Server API check
             const response = await fetch('/check-phishing', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ text })
             });
-            
-            if (!response.ok) {
-                throw new Error(`HTTP error! status: ${response.status}`);
-            }
-            
             const data = await response.json();
-            console.log("🛡️ Phishing API response:", data);
-            
-            // Handle multiple response formats
-            if (data.isPhishing !== undefined) {
-                return data.isPhishing;
-            }
-            
-            if (Array.isArray(data) && data.length > 0) {
-                const firstItem = data[0];
-                
-                if (Array.isArray(firstItem)) {
-                    const phishingData = firstItem.find(item => item.label && 
-                        (item.label.toLowerCase().includes('phishing') || item.label.toLowerCase().includes('malicious')));
-                    return phishingData ? phishingData.score > 0.6 : false;
-                }
-                
-                if (firstItem.label && firstItem.score) {
-                    const isPhishing = firstItem.label.toLowerCase().includes('phishing') || 
-                                      firstItem.label.toLowerCase().includes('malicious');
-                    return isPhishing && firstItem.score > 0.6;
-                }
-            }
-            
-            if (data.label && data.score) {
-                const isPhishing = data.label.toLowerCase().includes('phishing') || 
-                                  data.label.toLowerCase().includes('malicious');
-                return isPhishing && data.score > 0.6;
-            }
-            
+            if (data.isPhishing !== undefined) return data.isPhishing;
             return false;
-        } catch (error) {
-            console.error("🛡️ Phishing check error:", error);
-            // Fallback: basic pattern matching
-            const fallbackPatterns = [
-                /login.*required|verify.*now|security.*breach/gi,
-                /claim.*reward|free.*gift|won.*prize/gi
-            ];
-            return fallbackPatterns.some(pattern => pattern.test(text));
+        } catch (err) {
+            console.error("Phishing API error:", err);
+            return false; // fallback
         }
     }
 
-    // ✅ IMPROVED: Enhanced Toxicity Check Function
+    // ✅ Advanced Toxicity Check using API
     async function checkToxicity(message) {
         try {
-            // First check for common toxic words locally (fast)
-            const toxicWords = [
-                // English
-                'fuck', 'shit', 'bitch', 'asshole', 'dick', 'pussy', 'bastard', 'whore', 'cunt',
-                'motherfucker', 'bullshit', 'damn', 'hell', 'douche', 'retard', 'faggot',
-                
-                // Hindi
-                'madarchod', 'bhenchod', 'chutiya', 'lund', 'gaand', 'maa ki', 'behen ki', 
-                'kutta', 'kamina', 'harami', 'gandu', 'bhosdi', 'chod', 'lavde', 'randi',
-                'kuttiya', 'saala', 'suar', 'kamine', 'bewakoof'
-            ];
-            
-            const lowerMessage = message.toLowerCase();
-            const foundToxicWord = toxicWords.some(word => lowerMessage.includes(word.toLowerCase()));
-            if (foundToxicWord) {
-                console.log("🚫 Local toxic word detected");
-                return true;
-            }
+            // Local toxic words
+            const toxicWords = ['fuck','shit','bitch','asshole','madarchod','bhenchod','chutiya','lund','gaand'];
+            if (toxicWords.some(w => message.toLowerCase().includes(w))) return true;
 
-            // Then use API for advanced detection
+            // Server API check
             const response = await fetch('/check-toxicity', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({ message })
             });
-            
-            if (!response.ok) {
-                throw new Error('Toxicity API error');
-            }
-            
             const result = await response.json();
-            console.log("🚫 Toxicity API result:", result);
-            
-            // Dynamic threshold based on warning count
             const warnings = getWarnings();
-            const dynamicThreshold = 0.7 - (warnings * 0.08); // Gets stricter with more warnings
-            const finalThreshold = Math.max(dynamicThreshold, 0.3); // Minimum 30%
-            
-            return result.isToxic || (result.score > finalThreshold);
-            
-        } catch (error) {
-            console.error("🚫 Toxicity check error:", error);
-            // Fallback to basic word check
-            const basicToxicWords = ['madarchod', 'bhenchod', 'chutiya', 'fuck', 'shit', 'bitch'];
-            return basicToxicWords.some(word => message.toLowerCase().includes(word));
+            const threshold = Math.max(0.3, 0.7 - warnings * 0.08);
+            return result.isToxic || (result.score > threshold);
+        } catch (err) {
+            console.error("Toxicity API error:", err);
+            return false; // fallback
         }
     }
 
-    // ✅ IMPROVED: Advanced Warning System with Progressive Lock Times
+    // ✅ Warning & Lock system
     function getWarnings() {
-        const warningData = JSON.parse(localStorage.getItem(`${room}_warning_data`)) || { count: 0, lockLevel: 0 };
-        return warningData.count;
+        const data = JSON.parse(localStorage.getItem(`${room}_warning_data`)) || {count:0, lockLevel:0};
+        return data.count;
     }
-
     function getLockLevel() {
-        const warningData = JSON.parse(localStorage.getItem(`${room}_warning_data`)) || { count: 0, lockLevel: 0 };
-        return warningData.lockLevel;
+        const data = JSON.parse(localStorage.getItem(`${room}_warning_data`)) || {count:0, lockLevel:0};
+        return data.lockLevel;
     }
-
     function setWarningData(count, lockLevel) {
-        const warningData = { count, lockLevel, timestamp: Date.now(), userId: currentUser.uid };
-        localStorage.setItem(`${room}_warning_data`, JSON.stringify(warningData));
+        localStorage.setItem(`${room}_warning_data`, JSON.stringify({count, lockLevel, timestamp: Date.now(), userId: currentUser.uid}));
         updateWarningDisplay();
     }
-
     function addWarning() {
-        const warningData = JSON.parse(localStorage.getItem(`${room}_warning_data`)) || { count: 0, lockLevel: 0 };
-        warningData.count += 1;
-        
-        // Increase lock level every 5 warnings
-        if (warningData.count % 5 === 0) {
-            warningData.lockLevel += 1;
-        }
-        
-        setWarningData(warningData.count, warningData.lockLevel);
-        
-        // Start chat lock if warnings reach threshold
-        if (warningData.count >= 5) {
-            startChatLock(warningData.lockLevel);
-        }
-        
-        return warningData.count;
+        const data = JSON.parse(localStorage.getItem(`${room}_warning_data`)) || {count:0, lockLevel:0};
+        data.count +=1;
+        if(data.count %5===0) data.lockLevel+=1;
+        setWarningData(data.count,data.lockLevel);
+        if(data.count>=5) startChatLock(data.lockLevel);
+        return data.count;
     }
-
     function resetWarnings() {
-        // Only reset count, preserve lock level for persistence
-        const warningData = JSON.parse(localStorage.getItem(`${room}_warning_data`)) || { count: 0, lockLevel: 0 };
-        setWarningData(0, warningData.lockLevel);
+        const data = JSON.parse(localStorage.getItem(`${room}_warning_data`)) || {count:0, lockLevel:0};
+        setWarningData(0,data.lockLevel);
         clearChatLock();
     }
 
-    // ✅ IMPROVED: Progressive Lock System
-    function getLockTimes() {
-        return [30, 60, 120, 300, 600]; // 30s, 1m, 2m, 5m, 10m
+    function getLockTimes() { return [30,60,120,300,600]; }
+    function isChatLocked() {
+        const lockData = JSON.parse(localStorage.getItem(`${room}_lock_data`)) || {unlockTime:0};
+        return lockData.unlockTime && Date.now() < lockData.unlockTime;
     }
-
-    function getLockTime() {
-        const lockData = JSON.parse(localStorage.getItem(`${room}_lock_data`)) || { unlockTime: 0, lockLevel: 0 };
-        return lockData.unlockTime;
-    }
-
     function setLockTime(unlockTime, lockLevel) {
-        const lockData = { unlockTime, lockLevel, userId: currentUser.uid };
-        localStorage.setItem(`${room}_lock_data`, JSON.stringify(lockData));
+        localStorage.setItem(`${room}_lock_data`, JSON.stringify({unlockTime, lockLevel, userId: currentUser.uid}));
     }
-
     function clearChatLock() {
         localStorage.removeItem(`${room}_lock_data`);
         updateWarningDisplay();
     }
-
-    function isChatLocked() {
-        const lockData = JSON.parse(localStorage.getItem(`${room}_lock_data`)) || { unlockTime: 0 };
-        if (!lockData.unlockTime) return false;
-        
-        return Date.now() < lockData.unlockTime;
-    }
-
-    function startChatLock(lockLevel = 0) {
-        const lockTimes = getLockTimes();
-        const lockDuration = lockTimes[Math.min(lockLevel, lockTimes.length - 1)] * 1000; // Convert to milliseconds
-        const unlockTime = Date.now() + lockDuration;
-        
-        setLockTime(unlockTime, lockLevel);
+    function startChatLock(lockLevel=0) {
+        const duration = getLockTimes()[Math.min(lockLevel,getLockTimes().length-1)]*1000;
+        setLockTime(Date.now()+duration,lockLevel);
         updateWarningDisplay();
-        
-        // Start countdown timer
         startLockCountdown();
-        
-        // Notify user
-        const lockMinutes = Math.ceil(lockDuration / 1000 / 60);
-        addWarningMessage(`🔒 Chat locked for ${lockMinutes} minute(s) due to multiple violations!`);
+        addWarningMessage(`🔒 Chat locked for ${Math.ceil(duration/1000/60)} minute(s)!`);
     }
-
     function startLockCountdown() {
-        // Clear any existing interval
-        if (window.lockCountdownInterval) {
-            clearInterval(window.lockCountdownInterval);
-        }
-        
-        window.lockCountdownInterval = setInterval(() => {
-            const lockData = JSON.parse(localStorage.getItem(`${room}_lock_data`)) || { unlockTime: 0 };
-            if (!lockData.unlockTime) {
-                clearInterval(window.lockCountdownInterval);
-                return;
-            }
-            
-            const timeRemaining = lockData.unlockTime - Date.now();
-            
-            if (timeRemaining <= 0) {
-                clearInterval(window.lockCountdownInterval);
-                clearChatLock();
-                addSystemMessage("✅ Chat unlocked. You can message now.");
-                return;
-            }
-            
-            updateCountdownDisplay(Math.ceil(timeRemaining / 1000));
-        }, 1000);
+        if(window.lockCountdownInterval) clearInterval(window.lockCountdownInterval);
+        window.lockCountdownInterval = setInterval(()=>{
+            const lockData = JSON.parse(localStorage.getItem(`${room}_lock_data`)) || {unlockTime:0};
+            const remaining = lockData.unlockTime - Date.now();
+            if(remaining<=0){clearInterval(window.lockCountdownInterval); clearChatLock(); addSystemMessage("✅ Chat unlocked."); return;}
+            updateCountdownDisplay(Math.ceil(remaining/1000));
+        },1000);
     }
-
-    function updateCountdownDisplay(seconds) {
-        const statusElement = document.getElementById('userStatus');
-        if (statusElement) {
-            const minutes = Math.floor(seconds / 60);
-            const remainingSeconds = seconds % 60;
-            statusElement.innerHTML = `Locked: <span class="countdown-timer">${minutes}:${remainingSeconds.toString().padStart(2, '0')}</span>`;
-        }
+    function updateCountdownDisplay(sec){
+        const el = document.getElementById('userStatus');
+        if(el){ const m=Math.floor(sec/60), s=sec%60; el.innerHTML=`Locked: <span class="countdown-timer">${m}:${s.toString().padStart(2,'0')}</span>`;}
     }
-
-    function updateWarningDisplay() {
-        const warnings = getWarnings();
-        const lockLevel = getLockLevel();
-        const statusElement = document.getElementById('userStatus');
-        
-        if (isChatLocked()) {
-            const lockData = JSON.parse(localStorage.getItem(`${room}_lock_data`)) || { unlockTime: 0 };
-            const timeRemaining = Math.ceil((lockData.unlockTime - Date.now()) / 1000);
-            
-            document.getElementById("messageInput").disabled = true;
+    function updateWarningDisplay(){
+        const warnings=getWarnings(), lockLevel=getLockLevel(), el=document.getElementById('userStatus');
+        if(isChatLocked()){
+            const lockData=JSON.parse(localStorage.getItem(`${room}_lock_data`))||{unlockTime:0};
+            const timeRemaining=Math.ceil((lockData.unlockTime-Date.now())/1000);
+            document.getElementById("messageInput").disabled=true;
             document.getElementById("messageInput").classList.add('locked-chat');
-            document.getElementById("messageInput").placeholder = `Chat locked (Level ${lockLevel + 1})`;
-            document.getElementById("sendBtn").disabled = true;
-            
-            if (statusElement) {
-                const minutes = Math.floor(timeRemaining / 60);
-                const seconds = timeRemaining % 60;
-                statusElement.innerHTML = `Locked L${lockLevel + 1}: <span class="countdown-timer">${minutes}:${seconds.toString().padStart(2, '0')}</span>`;
-                statusElement.style.color = '#ff6b6b';
-            }
+            document.getElementById("messageInput").placeholder=`Chat locked (Level ${lockLevel+1})`;
+            document.getElementById("sendBtn").disabled=true;
+            if(el){const m=Math.floor(timeRemaining/60),s=timeRemaining%60; el.innerHTML=`Locked L${lockLevel+1}: <span class="countdown-timer">${m}:${s.toString().padStart(2,'0')}</span>`; el.style.color='#ff6b6b';}
         } else {
-            document.getElementById("messageInput").disabled = false;
+            document.getElementById("messageInput").disabled=false;
             document.getElementById("messageInput").classList.remove('locked-chat');
-            document.getElementById("messageInput").placeholder = "Type a message...";
-            document.getElementById("sendBtn").disabled = false;
-            
-            if (statusElement) {
-                statusElement.textContent = warnings > 0 ? `Online (Warnings: ${warnings}, Level: ${lockLevel + 1})` : 'Online';
-                statusElement.style.color = warnings >= 5 ? '#ffa726' : '';
-            }
+            document.getElementById("messageInput").placeholder="Type a message...";
+            document.getElementById("sendBtn").disabled=false;
+            if(el){el.textContent=warnings>0?`Online (Warnings:${warnings}, Level:${lockLevel+1})`:'Online'; el.style.color=warnings>=5?'#ffa726':'';}
         }
-    }
-
-    // ✅ IMPROVED: Clear Chat without resetting warnings
-    function clearChat() {
-        if (confirm("Clear all messages in this chat? (Warning: This will not reset your warning count)")) {
-            fetch('/clear-room', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ room })
-            })
-            .then(response => response.text())
-            .then(result => {
-                document.getElementById("chat").innerHTML = '<div class="typing-indicator" id="typingIndicator"></div>';
-                
-                // Preserve lock status
-                if (isChatLocked()) {
-                    const lockData = JSON.parse(localStorage.getItem(`${room}_lock_data`)) || { unlockTime: 0 };
-                    const timeRemaining = Math.ceil((lockData.unlockTime - Date.now()) / 1000);
-                    addSystemMessage(`Chat cleared. Lock remains active for ${timeRemaining} seconds.`);
-                } else {
-                    addSystemMessage("Chat cleared successfully");
-                }
-            })
-            .catch(error => console.error('Error clearing chat:', error));
-        }
-    }
-
-    // ✅ Initialize on page load
-    function initializeChat() {
-        // Check for existing lock status
-        const lockData = JSON.parse(localStorage.getItem(`${room}_lock_data`)) || { unlockTime: 0 };
-        const warningData = JSON.parse(localStorage.getItem(`${room}_warning_data`)) || { count: 0, lockLevel: 0 };
-        
-        // Verify data belongs to current user
-        if (lockData.userId !== currentUser.uid) {
-            localStorage.removeItem(`${room}_lock_data`);
-            localStorage.removeItem(`${room}_warning_data`);
-        } else if (isChatLocked()) {
-            startLockCountdown();
-        }
-        
-        updateWarningDisplay();
     }
 
     // ✅ Socket setup
     const socket = io();
-    let isSending = false;
-    let botActive = false;
-    let isEditing = false;
-    let editingMessageId = null;
-    let replyToMessageId = null;
-
-    socket.on("connect", () => {
-        console.log("Connected:", socket.id);
-        socket.emit("set_name", { uid: currentUser.uid, name: currentUser.name });
-        socket.emit("join-room", room);
-
-        // Initialize chat system
+    let isSending=false;
+    socket.on("connect", ()=>{
+        socket.emit("set_name",{uid:currentUser.uid,name:currentUser.name});
+        socket.emit("join-room",room);
         initializeChat();
-
-        // Load previous messages
-        fetch(`/get-room-messages?room=${room}`)
-            .then(res => res.json())
-            .then(msgs => msgs.forEach(m => {
-                if (!m.text.includes('__signal')) {
-                    addMessage(m.sender, m.text, m.sender === currentUser.name, m.sender === 'BotX');
-                }
-            }))
-            .catch(err => console.error("Failed to load messages:", err));
+        fetch(`/get-room-messages?room=${room}`).then(r=>r.json()).then(msgs=>msgs.forEach(m=>{if(!m.text.includes('__signal')) addMessage(m.sender,m.text,m.sender===currentUser.name,m.sender==='BotX');})).catch(e=>console.error(e));
     });
+    socket.on("private-message",data=>{if(!data.text.includes('__signal')) addMessage(data.sender,data.text,data.sender===currentUser.name);});
+    socket.on("bot-reply",data=>addMessage(data.sender,data.text,false,true));
+    socket.on("image-message",data=>{if(data.room===room)addImageMessage(data.sender,data.imageData,data.sender===currentUser.name);});
+    socket.on("typing",data=>{if(data.room===room&&data.sender!==currentUser.name){const ind=document.getElementById('typingIndicator');ind.textContent=`${data.sender} is typing...`;ind.style.display='block'; clearTimeout(window.typingTimeout); window.typingTimeout=setTimeout(()=>{ind.style.display='none';},2000);}});
+    socket.on("message",data=>{if(data.sender==="System"&&data.text.includes("Bot")) addSystemMessage(data.text);});
 
-    // ... (rest of your socket event handlers remain the same)
-    socket.on("private-message", data => {
-        if (!data.text.includes('__signal')) {
-            addMessage(data.sender, data.text, data.sender === currentUser.name);
-        }
-    });
-    
-    socket.on("bot-reply", data => {
-        addMessage(data.sender, data.text, false, true);
-    });
+    // ✅ Send Message
+    async function sendMessage(){
+        if(isSending) return;
+        let text=document.getElementById("messageInput").value.trim();
+        if(!text) return;
+        if(isChatLocked()){const l=JSON.parse(localStorage.getItem(`${room}_lock_data`))||{unlockTime:0}; addWarningMessage(`🔒 Chat locked! Wait ${Math.ceil((l.unlockTime-Date.now())/1000)} sec.`); document.getElementById("messageInput").value=''; return;}
+        if(text==="<<bot"||text===">>bot"){isSending=true; socket.emit("message",text); document.getElementById("messageInput").value=''; isSending=false; return;}
 
-    socket.on("image-message", data => {
-        if (data.room === room) {
-            addImageMessage(data.sender, data.imageData, data.sender === currentUser.name);
-        }
-    });
+        if(await checkPhishing(text)){addPhishingWarning(text); document.getElementById("messageInput").value=''; return;}
+        if(await checkToxicity(text)){const w=addWarning(), lv=getLockLevel(); addWarningMessage(`⚠️ Warning ${w}/5 (Level ${lv+1})`); if(w>=5) addWarningMessage(`🔒 Chat locked due to violations!`); document.getElementById("messageInput").value=''; return;}
 
-    socket.on("typing", (data) => {
-        if (data.room === room && data.sender !== currentUser.name) {
-            const indicator = document.getElementById('typingIndicator');
-            indicator.textContent = `${data.sender} is typing...`;
-            indicator.style.display = 'block';
-            
-            clearTimeout(window.typingTimeout);
-            window.typingTimeout = setTimeout(() => {
-                indicator.style.display = 'none';
-            }, 2000);
-        }
-    });
-
-    socket.on("message", (data) => {
-        if (data.sender === "System" && data.text.includes("Bot")) {
-            addSystemMessage(data.text);
-        }
-    });
-
-    // ✅ IMPROVED: Send message function
-    async function sendMessage() {
-        if (isSending) return;
-        
-        const text = document.getElementById("messageInput").value.trim();
-        if (!text) return;
-
-        // Chat locked check
-        if (isChatLocked()) {
-            const lockData = JSON.parse(localStorage.getItem(`${room}_lock_data`)) || { unlockTime: 0 };
-            const timeRemaining = Math.ceil((lockData.unlockTime - Date.now()) / 1000);
-            addWarningMessage(`🔒 Chat locked! Please wait ${timeRemaining} seconds.`);
-            document.getElementById("messageInput").value = "";
-            return;
-        }
-
-        // Skip checks for bot commands
-        if (text === ">>bot" || text === "<<bot") {
-            isSending = true;
-            socket.emit("message", text);
-            document.getElementById("messageInput").value = "";
-            isSending = false;
-            return;
-        }
-
-        // Check for phishing first
-        const isPhishing = await checkPhishing(text);
-        if (isPhishing) {
-            addPhishingWarning(text);
-            document.getElementById("messageInput").value = "";
-            return;
-        }
-
-        // Then check for toxicity
-        const isToxic = await checkToxicity(text);
-        if (isToxic) {
-            const warnings = addWarning();
-            const lockLevel = getLockLevel();
-            addWarningMessage(`⚠️ Warning ${warnings}/5 (Level ${lockLevel + 1}): Toxic content detected!`);
-            
-            if (warnings >= 5) {
-                const lockTimes = getLockTimes();
-                const lockDuration = lockTimes[Math.min(lockLevel, lockTimes.length - 1)];
-                addWarningMessage(`🔒 Chat locked for ${lockDuration} seconds due to multiple violations!`);
-            }
-            
-            document.getElementById("messageInput").value = "";
-            return;
-        }
-
-        // If all checks pass, send the message
-        isSending = true;
-        
-        const payload = { room, sender: currentUser.name, text };
-        socket.emit("private-message", payload);
-        
-        document.getElementById("messageInput").value = "";
-        
-        // Reset edit and reply modes
-        if (isEditing) {
-            isEditing = false;
-            editingMessageId = null;
-            document.getElementById('messageInput').placeholder = "Type a message...";
-            document.getElementById('messageInput').classList.remove('edit-mode');
-        }
-        
-        if (replyToMessageId) {
-            replyToMessageId = null;
-        }
-        
-        setTimeout(() => { isSending = false; }, 300);
+        isSending=true;
+        socket.emit("private-message",{room,sender:currentUser.name,text});
+        document.getElementById("messageInput").value='';
+        setTimeout(()=>{isSending=false;},300);
     }
 
-    // ... (rest of your functions remain the same)
-    function addPhishingWarning(originalText) {
-        const warningMessage = `🚫 Phishing link detected! Message blocked: "${truncateText(originalText, 50)}"`;
-        addPhishingMessage(warningMessage);
-        
-        const phishingPayload = {
-            room,
-            sender: "System",
-            text: `⚠️ ${currentUser.name} tried to send a phishing link (automatically blocked)`
-        };
-        socket.emit("private-message", phishingPayload);
+    function initializeChat(){
+        const l=JSON.parse(localStorage.getItem(`${room}_lock_data`))||{unlockTime:0}, w=JSON.parse(localStorage.getItem(`${room}_warning_data`))||{count:0,lockLevel:0};
+        if(l.userId!==currentUser.uid){localStorage.removeItem(`${room}_lock_data`); localStorage.removeItem(`${room}_warning_data`);}
+        else if(isChatLocked()) startLockCountdown();
+        updateWarningDisplay();
     }
 
-    function truncateText(text, maxLength) {
-        return text.length > maxLength ? text.substring(0, maxLength) + '...' : text;
-    }
+    function addPhishingWarning(text){ addSystemMessage(`🚫 Phishing link blocked: "${text}"`); }
 
-    // Initialize when page loads
-    document.addEventListener('DOMContentLoaded', function() {
-        initializeChat();
-        document.getElementById("sendBtn").addEventListener("click", sendMessage);
-        document.getElementById("messageInput").addEventListener("keypress", e => { 
-            if (e.key === "Enter") sendMessage(); 
-        });
-    });
 </script>
+        
 </body>
 </html>
