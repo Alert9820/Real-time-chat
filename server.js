@@ -659,7 +659,7 @@ io.on("connection", (socket) => {
   });*/
 
    // ✅ Server-side phishing check wala message handler
-socket.on("private-message", async (data) => {
+ socket.on("private-message", async (data) => {
   try {
     console.log('🔍 Checking message:', data.text);
     
@@ -683,7 +683,7 @@ socket.on("private-message", async (data) => {
       return;
     }
 
-    // ✅ Toxicity check
+    // ✅ Toxicity check - YE PART CHANGE KARO
     const toxicityResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/check-toxicity`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -694,10 +694,11 @@ socket.on("private-message", async (data) => {
     console.log('🤖 Toxicity result:', toxicityResult);
     
     if (toxicityResult.isToxic) {
-      socket.emit("private-message", {
+      // ✅ DONO USERS KO NOTIFICATION BEJHO (io.to use karo)
+      io.to(data.room).emit("private-message", {
         room: data.room,
         sender: "System", 
-        text: "⚠️ Your message was blocked for inappropriate content"
+        text: `⚠️ ${data.sender} tried to send inappropriate content that was blocked`
       });
       return;
     }
