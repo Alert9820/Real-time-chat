@@ -726,7 +726,7 @@ io.on("connection", (socket) => {
     });
   }
 });*/
-socket.on("private-message", async (data) => {
+/*socket.on("private-message", async (data) => {
   try {
     // ✅ Toxicity check
     const toxicityResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/check-toxicity`, {
@@ -759,7 +759,61 @@ socket.on("private-message", async (data) => {
   } catch (error) {
     console.error("❌ Message error:", error);
   }
+});*/
+
+
+  socket.on("private-message", async (data) => {
+  try {
+    // ✅ Phishing check
+    const phishingResponse = await fetch('/check-phishing', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: data.text })
+    });
+    
+    const phishingResult = await phishingResponse.json();
+    
+    if (phishingResult.isPhishing) {
+      io.to(data.room).emit("private-message", {
+        room: data.room,
+        sender: "System",
+        text: `🚫 Phishing link detected from ${data.sender}`
+      });
+      return;
+    }
+
+    // ✅ Toxicity check
+    const toxicityResponse = await fetch('/check-toxicity', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: data.text })
+    });
+    
+    const toxicityResult = await toxicityResponse.json();
+    
+    if (toxicityResult.isToxic) {
+      io.to(data.room).emit("private-message", {
+        room: data.room,
+        sender: "System", 
+        text: `🚫 Message from ${data.sender} was blocked for toxic behavior`
+      });
+      return;
+    }
+
+    // ✅ Safe message forward
+    socket.to(data.room).emit("private-message", data);
+    await privateMsgCollection.insertOne({
+      room: data.room,
+      sender: data.sender,
+      text: data.text,
+      timestamp: new Date()
+    });
+
+  } catch (error) {
+    console.error("❌ Message error:", error);
+  }
 });
+  
   // 📞 Handle call request
   socket.on("call-request", (data) => {
     if (!data.to || !data.callerId) return;
