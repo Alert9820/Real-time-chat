@@ -509,32 +509,55 @@ async function checkPhishing(text) {
   }*/
 
   // ✅ IMPROVED WARNING SYSTEM - CLEAR CHAT/LOGOUT SE BHI NA JAYE
+
+  // ✅ IMPROVED WARNING SYSTEM - 24 HOURS LOCK
 function getWarnings() { 
   return parseInt(localStorage.getItem(`${room}_warnings`) || '0'); 
 }
 
 function setWarnings(count) { 
   localStorage.setItem(`${room}_warnings`, count.toString()); 
+  // ✅ Warning timestamp bhi save karo
+  localStorage.setItem(`${room}_warnings_time`, Date.now().toString());
   updateWarningDisplay(); 
   return count; 
 }
 
 function addWarning() { 
+  // ✅ Pehle check karo 24 hours beet chuke hain kya
+  if (shouldResetWarnings()) {
+    resetWarnings();
+  }
+  
   const newWarnings = getWarnings() + 1;
   setWarnings(newWarnings); 
   
-  // ✅ TIMER INCREASE KARO HAR WARNING PE
-  const lockDurations = [30, 60, 120, 240, 480]; // 30s, 1m, 2m, 4m, 8m
-  const lockDuration = lockDurations[Math.min(newWarnings-1, lockDurations.length-1)];
-  
-  if(newWarnings >= 5) startChatLock(lockDuration);
+  // ✅ 5 warnings ke baad 24 hours ka lock
+  if(newWarnings >= 5) {
+    startChatLock(24 * 60 * 60); // 24 hours in seconds
+  }
   return newWarnings; 
+}
+
+function shouldResetWarnings() {
+  const lastWarningTime = parseInt(localStorage.getItem(`${room}_warnings_time`) || '0');
+  if (!lastWarningTime) return false;
+  
+  const twentyFourHours = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
+  return (Date.now() - lastWarningTime) > twentyFourHours;
+}
+
+function resetWarnings() {
+  localStorage.removeItem(`${room}_warnings`);
+  localStorage.removeItem(`${room}_warnings_time`);
+  clearChatLock();
+  updateWarningDisplay();
 }
 
 function startChatLock(seconds = 30) {
   const unlockTime = Math.floor(Date.now()/1000) + seconds;
   localStorage.setItem(`${room}_lock_time`, unlockTime.toString());
-  localStorage.setItem(`${room}_lock_duration`, seconds.toString()); // Store duration
+  localStorage.setItem(`${room}_lock_duration`, seconds.toString());
   updateWarningDisplay();
   startLockCountdown();
 }
@@ -548,23 +571,114 @@ function getLockTime() {
   return parseInt(localStorage.getItem(`${room}_lock_time`) || '0');
 }
 
-  function addPhishingMessage(text){
-    const el = document.createElement("div");
-    el.className = "phishing-warning";
-    el.textContent = text;
-    document.getElementById("chat").appendChild(el);
-    document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
-  }
+function clearChatLock() { 
+  localStorage.removeItem(`${room}_lock_time`); 
+  localStorage.removeItem(`${room}_lock_duration`);
+  updateWarningDisplay(); 
+}
 
-  function handleTyping(){
-    if(socket && room) socket.emit("typing",{room,sender:currentUser.name});
-  }
+function startLockCountdown() {
+  const interval = setInterval(() => {
+    const remaining = getLockTime() - Math.floor(Date.now()/1000);
+    if(remaining <= 0) {
+      clearInterval(interval); 
+      clearChatLock(); 
+      addSystemMessage("🔓 Chat unlocked. You can message now.");
+      // ✅ Lock khatam hone pe warnings reset nahi karo
+      return;
+    }
+    
+    // ✅ Format time properly (hours:minutes:seconds)
+    const hours = Math.floor(remaining / 3600);
+    const minutes = Math.floor((remaining % 3600) / 60);
+    const seconds = remaining % 60;
+    
+    let timeString = '';
+    if (hours > 0) {
+      timeString = `${hours}h ${minutes}m ${seconds}s`;
+    } else if (minutes > 0) {
+      timeString = `${minutes}m ${seconds}s`;
+    } else {
+      timeString = `${seconds}s`;
+    }
+    
+    updateCountdownDisplay(timeString);
+  }, 1000);
+}
 
-  function toggleBot(){
-    if(botActive){ socket.emit("message","<<bot"); botActive=false; } 
-    else { socket.emit("message",">>bot"); botActive=true; }
-  }
+function updateCountdownDisplay(timeString){ 
+  const s = document.getElementById('userStatus'); 
+  if(s) s.innerHTML = `Locked: <span class="countdown-timer">${timeString}</span>`; 
+}
 
+function updateWarningDisplay(){
+  const w = getWarnings(); 
+  const s = document.getElementById('userStatus');
+  
+  if(isChatLocked()){
+    document.getElementById("messageInput").disabled = true;
+    document.getElementById("messageInput").classList.add('locked-chat');
+    document.getElementById("messageInput").placeholder = "Chat locked - too many warnings";
+    document.getElementById("sendBtn").disabled = true;
+    
+    if(s) {
+      const remaining = getLockTime() - Math.floor(Date.now()/1000);
+      const hours = Math.floor(remaining / 3600);
+      const minutes = Math.floor((remaining % 3600) / 60);
+      const seconds = remaining % 60;
+      
+      let timeString = '';
+      if (hours > 0) {
+        timeString = `${hours}h ${minutes}m ${seconds}s`;
+      } else if (minutes > 0) {
+        timeString = `${minutes}m ${seconds}s`;
+      } else {
+        timeString = `${seconds}s`;
+      }
+      
+      s.innerHTML = `Locked: <span class="countdown-timer">${timeString}</span>`; 
+      s.style.color = '#ff6b6b';
+    }
+  } else {
+    document.getElementById("messageInput").disabled = false;
+    document.getElementById("messageInput").classList.remove('locked-chat');
+    document.getElementById("messageInput").placeholder = "Type a message...";
+    document.getElementById("sendBtn").disabled = false;
+    
+    if(s) {
+      s.textContent = w > 0 ? `Online (Warnings: ${w}/5)` : 'Online'; 
+      s.style.color = '';
+    }
+  }
+}
+
+// ✅ Clear chat function me RESET WARNINGS HATA DO
+function clearChat(){
+  if(confirm("Clear all messages in this chat?")){
+    fetch('/clear-room',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({room})
+    })
+    .then(()=> {
+      document.getElementById("chat").innerHTML = '<div class="typing-indicator" id="typingIndicator"></div>';
+      addSystemMessage("Chat cleared successfully");
+      // ✅ Warnings aur lock reset mat karo - sirf messages clear karo
+      // resetWarnings(); // YE LINE COMMENT KARDO YA HATA DO
+    })
+    .catch(console.error);
+  }
+}
+
+// ✅ Page load pe check karo 24 hours beet chuke hain kya
+window.addEventListener('load', function() {
+  if (shouldResetWarnings()) {
+    resetWarnings();
+    addSystemMessage("⚠️ Warning system has been reset after 24 hours.");
+  }
+  updateWarningDisplay();
+  if(isChatLocked()) startLockCountdown();
+});
   /*function clearChat(){
     if(confirm("Clear all messages in this chat?")){
       fetch('/clear-room',{
@@ -581,7 +695,7 @@ function getLockTime() {
     }
   }*/
 
-  function clearChat(){
+  /*function clearChat(){
   if(confirm("Clear all messages in this chat?")){
     fetch('/clear-room',{
       method:'POST',
@@ -596,7 +710,7 @@ function getLockTime() {
     })
     .catch(console.error);
   }
-  }
+  }*/
 
   function reactToMessage(btn,reaction){
     const el = btn.closest('.message');
