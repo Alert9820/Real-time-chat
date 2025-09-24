@@ -11,7 +11,7 @@ import fetch from "node-fetch";
 import dotenv from "dotenv";
 dotenv.config();
 
-// 📁 Path setup
+// 📁 Path setup tum
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -813,6 +813,79 @@ io.on("connection", (socket) => {
 
   } catch (error) {
     console.error("❌ Message error:", error);
+  }
+});
+
+  // ✅ Group message with safety checks
+socket.on("group-message", async (data) => {
+  try {
+    console.log('🔍 Checking group message:', data.text);
+    
+    // ✅ Phishing check
+    const phishingResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/check-phishing`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: data.text })
+    });
+    
+    const phishingResult = await phishingResponse.json();
+    
+    if (phishingResult.isPhishing) {
+      // ✅ SARE GROUP MEMBERS KO NOTIFICATION BEJHO
+      io.to(`group-${data.groupId}`).emit("group-message", {
+        groupId: data.groupId,
+        sender: "System",
+        senderName: "System",
+        text: `🚫 Phishing link detected from ${data.senderName}. Message blocked.`,
+        timestamp: new Date()
+      });
+      return;
+    }
+
+    // ✅ Toxicity check
+    const toxicityResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/check-toxicity`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: data.text })
+    });
+    
+    const toxicityResult = await toxicityResponse.json();
+    
+    if (toxicityResult.isToxic) {
+      // ✅ SARE GROUP MEMBERS KO NOTIFICATION BEJHO
+      io.to(`group-${data.groupId}`).emit("group-message", {
+        groupId: data.groupId,
+        sender: "System",
+        senderName: "System", 
+        text: `🚫 Message from ${data.senderName} was blocked for toxic behavior`,
+        timestamp: new Date()
+      });
+      return;
+    }
+
+    // ✅ If message is safe, broadcast to group
+    socket.to(`group-${data.groupId}`).emit("group-message", data);
+    
+    // ✅ Save to database
+    await groupMessageCollection.insertOne({
+      groupId: data.groupId,
+      sender: data.sender,
+      senderName: data.senderName,
+      text: data.text,
+      timestamp: new Date()
+    });
+
+  } catch (error) {
+    console.error("❌ Group message validation error:", error);
+    // Fallback: allow message if check fails
+    socket.to(`group-${data.groupId}`).emit("group-message", data);
+    await groupMessageCollection.insertOne({
+      groupId: data.groupId,
+      sender: data.sender,
+      senderName: data.senderName,
+      text: data.text,
+      timestamp: new Date()
+    });
   }
 });
   
