@@ -349,12 +349,14 @@ app.post('/check-phishing', express.json(), async (req, res) => {
 
     // ✅ 2. IMPROVED HEURISTIC CHECK (Hugging Face fail hone par)
     const phishingKeywords = [
-      'login', 'verify', 'secure', 'account', 'update', 'confirm', 
-      'bank', 'paypal', 'password', 'credit', 'urgent', 'immediately',
-      'facebook', 'instagram', 'whatsapp', 'amazon', 'paytm', 'sbi', 'hdfc',
-      'lottery', 'prize', 'won', 'winner', 'reward', 'claim', 'free', 'money',
-      'security', 'alert', 'warning', 'suspicious', 'activity', 'verification'
-    ];
+  'login', 'verify', 'secure', 'account', 'update', 'confirm', 
+  'bank', 'paypal', 'password', 'credit', 'urgent', 'immediately',
+  'facebook', 'instagram', 'whatsapp', 'amazon', 'paytm', 'sbi', 'hdfc',
+  'lottery', 'prize', 'won', 'winner', 'reward', 'claim', 'free', 'money',
+  'security', 'alert', 'warning', 'suspicious', 'activity', 'verification',
+  'hack', 'crack', 'password', 'recovery', 'unlock', 'suspend', 'limit',
+  'phishing', 'scam', 'fraud', 'cheat', 'trick', 'steal', 'hack'
+];
     
     const urlRegex = /https?:\/\/[^\s]+/g;
     const urls = text.match(urlRegex) || [];
