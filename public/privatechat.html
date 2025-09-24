@@ -330,7 +330,6 @@
       <button id="sendBtn"><i class="fas fa-paper-plane"></i></button>
     </div>
   </div>
-
 <script src="/socket.io/socket.io.js"></script>
 <script>
   // ✅ Get current user
@@ -354,140 +353,184 @@
 
   const room = [currentUser.uid, friendUid].sort().join("_");
 
-  // ✅ Toxicity check using your API
-  // ✅ YEH PERFECT HAI - CHANGE MAT KARO!
-async function checkToxicity(message) {
-  try {
-    const response = await fetch('/check-toxicity', {  // ✅ '/' se start - relative path
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message })
-    });
-    const result = await response.json();
-    return result.isToxic;
-  } catch (err) {
-    console.error("Toxicity check error:", err);
-    return false;
-  }
-}
-
-async function checkPhishing(text) {
-  try {
-    const response = await fetch('/check-phishing', {  // ✅ '/' se start - relative path
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
-    });
-    const data = await response.json();
-    return data.isPhishing;
-  } catch (err) {
-    console.error("Phishing check error:", err);
-    return false;
-  }
-}
-
-  // ✅ Warning & Lock logic
-  function getWarnings() { return parseInt(localStorage.getItem(`${room}_warnings`) || '0'); }
-  function setWarnings(count) { localStorage.setItem(`${room}_warnings`, count.toString()); updateWarningDisplay(); return count; }
-  function addWarning() { const newWarnings = getWarnings()+1; setWarnings(newWarnings); if(newWarnings>=5) startChatLock(); return newWarnings; }
-  function resetWarnings() { setWarnings(0); clearChatLock(); }
-  function getLockTime() { return parseInt(localStorage.getItem(`${room}_lock_time`)||'0'); }
-  function setLockTime(ts) { localStorage.setItem(`${room}_lock_time`, ts.toString()); }
-  function clearChatLock() { localStorage.removeItem(`${room}_lock_time`); updateWarningDisplay(); }
-  function isChatLocked() { const t=getLockTime(); return t ? (t - Math.floor(Date.now()/1000))>0 : false; }
-  function startChatLock() { const unlockTime = Math.floor(Date.now()/1000)+30; setLockTime(unlockTime); updateWarningDisplay(); startLockCountdown(); }
-  function startLockCountdown() {
-    const interval = setInterval(() => {
-      const remaining = getLockTime()-Math.floor(Date.now()/1000);
-      if(remaining<=0){clearInterval(interval); clearChatLock(); addSystemMessage("Chat unlocked. You can message now."); return;}
-      updateCountdownDisplay(remaining);
-    },1000);
-  }
-  function updateCountdownDisplay(seconds){ const s=document.getElementById('userStatus'); if(s)s.innerHTML=`Locked: <span class="countdown-timer">${seconds}s</span>`; }
-  function updateWarningDisplay(){
-    const w=getWarnings(); const s=document.getElementById('userStatus');
-    if(isChatLocked()){
-      document.getElementById("messageInput").disabled=true;
-      document.getElementById("messageInput").classList.add('locked-chat');
-      document.getElementById("messageInput").placeholder="Chat locked - too many warnings";
-      document.getElementById("sendBtn").disabled=true;
-      if(s){const r=getLockTime()-Math.floor(Date.now()/1000); s.innerHTML=`Locked: <span class="countdown-timer">${r}s</span>`; s.style.color='#ff6b6b';}
-    } else {
-      document.getElementById("messageInput").disabled=false;
-      document.getElementById("messageInput").classList.remove('locked-chat');
-      document.getElementById("messageInput").placeholder="Type a message...";
-      document.getElementById("sendBtn").disabled=false;
-      if(s){s.textContent = w>0?`Online (Warnings: ${w}/5)`:'Online'; s.style.color='';}
+  // ✅ Toxicity & Phishing check
+  async function checkToxicity(message) {
+    try {
+      const response = await fetch('/check-toxicity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message })
+      });
+      const result = await response.json();
+      return result.isToxic;
+    } catch (err) {
+      console.error("Toxicity check error:", err);
+      return false;
     }
   }
 
-  // ✅ Socket setup
-  const socket = io();
-  let isSending=false, botActive=false, isEditing=false, editingMessageId=null, replyToMessageId=null;
+  async function checkPhishing(text) {
+    try {
+      const response = await fetch('/check-phishing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text })
+      });
+      const data = await response.json();
+      return data.isPhishing;
+    } catch (err) {
+      console.error("Phishing check error:", err);
+      return false;
+    }
+  }
 
-  socket.on("connect",()=>{
-    console.log("Connected:",socket.id);
-    socket.emit("set_name",{uid:currentUser.uid,name:currentUser.name});
-    socket.emit("join-room",room);
+  // ✅ IMPROVED WARNING SYSTEM
+  function getWarnings() { 
+    return parseInt(localStorage.getItem(`${room}_warnings`) || '0'); 
+  }
+
+  function setWarnings(count) { 
+    localStorage.setItem(`${room}_warnings`, count.toString()); 
+    localStorage.setItem(`${room}_warnings_time`, Date.now().toString());
+    updateWarningDisplay(); 
+    return count; 
+  }
+
+  function addWarning() { 
+    if (shouldResetWarnings()) {
+      resetWarnings();
+    }
+    
+    const newWarnings = getWarnings() + 1;
+    setWarnings(newWarnings); 
+    
+    // ✅ Increasing timer: 30s, 60s, 120s, 240s, 480s
+    const lockDurations = [30, 60, 120, 240, 480];
+    const lockDuration = lockDurations[Math.min(newWarnings-1, lockDurations.length-1)];
+    
+    if(newWarnings >= 5) {
+      startChatLock(lockDuration);
+      return {warnings: newWarnings, locked: true, duration: lockDuration};
+    }
+    return {warnings: newWarnings, locked: false};
+  }
+
+  function shouldResetWarnings() {
+    const lastWarningTime = parseInt(localStorage.getItem(`${room}_warnings_time`) || '0');
+    if (!lastWarningTime) return false;
+    const twentyFourHours = 24 * 60 * 60 * 1000;
+    return (Date.now() - lastWarningTime) > twentyFourHours;
+  }
+
+  function resetWarnings() {
+    localStorage.removeItem(`${room}_warnings`);
+    localStorage.removeItem(`${room}_warnings_time`);
+    clearChatLock();
     updateWarningDisplay();
-    if(isChatLocked()) startLockCountdown();
-    fetch(`/get-room-messages?room=${room}`).then(r=>r.json()).then(msgs=>msgs.forEach(m=>{if(!m.text.includes('__signal')) addMessage(m.sender,m.text,m.sender===currentUser.name,m.sender==='BotX')})).catch(console.error);
-  });
-
-  socket.on("private-message",data=>{ if(!data.text.includes('__signal')) addMessage(data.sender,data.text,data.sender===currentUser.name); });
-  socket.on("bot-reply",data=>{ addMessage(data.sender,data.text,false,true); });
-  socket.on("image-message",data=>{ if(data.room===room) addImageMessage(data.sender,data.imageData,data.sender===currentUser.name); });
-  socket.on("typing",data=>{ if(data.room===room && data.sender!==currentUser.name){ const i=document.getElementById('typingIndicator'); i.textContent=`${data.sender} is typing...`; i.style.display='block'; clearTimeout(window.typingTimeout); window.typingTimeout=setTimeout(()=>{i.style.display='none';},2000); } });
-  socket.on("message",data=>{ if(data.sender==="System" && data.text.includes("Bot")) addSystemMessage(data.text); });
-
-  document.getElementById("sendBtn").addEventListener("click",sendMessage);
-  document.getElementById("messageInput").addEventListener("keypress",e=>{ if(e.key==="Enter") sendMessage(); });
-
-  // ✅ Send message with toxicity + phishing check
-  async function sendMessage(){
-    if(isSending) return;
-    const text=document.getElementById("messageInput").value.trim();
-    if(!text) return;
-
-    if(isChatLocked()){ const remaining=getLockTime()-Math.floor(Date.now()/1000); addWarningMessage(`Chat locked! Please wait ${remaining} seconds.`); document.getElementById("messageInput").value=""; return; }
-    if(text===">>bot"||text==="<<bot"){ isSending=true; socket.emit("message",text); document.getElementById("messageInput").value=""; isSending=false; return; }
-
-    // ✅ Phishing check
-    if(await checkPhishing(text)){ addPhishingWarning(text); document.getElementById("messageInput").value=""; return; }
-
-    // ✅ Toxicity check
-    if(await checkToxicity(text)){ const w=addWarning(); addWarningMessage(`⚠️ Warning ${w}/5: Please avoid abusive language!`); if(w>=5) addWarningMessage("🔒 Chat locked for 30 seconds due to multiple warnings!"); document.getElementById("messageInput").value=""; return; }
-
-    // ✅ Send message if all clear
-    isSending=true;
-    socket.emit("private-message",{room,sender:currentUser.name,text});
-    document.getElementById("messageInput").value="";
-    if(isEditing){ isEditing=false; editingMessageId=null; document.getElementById('messageInput').placeholder="Type a message..."; document.getElementById('messageInput').classList.remove('edit-mode'); }
-    if(replyToMessageId) replyToMessageId=null;
-    setTimeout(()=>{ isSending=false; },300);
   }
 
-  function addPhishingWarning(text){
-    addPhishingMessage(`🚫 Phishing link detected! Message deleted: "${text.length>50?text.substring(0,50)+'...':text}"`);
-    socket.emit("private-message",{room,sender:"System",text:`⚠️ ${currentUser.name} tried to send a phishing link that was automatically blocked`});
+  function startChatLock(seconds = 30) {
+    const unlockTime = Math.floor(Date.now()/1000) + seconds;
+    localStorage.setItem(`${room}_lock_time`, unlockTime.toString());
+    updateWarningDisplay();
+    startLockCountdown();
   }
 
-  function addMessage(sender,text,mine=false,isBot=false){ 
-    const el=document.createElement("div"); el.className="message "+(mine?"mine":"other"); el.dataset.sender=sender; el.dataset.text=text;
-    const ts=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-    el.innerHTML=`${!mine?`<div class="message-sender">${sender} ${isBot?'<span class="bot-indicator">BOT</span>':''}</div>`:''}
-    <div class="message-content"><div class="message-text ${isBot?'bot-message':''}">${text}</div><div class="message-meta">${ts} ${mine?'<i class="fas fa-check-double" style="color: #00af9c; margin-left: 3px;"></i>':''}</div></div>
-    <div class="message-actions"><div class="action-btn reaction-btn" onclick="reactToMessage(this,'😊')">😊</div><div class="action-btn" onclick="replyToMessage(this)"><i class="fas fa-reply"></i></div>${mine&&!isBot?`<div class="action-btn" onclick="editMessage(this)"><i class="fas fa-edit"></i></div><div class="action-btn" onclick="deleteMessage(this)"><i class="fas fa-trash"></i></div>`:''}</div>`;
-    document.getElementById("chat").appendChild(el);
-    document.getElementById("chat").scrollTop=document.getElementById("chat").scrollHeight;
+  function isChatLocked() { 
+    const t = getLockTime();
+    return t ? (t - Math.floor(Date.now()/1000)) > 0 : false;
   }
 
-  function addImageMessage(sender,imageData,mine=false){ const el=document.createElement("div"); el.className="message "+(mine?"mine":"other"); const ts=new Date().toLocaleTimeString([],{hour:'2-digit',minute:'2-digit'});
-    el.innerHTML=`${!mine?`<div class="message-sender">${sender}</div>`:''}<div class="message-content"><div class="media-preview"><img src="${imageData}" alt="Shared image"></div><div class="message-meta">${ts} ${mine?'<i class="fas fa-check-double" style="color: #00af9c; margin-left: 3px;"></i>':''}</div></div>
-<div class="message-actions">
-  <div class="action-btn reaction-btn" onclick="reactToMessage(this,'😊')">😊</div>
-  <div class="action-btn" onclick="replyToMessage(this)"><i class="fas fa-reply"></i></div>
-</div>`;
+  function getLockTime() { 
+    return parseInt(localStorage.getItem(`${room}_lock_time`) || '0');
+  }
+
+  function clearChatLock() { 
+    localStorage.removeItem(`${room}_lock_time`); 
+    updateWarningDisplay(); 
+  }
+
+  function startLockCountdown() {
+    const interval = setInterval(() => {
+      const remaining = getLockTime() - Math.floor(Date.now()/1000);
+      if(remaining <= 0) {
+        clearInterval(interval); 
+        clearChatLock(); 
+        addSystemMessage("🔓 Chat unlocked. You can message now.");
+        return;
+      }
+      updateCountdownDisplay(remaining);
+    }, 1000);
+  }
+
+  function updateCountdownDisplay(seconds){ 
+    const s = document.getElementById('userStatus'); 
+    if(s) {
+      const hours = Math.floor(seconds / 3600);
+      const minutes = Math.floor((seconds % 3600) / 60);
+      const secs = seconds % 60;
+      
+      let timeString = '';
+      if (hours > 0) timeString = `${hours}h ${minutes}m ${secs}s`;
+      else if (minutes > 0) timeString = `${minutes}m ${secs}s`;
+      else timeString = `${secs}s`;
+      
+      s.innerHTML = `Locked: <span class="countdown-timer">${timeString}</span>`; 
+    }
+  }
+
+  function updateWarningDisplay(){
+    const w = getWarnings(); 
+    const s = document.getElementById('userStatus');
+    
+    if(isChatLocked()){
+      document.getElementById("messageInput").disabled = true;
+      document.getElementById("messageInput").classList.add('locked-chat');
+      document.getElementById("messageInput").placeholder = "Chat locked - too many warnings";
+      document.getElementById("sendBtn").disabled = true;
+      
+      if(s) {
+        const remaining = getLockTime() - Math.floor(Date.now()/1000);
+        updateCountdownDisplay(remaining);
+        s.style.color = '#ff6b6b';
+      }
+    } else {
+      document.getElementById("messageInput").disabled = false;
+      document.getElementById("messageInput").classList.remove('locked-chat');
+      document.getElementById("messageInput").placeholder = "Type a message...";
+      document.getElementById("sendBtn").disabled = false;
+      
+      if(s) {
+        s.textContent = w > 0 ? `Online (Warnings: ${w}/5)` : 'Online'; 
+        s.style.color = '';
+      }
+    }
+  }
+
+  // ✅ Message display functions
+  function addMessage(sender, text, mine = false, isBot = false){ 
+    const el = document.createElement("div"); 
+    el.className = "message " + (mine ? "mine" : "other"); 
+    el.dataset.sender = sender; 
+    el.dataset.text = text;
+    
+    const ts = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+    el.innerHTML = `
+      ${!mine ? `<div class="message-sender">${sender} ${isBot ? '<span class="bot-indicator">BOT</span>' : ''}</div>` : ''}
+      <div class="message-content">
+        <div class="message-text ${isBot ? 'bot-message' : ''}">${text}</div>
+        <div class="message-meta">${ts} ${mine ? '<i class="fas fa-check-double" style="color: #00af9c; margin-left: 3px;"></i>' : ''}</div>
+      </div>
+      <div class="message-actions">
+        <div class="action-btn reaction-btn" onclick="reactToMessage(this,'😊')">😊</div>
+        <div class="action-btn" onclick="replyToMessage(this)"><i class="fas fa-reply"></i></div>
+        ${mine && !isBot ? `
+          <div class="action-btn" onclick="editMessage(this)"><i class="fas fa-edit"></i></div>
+          <div class="action-btn" onclick="deleteMessage(this)"><i class="fas fa-trash"></i></div>
+        ` : ''}
+      </div>
+    `;
+    
     document.getElementById("chat").appendChild(el);
     document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
   }
@@ -500,210 +543,204 @@ async function checkPhishing(text) {
     document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
   }
 
-  /*function addWarningMessage(text){
+  function addWarningMessage(text){
     const el = document.createElement("div");
     el.className = "warning-message";
     el.textContent = text;
     document.getElementById("chat").appendChild(el);
     document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
-  }*/
-
-  // ✅ IMPROVED WARNING SYSTEM - CLEAR CHAT/LOGOUT SE BHI NA JAYE
-
-  // ✅ IMPROVED WARNING SYSTEM - 24 HOURS LOCK
-function getWarnings() { 
-  return parseInt(localStorage.getItem(`${room}_warnings`) || '0'); 
-}
-
-function setWarnings(count) { 
-  localStorage.setItem(`${room}_warnings`, count.toString()); 
-  // ✅ Warning timestamp bhi save karo
-  localStorage.setItem(`${room}_warnings_time`, Date.now().toString());
-  updateWarningDisplay(); 
-  return count; 
-}
-
-function addWarning() { 
-  // ✅ Pehle check karo 24 hours beet chuke hain kya
-  if (shouldResetWarnings()) {
-    resetWarnings();
   }
-  
-  const newWarnings = getWarnings() + 1;
-  setWarnings(newWarnings); 
-  
-  // ✅ 5 warnings ke baad 24 hours ka lock
-  if(newWarnings >= 5) {
-    startChatLock(24 * 60 * 60); // 24 hours in seconds
+
+  function addPhishingMessage(text){
+    const el = document.createElement("div");
+    el.className = "phishing-warning";
+    el.textContent = text;
+    document.getElementById("chat").appendChild(el);
+    document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
   }
-  return newWarnings; 
-}
 
-function shouldResetWarnings() {
-  const lastWarningTime = parseInt(localStorage.getItem(`${room}_warnings_time`) || '0');
-  if (!lastWarningTime) return false;
-  
-  const twentyFourHours = 24 * 60 * 60 * 1000; // 24 hours in milliseconds
-  return (Date.now() - lastWarningTime) > twentyFourHours;
-}
+  function addImageMessage(sender, imageData, mine = false){ 
+    const el = document.createElement("div"); 
+    el.className = "message " + (mine ? "mine" : "other"); 
+    const ts = new Date().toLocaleTimeString([], {hour: '2-digit', minute: '2-digit'});
+    
+    el.innerHTML = `
+      ${!mine ? `<div class="message-sender">${sender}</div>` : ''}
+      <div class="message-content">
+        <div class="media-preview"><img src="${imageData}" alt="Shared image"></div>
+        <div class="message-meta">${ts} ${mine ? '<i class="fas fa-check-double" style="color: #00af9c; margin-left: 3px;"></i>' : ''}</div>
+      </div>
+      <div class="message-actions">
+        <div class="action-btn reaction-btn" onclick="reactToMessage(this,'😊')">😊</div>
+        <div class="action-btn" onclick="replyToMessage(this)"><i class="fas fa-reply"></i></div>
+      </div>
+    `;
+    
+    document.getElementById("chat").appendChild(el);
+    document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
+  }
 
-function resetWarnings() {
-  localStorage.removeItem(`${room}_warnings`);
-  localStorage.removeItem(`${room}_warnings_time`);
-  clearChatLock();
-  updateWarningDisplay();
-}
+  // ✅ Socket setup
+  const socket = io();
+  let isSending = false, botActive = false, isEditing = false, editingMessageId = null, replyToMessageId = null;
 
-function startChatLock(seconds = 30) {
-  const unlockTime = Math.floor(Date.now()/1000) + seconds;
-  localStorage.setItem(`${room}_lock_time`, unlockTime.toString());
-  localStorage.setItem(`${room}_lock_duration`, seconds.toString());
-  updateWarningDisplay();
-  startLockCountdown();
-}
-
-function isChatLocked() { 
-  const t = getLockTime();
-  return t ? (t - Math.floor(Date.now()/1000)) > 0 : false;
-}
-
-function getLockTime() { 
-  return parseInt(localStorage.getItem(`${room}_lock_time`) || '0');
-}
-
-function clearChatLock() { 
-  localStorage.removeItem(`${room}_lock_time`); 
-  localStorage.removeItem(`${room}_lock_duration`);
-  updateWarningDisplay(); 
-}
-
-function startLockCountdown() {
-  const interval = setInterval(() => {
-    const remaining = getLockTime() - Math.floor(Date.now()/1000);
-    if(remaining <= 0) {
-      clearInterval(interval); 
-      clearChatLock(); 
-      addSystemMessage("🔓 Chat unlocked. You can message now.");
-      // ✅ Lock khatam hone pe warnings reset nahi karo
-      return;
+  socket.on("connect", () => {
+    console.log("Connected:", socket.id);
+    socket.emit("set_name", {uid: currentUser.uid, name: currentUser.name});
+    socket.emit("join-room", room);
+    
+    // ✅ 24 hours check on load
+    if (shouldResetWarnings()) {
+      resetWarnings();
+      addSystemMessage("⚠️ Warning system has been reset after 24 hours.");
     }
     
-    // ✅ Format time properly (hours:minutes:seconds)
-    const hours = Math.floor(remaining / 3600);
-    const minutes = Math.floor((remaining % 3600) / 60);
-    const seconds = remaining % 60;
+    updateWarningDisplay();
+    if(isChatLocked()) startLockCountdown();
     
-    let timeString = '';
-    if (hours > 0) {
-      timeString = `${hours}h ${minutes}m ${seconds}s`;
-    } else if (minutes > 0) {
-      timeString = `${minutes}m ${seconds}s`;
-    } else {
-      timeString = `${seconds}s`;
-    }
-    
-    updateCountdownDisplay(timeString);
-  }, 1000);
-}
-
-function updateCountdownDisplay(timeString){ 
-  const s = document.getElementById('userStatus'); 
-  if(s) s.innerHTML = `Locked: <span class="countdown-timer">${timeString}</span>`; 
-}
-
-function updateWarningDisplay(){
-  const w = getWarnings(); 
-  const s = document.getElementById('userStatus');
-  
-  if(isChatLocked()){
-    document.getElementById("messageInput").disabled = true;
-    document.getElementById("messageInput").classList.add('locked-chat');
-    document.getElementById("messageInput").placeholder = "Chat locked - too many warnings";
-    document.getElementById("sendBtn").disabled = true;
-    
-    if(s) {
-      const remaining = getLockTime() - Math.floor(Date.now()/1000);
-      const hours = Math.floor(remaining / 3600);
-
-   // ✅ WARNING SYSTEM - INCREASING TIMER
-function addWarning() { 
-  const newWarnings = getWarnings() + 1;
-  setWarnings(newWarnings); 
-  
-  // ✅ HAR WARNING PE TIMER BADHEGA
-  const lockDurations = [30, 60, 120, 240, 480]; // 30s, 1m, 2m, 4m, 8m
-  const lockDuration = lockDurations[Math.min(newWarnings-1, lockDurations.length-1)];
-  
-  if(newWarnings >= 5) {
-    startChatLock(lockDuration);
-  }
-  return newWarnings; 
-}
-
-// ✅ 24 HOURS BAAD WARNINGS RESET
-function shouldResetWarnings() {
-  const lastWarningTime = parseInt(localStorage.getItem(`${room}_warnings_time`) || '0');
-  if (!lastWarningTime) return false;
-  
-  const twentyFourHours = 24 * 60 * 60 * 1000;
-  return (Date.now() - lastWarningTime) > twentyFourHours;
-}
-      
-// ✅ Clear chat function me RESET WARNINGS HATA DO
-function clearChat(){
-  if(confirm("Clear all messages in this chat?")){
-    fetch('/clear-room',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({room})
-    })
-    .then(()=> {
-      document.getElementById("chat").innerHTML = '<div class="typing-indicator" id="typingIndicator"></div>';
-      addSystemMessage("Chat cleared successfully");
-      // ✅ Warnings reset mat karo
-    })
-    .catch(console.error);
-  }
-}
-  /*function clearChat(){
-    if(confirm("Clear all messages in this chat?")){
-      fetch('/clear-room',{
-        method:'POST',
-        headers:{'Content-Type':'application/json'},
-        body:JSON.stringify({room})
+    // ✅ Load previous messages
+    fetch(`/get-room-messages?room=${room}`)
+      .then(r => r.json())
+      .then(msgs => {
+        msgs.forEach(m => {
+          if(!m.text.includes('__signal')) 
+            addMessage(m.sender, m.text, m.sender === currentUser.name, m.sender === 'BotX');
+        });
       })
-      .then(()=> {
+      .catch(console.error);
+  });
+
+  socket.on("private-message", data => { 
+    if(!data.text.includes('__signal')) 
+      addMessage(data.sender, data.text, data.sender === currentUser.name); 
+  });
+  
+  socket.on("bot-reply", data => { 
+    addMessage(data.sender, data.text, false, true); 
+  });
+  
+  socket.on("image-message", data => { 
+    if(data.room === room) 
+      addImageMessage(data.sender, data.imageData, data.sender === currentUser.name); 
+  });
+  
+  socket.on("typing", data => { 
+    if(data.room === room && data.sender !== currentUser.name){ 
+      const i = document.getElementById('typingIndicator'); 
+      i.textContent = `${data.sender} is typing...`; 
+      i.style.display = 'block'; 
+      clearTimeout(window.typingTimeout); 
+      window.typingTimeout = setTimeout(() => { i.style.display = 'none'; }, 2000); 
+    } 
+  });
+  
+  socket.on("message", data => { 
+    if(data.sender === "System" && data.text.includes("Bot")) 
+      addSystemMessage(data.text); 
+  });
+
+  // ✅ Send message function
+  async function sendMessage(){
+    if(isSending) return;
+    const text = document.getElementById("messageInput").value.trim();
+    if(!text) return;
+
+    if(isChatLocked()){ 
+      const remaining = getLockTime() - Math.floor(Date.now()/1000); 
+      addWarningMessage(`Chat locked! Please wait ${remaining} seconds.`); 
+      document.getElementById("messageInput").value = ""; 
+      return;  
+    }
+    
+    if(text === ">>bot" || text === "<<bot"){ 
+      isSending = true; 
+      socket.emit("message", text); 
+      document.getElementById("messageInput").value = ""; 
+      isSending = false; 
+      return;  
+    }
+
+    // ✅ Phishing check
+    if(await checkPhishing(text)){ 
+      addPhishingWarning(text); 
+      document.getElementById("messageInput").value = ""; 
+      return; 
+    }
+
+    // ✅ Toxicity check
+    if(await checkToxicity(text)){ 
+      const result = addWarning();
+      addWarningMessage(`⚠️ Warning ${result.warnings}/5: Your message was blocked for toxic behavior`);
+      
+      if(result.locked) {
+        addWarningMessage(`🔒 Chat locked for ${result.duration} seconds due to multiple warnings!`);
+      }
+      
+      document.getElementById("messageInput").value = ""; 
+      return; 
+    }
+
+    // ✅ Send message if all clear
+    isSending = true;
+    socket.emit("private-message", {room, sender: currentUser.name, text});
+    document.getElementById("messageInput").value = "";
+    
+    if(isEditing){ 
+      isEditing = false; 
+      editingMessageId = null; 
+      document.getElementById('messageInput').placeholder = "Type a message..."; 
+      document.getElementById('messageInput').classList.remove('edit-mode'); 
+    }
+    
+    if(replyToMessageId) replyToMessageId = null;
+    setTimeout(() => { isSending = false; }, 300);
+  }
+
+  function addPhishingWarning(text){
+    addPhishingMessage(`🚫 Phishing link detected! Message deleted: "${text.length > 50 ? text.substring(0,50) + '...' : text}"`);
+  }
+
+  // ✅ UI interaction functions
+  function handleTyping(){
+    if(socket && room) socket.emit("typing", {room, sender: currentUser.name});
+  }
+
+  function handleKeyPress(e){
+    if(e.key === "Enter") sendMessage();
+  }
+
+  function toggleBot(){
+    if(botActive){ 
+      socket.emit("message", "<<bot"); 
+      botActive = false; 
+    } else { 
+      socket.emit("message", ">>bot"); 
+      botActive = true; 
+    }
+  }
+
+  function clearChat(){
+    if(confirm("Clear all messages in this chat?")){
+      fetch('/clear-room', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({room})
+      })
+      .then(() => {
         document.getElementById("chat").innerHTML = '<div class="typing-indicator" id="typingIndicator"></div>';
         addSystemMessage("Chat cleared successfully");
-        resetWarnings();
+        // ✅ Warnings reset nahi honge
       })
       .catch(console.error);
     }
-  }*/
-
-  /*function clearChat(){
-  if(confirm("Clear all messages in this chat?")){
-    fetch('/clear-room',{
-      method:'POST',
-      headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({room})
-    })
-    .then(()=> {
-      document.getElementById("chat").innerHTML = '<div class="typing-indicator" id="typingIndicator"></div>';
-      addSystemMessage("Chat cleared successfully");
-      // ✅ Warnings aur lock reset mat karo - sirf messages clear karo
-      // resetWarnings(); // YE LINE COMMENT KARDO YA HATA DO
-    })
-    .catch(console.error);
   }
-  }*/
 
-  function reactToMessage(btn,reaction){
+  function reactToMessage(btn, reaction){
     const el = btn.closest('.message');
     let container = el.querySelector('.message-reaction');
     if(!container){
       container = document.createElement('div');
-      container.className='message-reaction';
+      container.className = 'message-reaction';
       el.querySelector('.message-content').appendChild(container);
     }
     container.textContent = `${reaction} (You)`;
@@ -743,42 +780,66 @@ function clearChat(){
       const reader = new FileReader();
       reader.onload = function(e){
         const imgData = e.target.result;
-        addImageMessage(currentUser.name,imgData,true);
-        socket.emit("image-message",{room, sender:currentUser.name, imageData:imgData});
+        addImageMessage(currentUser.name, imgData, true);
+        socket.emit("image-message", {room, sender: currentUser.name, imageData: imgData});
       }
       reader.readAsDataURL(file);
-    } else alert('Please select an image file');
-    event.target.value='';
+    } else {
+      alert('Please select an image file');
+    }
+    event.target.value = '';
   }
 
   function toggleEmojiPicker(){
     const emojis = ['😀','😂','😍','🥰','😎','🙏','🔥','👍','❤️','🎉'];
     const picker = document.createElement('div');
-    picker.style.position='absolute';
-    picker.style.bottom='60px';
-    picker.style.right='20px';
-    picker.style.background='#222';
-    picker.style.borderRadius='10px';
-    picker.style.padding='10px';
-    picker.style.display='grid';
-    picker.style.gridTemplateColumns='repeat(5,1fr)';
-    picker.style.gap='5px';
-    picker.style.zIndex='1000';
-    emojis.forEach(emoji=>{
-      const span=document.createElement('span');
-      span.textContent=emoji;
-      span.style.cursor='pointer';
-      span.style.fontSize='20px';
-      span.onclick=()=>{document.getElementById('messageInput').value+=emoji; document.body.removeChild(picker);}
+    picker.style.position = 'absolute';
+    picker.style.bottom = '60px';
+    picker.style.right = '20px';
+    picker.style.background = '#222';
+    picker.style.borderRadius = '10px';
+    picker.style.padding = '10px';
+    picker.style.display = 'grid';
+    picker.style.gridTemplateColumns = 'repeat(5,1fr)';
+    picker.style.gap = '5px';
+    picker.style.zIndex = '1000';
+    
+    emojis.forEach(emoji => {
+      const span = document.createElement('span');
+      span.textContent = emoji;
+      span.style.cursor = 'pointer';
+      span.style.fontSize = '20px';
+      span.onclick = () => {
+        document.getElementById('messageInput').value += emoji; 
+        document.body.removeChild(picker);
+      }
       picker.appendChild(span);
     });
+    
     document.body.appendChild(picker);
-    setTimeout(()=>{
-      const clickHandler=(e)=>{ if(!picker.contains(e.target)){document.body.removeChild(picker); document.removeEventListener('click',clickHandler);} };
-      document.addEventListener('click',clickHandler);
-    },100);
+    setTimeout(() => {
+      const clickHandler = (e) => { 
+        if(!picker.contains(e.target)){
+          document.body.removeChild(picker); 
+          document.removeEventListener('click', clickHandler);
+        } 
+      };
+      document.addEventListener('click', clickHandler);
+    }, 100);
   }
+
+  // ✅ Event listeners
+  document.getElementById("sendBtn").addEventListener("click", sendMessage);
+  document.getElementById("messageInput").addEventListener("keypress", handleKeyPress);
+  document.getElementById("messageInput").addEventListener("input", handleTyping);
+
+  // ✅ Initialize on load
+  window.addEventListener('load', function() {
+    updateWarningDisplay();
+  });
 </script>
+
+      
         
 </body>
 </html>
