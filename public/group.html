@@ -419,61 +419,145 @@
     </div>
 
     <script src="/socket.io/socket.io.js"></script>
-    <script>
-        let socket = null;
-        let currentUser = null;
-        let currentGroup = null;
-        let friendsList = [];
-        let groupsList = [];
-        let selectedFriends = [];
-        let selectedMembers = [];
-        let botActive = false;
-        let messageQueue = [];
+<script>
+    let socket = null;
+    let currentUser = null;
+    let currentGroup = null;
+    let friendsList = [];
+    let groupsList = [];
+    let selectedFriends = [];
+    let selectedMembers = [];
+    let botActive = false;
+    let messageQueue = [];
+    let isSending = false;
 
-        // Initialize the group chat
-        function initGroupChat() {
-            currentUser = JSON.parse(localStorage.getItem("user"));
-            if (!currentUser || !currentUser.uid) {
-                alert("Please login first");
-                window.location.href = "login.html";
-                return;
-            }
+    // ✅ Toxicity & Phishing Check Functions
+    async function checkToxicity(message) {
+        try {
+            const response = await fetch('/check-toxicity', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ message })
+            });
+            const result = await response.json();
+            return result.isToxic;
+        } catch (err) {
+            console.error("Toxicity check error:", err);
+            return false;
+        }
+    }
 
-            socket = io();
-            setupSocketEvents();
-            loadUserGroups();
-            loadFriends();
+    async function checkPhishing(text) {
+        try {
+            const response = await fetch('/check-phishing', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ text })
+            });
+            const data = await response.json();
+            return data.isPhishing;
+        } catch (err) {
+            console.error("Phishing check error:", err);
+            return false;
+        }
+    }
+
+    // ✅ Group Warning System
+    function getGroupWarnings(groupId) { 
+        return parseInt(localStorage.getItem(`group_${groupId}_warnings`) || '0'); 
+    }
+
+    function setGroupWarnings(groupId, count) { 
+        localStorage.setItem(`group_${groupId}_warnings`, count.toString()); 
+        localStorage.setItem(`group_${groupId}_warnings_time`, Date.now().toString());
+    }
+
+    function addGroupWarning(groupId) { 
+        if (shouldResetGroupWarnings(groupId)) {
+            resetGroupWarnings(groupId);
+        }
+        
+        const newWarnings = getGroupWarnings(groupId) + 1;
+        setGroupWarnings(groupId, newWarnings); 
+        
+        return newWarnings;
+    }
+
+    function shouldResetGroupWarnings(groupId) {
+        const lastWarningTime = parseInt(localStorage.getItem(`group_${groupId}_warnings_time`) || '0');
+        if (!lastWarningTime) return false;
+        const twentyFourHours = 24 * 60 * 60 * 1000;
+        return (Date.now() - lastWarningTime) > twentyFourHours;
+    }
+
+    function resetGroupWarnings(groupId) {
+        localStorage.removeItem(`group_${groupId}_warnings`);
+        localStorage.removeItem(`group_${groupId}_warnings_time`);
+    }
+
+    // ✅ System Message Display
+    function displaySystemMessage(text) {
+        const messagesContainer = document.getElementById('messagesContainer');
+        const messageEl = document.createElement('div');
+        messageEl.className = 'message system';
+        messageEl.innerHTML = `
+            <div class="message-text system-message">${text}</div>
+        `;
+        messagesContainer.appendChild(messageEl);
+        scrollToBottom();
+    }
+
+    // Initialize the group chat
+    function initGroupChat() {
+        currentUser = JSON.parse(localStorage.getItem("user"));
+        if (!currentUser || !currentUser.uid) {
+            alert("Please login first");
+            window.location.href = "login.html";
+            return;
         }
 
-        // Setup socket events
-        function setupSocketEvents() {
-            socket.on("group-message", (data) => {
-                if (currentGroup && data.groupId === currentGroup.groupId) {
-                    // Check if message is not already displayed
-                    const isDuplicate = messageQueue.some(msg => 
-                        msg.sender === data.sender && 
-                        msg.text === data.text && 
-                        Math.abs(new Date(msg.timestamp) - new Date(data.timestamp)) < 1000
-                    );
-                    
-                    if (!isDuplicate) {
-                        messageQueue.push(data);
-                        displayMessage(data);
-                    }
-                }
-            });
+        socket = io();
+        setupSocketEvents();
+        loadUserGroups();
+        loadFriends();
+    }
 
-            socket.on("bot-reply", (data) => {
-                if (currentGroup && data.groupId === currentGroup.groupId) {
-                    // Remove any "bot is thinking" message
-                    const messagesContainer = document.getElementById('messagesContainer');
-                    const thinkingMessages = messagesContainer.querySelectorAll('.message-text');
-                    thinkingMessages.forEach(msg => {
-                        if (msg.textContent === "Bot is thinking...") {
-                            msg.parentElement.remove();
-                        }
-                    });
-                    
+    // Setup socket events
+    function setupSocketEvents() {
+        socket.on("group-message", (data) => {
+            if (currentGroup && data.groupId === currentGroup.groupId) {
+                // Check if message is not already displayed
+                const isDuplicate = messageQueue.some(msg => 
+                    msg.sender === data.sender && 
+                    msg.text === data.text && 
+                    Math.abs(new Date(msg.timestamp) - new Date(data.timestamp)) < 1000
+                );
+                
+                if (!isDuplicate) {
+                    messageQueue.push(data);
+                    displayMessage(data);
+                }
+            }
+        });
+
+        socket.on("bot-reply", (data) => {
+            if (currentGroup && data.groupId === currentGroup.groupId) {
+                // ✅ FIX: Remove any "bot is thinking" message properly
+                const messagesContainer = document.getElementById('messagesContainer');
+                const thinkingMessages = messagesContainer.querySelectorAll('.message.bot .message-text');
+                thinkingMessages.forEach(msg => {
+                    if (msg.textContent === "Bot is thinking...") {
+                        msg.closest('.message').remove();
+                    }
+                });
+                
+                // ✅ FIX: Check if bot reply is not duplicate
+                const isDuplicate = messageQueue.some(msg => 
+                    msg.sender === "BotX" && 
+                    msg.text === data.text
+                );
+                
+                if (!isDuplicate) {
                     displayMessage({
                         sender: "BotX",
                         senderName: "BotX",
@@ -481,486 +565,512 @@
                         timestamp: new Date(),
                         groupId: currentGroup.groupId
                     });
-                }
-            });
-
-            socket.on("group-typing", (userName) => {
-                // Show typing indicator
-                console.log(userName + " is typing...");
-            });
-
-            socket.on("group-renamed", (data) => {
-                if (currentGroup && data.groupId === currentGroup.groupId) {
-                    currentGroup.name = data.newName;
-                    document.getElementById('chatGroupName').textContent = data.newName;
-                    loadUserGroups(); // Refresh group list
-                }
-            });
-
-            socket.on("chat-cleared", (data) => {
-                if (currentGroup && data.groupId === currentGroup.groupId) {
-                    document.getElementById('messagesContainer').innerHTML = `
-                        <div class="message bot">
-                            <div class="message-text">Chat cleared by ${data.clearedBy}</div>
-                        </div>
-                    `;
-                }
-            });
-        }
-
-        // Load user's groups
-        async function loadUserGroups() {
-            try {
-                const response = await fetch(`/get-user-groups?userId=${currentUser.uid}`);
-                if (!response.ok) throw new Error("Failed to load groups");
-                
-                groupsList = await response.json();
-                displayGroups();
-            } catch (error) {
-                console.error("Error loading groups:", error);
-                document.getElementById('groupsList').innerHTML = '<div class="no-groups">Error loading groups</div>';
-            }
-        }
-
-        // Load friends list
-        async function loadFriends() {
-            try {
-                const response = await fetch(`/get-friends?uid=${currentUser.uid}`);
-                if (!response.ok) throw new Error("Failed to load friends");
-                
-                friendsList = await response.json();
-            } catch (error) {
-                console.error("Error loading friends:", error);
-            }
-        }
-
-        // Display groups in the list
-        function displayGroups() {
-            const groupsListEl = document.getElementById('groupsList');
-            
-            if (groupsList.length === 0) {
-                groupsListEl.innerHTML = `
-                    <div class="no-groups">
-                        <i class="fas fa-users" style="font-size: 40px; margin-bottom: 10px;"></i>
-                        <p>No groups yet</p>
-                        <p>Create your first group to start chatting</p>
-                    </div>
-                `;
-                return;
-            }
-
-            groupsListEl.innerHTML = groupsList.map(group => `
-                <div class="group-item" onclick="openChat('${group.groupId}')">
-                    <div class="group-name">${group.name}</div>
-                    <div class="group-members">${group.participants.length} members</div>
-                </div>
-            `).join('');
-        }
-
-        // Open chat for a group
-        async function openChat(groupId) {
-            try {
-                currentGroup = groupsList.find(g => g.groupId === groupId);
-                if (!currentGroup) return;
-
-                // Show chat view, hide groups view
-                document.getElementById('groupsView').style.display = 'none';
-                document.getElementById('chatView').style.display = 'flex';
-                
-                // Update chat header
-                document.getElementById('chatGroupName').textContent = currentGroup.name;
-                
-                // Clear message queue
-                messageQueue = [];
-                
-                // Load messages
-                const response = await fetch(`/get-group-messages?groupId=${groupId}`);
-                if (!response.ok) throw new Error("Failed to load messages");
-                
-                const messages = await response.json();
-                displayMessages(messages);
-                
-                // Join group room
-                socket.emit('join-group', groupId);
-                
-            } catch (error) {
-                console.error("Error opening chat:", error);
-                alert("Error loading chat");
-            }
-        }
-
-        // Show groups view (go back from chat)
-        function showGroupsView() {
-            document.getElementById('chatView').style.display = 'none';
-            document.getElementById('groupsView').style.display = 'flex';
-            currentGroup = null;
-            messageQueue = [];
-        }
-
-        // Display messages in chat
-        function displayMessages(messages) {
-            const messagesContainer = document.getElementById('messagesContainer');
-            messagesContainer.innerHTML = '';
-            
-            if (messages.length === 0) {
-                messagesContainer.innerHTML = `
-                    <div class="message bot">
-                        <div class="message-text">No messages yet. Start the conversation!</div>
-                    </div>
-                `;
-                return;
-            }
-            
-            messages.forEach(message => {
-                displayMessage(message);
-            });
-            
-            scrollToBottom();
-        }
-
-        // Display a single message
-        function displayMessage(message) {
-            const messagesContainer = document.getElementById('messagesContainer');
-            const isCurrentUser = message.sender === currentUser.uid;
-            const isBot = message.sender === 'BotX';
-            
-            const messageEl = document.createElement('div');
-            messageEl.className = `message ${isCurrentUser ? 'sent' : isBot ? 'bot' : 'received'}`;
-            
-            messageEl.innerHTML = `
-                ${!isCurrentUser && !isBot ? `<div class="message-sender">${message.senderName || message.sender}</div>` : ''}
-                ${isBot ? `<div class="message-sender">${message.senderName}</div>` : ''}
-                <div class="message-text">${message.text}</div>
-                <div class="message-time">${new Date(message.timestamp).toLocaleTimeString()}</div>
-            `;
-            
-            messagesContainer.appendChild(messageEl);
-            scrollToBottom();
-        }
-
-        // Send message
-        function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const text = input.value.trim();
-            
-            if (!text || !currentGroup) return;
-
-            const messageData = {
-                groupId: currentGroup.groupId,
-                sender: currentUser.uid,
-                senderName: currentUser.name,
-                text: text,
-                timestamp: new Date()
-            };
-
-            // Add to queue to prevent duplicates
-            messageQueue.push(messageData);
-            
-            // Send via socket
-            socket.emit('group-message', messageData);
-            
-            // Display immediately
-            displayMessage(messageData);
-
-            // Check for bot activation and trigger bot response
-            if (botActive && text.toLowerCase().includes("bot")) {
-                triggerBotResponse(text);
-            }
-
-            // Clear input
-            input.value = '';
-        }
-
-        // Trigger bot response
-        function triggerBotResponse(userMessage) {
-            // Remove "bot" keyword from message
-            const prompt = userMessage.replace(/bot/gi, "").trim();
-            
-            if (!prompt) return;
-            
-            // Show typing indicator
-            const messagesContainer = document.getElementById('messagesContainer');
-            const typingIndicator = document.createElement('div');
-            typingIndicator.className = 'message bot';
-            typingIndicator.innerHTML = `
-                <div class="message-text">Bot is thinking...</div>
-            `;
-            messagesContainer.appendChild(typingIndicator);
-            scrollToBottom();
-            
-            // Send to server for bot processing
-            socket.emit('bot-message', {
-                groupId: currentGroup.groupId,
-                prompt: prompt,
-                userId: currentUser.uid
-            });
-        }
-
-        // Toggle bot
-        function toggleBot() {
-            if (botActive) {
-                deactivateBot();
-            } else {
-                activateBot();
-            }
-        }
-
-        // Activate bot
-        function activateBot() {
-            botActive = true;
-            document.getElementById('botToggleBtn').classList.add('active');
-            
-            // Show bot activated message
-            displayMessage({
-                sender: "BotX",
-                senderName: "BotX",
-                text: "Bot activated! Type your question and include the word 'bot' for responses.",
-                timestamp: new Date(),
-                groupId: currentGroup.groupId
-            });
-        }
-
-        // Deactivate bot
-        function deactivateBot() {
-            botActive = false;
-            document.getElementById('botToggleBtn').classList.remove('active');
-            
-            // Show bot deactivated message
-            displayMessage({
-                sender: "BotX",
-                senderName: "BotX",
-                text: "Bot deactivated.",
-                timestamp: new Date(),
-                groupId: currentGroup.groupId
-            });
-        }
-
-        // Clear group chat
-        async function clearGroupChat() {
-            if (!currentGroup || !confirm("Are you sure you want to clear all messages in this group?")) return;
-
-            try {
-                const response = await fetch('/clear-group-chat', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
+                    messageQueue.push({
+                        sender: "BotX",
+                        senderName: "BotX", 
+                        text: data.text,
+                        timestamp: new Date(),
                         groupId: currentGroup.groupId
-                    })
-                });
-
-                if (response.ok) {
-                    // Clear messages from UI
-                    document.getElementById('messagesContainer').innerHTML = `
-                        <div class="message bot">
-                            <div class="message-text">Chat cleared by ${currentUser.name}</div>
-                        </div>
-                    `;
-                    
-                    // Notify other group members
-                    socket.emit('clear-chat', {
-                        groupId: currentGroup.groupId,
-                        clearedBy: currentUser.name
                     });
-                } else {
-                    alert('Error clearing chat');
                 }
-            } catch (error) {
-                console.error('Error clearing chat:', error);
-                alert('Error clearing chat');
             }
-        }
+        });
 
-        // Handle key press (Enter to send)
-        function handleKeyPress(event) {
-            if (event.key === 'Enter') {
-                sendMessage();
+        socket.on("group-typing", (userName) => {
+            // Show typing indicator
+            console.log(userName + " is typing...");
+        });
+
+        socket.on("group-renamed", (data) => {
+            if (currentGroup && data.groupId === currentGroup.groupId) {
+                currentGroup.name = data.newName;
+                document.getElementById('chatGroupName').textContent = data.newName;
+                loadUserGroups();
             }
-        }
+        });
 
-        // Scroll to bottom of messages
-        function scrollToBottom() {
-            const messagesContainer = document.getElementById('messagesContainer');
-            messagesContainer.scrollTop = messagesContainer.scrollHeight;
-        }
+        socket.on("chat-cleared", (data) => {
+            if (currentGroup && data.groupId === currentGroup.groupId) {
+                document.getElementById('messagesContainer').innerHTML = `
+                    <div class="message bot">
+                        <div class="message-text">Chat cleared by ${data.clearedBy}</div>
+                    </div>
+                `;
+                messageQueue = [];
+            }
+        });
+    }
 
-        // Show create group modal
-        function showCreateGroupModal() {
-            const modal = document.getElementById('createGroupModal');
-            const friendsListEl = document.getElementById('modalFriendsList');
+    // Load user's groups
+    async function loadUserGroups() {
+        try {
+            const response = await fetch(`/get-user-groups?userId=${currentUser.uid}`);
+            if (!response.ok) throw new Error("Failed to load groups");
             
-            // Populate friends list
-            friendsListEl.innerHTML = friendsList.map(friend => `
-                <div class="friend-checkbox">
-                    <input type="checkbox" value="${friend.uid}" onchange="toggleFriendSelection(this)">
-                    ${friend.name}
+            groupsList = await response.json();
+            displayGroups();
+        } catch (error) {
+            console.error("Error loading groups:", error);
+            document.getElementById('groupsList').innerHTML = '<div class="no-groups">Error loading groups</div>';
+        }
+    }
+
+    // Load friends list
+    async function loadFriends() {
+        try {
+            const response = await fetch(`/get-friends?uid=${currentUser.uid}`);
+            if (!response.ok) throw new Error("Failed to load friends");
+            
+            friendsList = await response.json();
+        } catch (error) {
+            console.error("Error loading friends:", error);
+        }
+    }
+
+    // Display groups in the list
+    function displayGroups() {
+        const groupsListEl = document.getElementById('groupsList');
+        
+        if (groupsList.length === 0) {
+            groupsListEl.innerHTML = `
+                <div class="no-groups">
+                    <i class="fas fa-users" style="font-size: 40px; margin-bottom: 10px;"></i>
+                    <p>No groups yet</p>
+                    <p>Create your first group to start chatting</p>
                 </div>
-            `).join('');
-            
-            modal.style.display = 'flex';
-            selectedFriends = [];
+            `;
+            return;
         }
 
-        // Show add member modal
-        function showAddMemberModal() {
+        groupsListEl.innerHTML = groupsList.map(group => `
+            <div class="group-item" onclick="openChat('${group.groupId}')">
+                <div class="group-name">${group.name}</div>
+                <div class="group-members">${group.participants.length} members</div>
+            </div>
+        `).join('');
+    }
+
+    // Open chat for a group
+    async function openChat(groupId) {
+        try {
+            currentGroup = groupsList.find(g => g.groupId === groupId);
             if (!currentGroup) return;
 
-            const modal = document.getElementById('addMemberModal');
-            const friendsListEl = document.getElementById('addMemberFriendsList');
+            document.getElementById('groupsView').style.display = 'none';
+            document.getElementById('chatView').style.display = 'flex';
             
-            // Filter out already added friends
-            const availableFriends = friendsList.filter(friend => 
-                !currentGroup.participants.includes(friend.uid)
-            );
+            document.getElementById('chatGroupName').textContent = currentGroup.name;
             
-            friendsListEl.innerHTML = availableFriends.map(friend => `
-                <div class="friend-checkbox">
-                    <input type="checkbox" value="${friend.uid}" onchange="toggleMemberSelection(this)">
-                    ${friend.name}
+            messageQueue = [];
+            
+            const response = await fetch(`/get-group-messages?groupId=${groupId}`);
+            if (!response.ok) throw new Error("Failed to load messages");
+            
+            const messages = await response.json();
+            displayMessages(messages);
+            
+            socket.emit('join-group', groupId);
+            
+        } catch (error) {
+            console.error("Error opening chat:", error);
+            alert("Error loading chat");
+        }
+    }
+
+    // Show groups view (go back from chat)
+    function showGroupsView() {
+        document.getElementById('chatView').style.display = 'none';
+        document.getElementById('groupsView').style.display = 'flex';
+        currentGroup = null;
+        messageQueue = [];
+    }
+
+    // Display messages in chat
+    function displayMessages(messages) {
+        const messagesContainer = document.getElementById('messagesContainer');
+        messagesContainer.innerHTML = '';
+        
+        if (messages.length === 0) {
+            messagesContainer.innerHTML = `
+                <div class="message bot">
+                    <div class="message-text">No messages yet. Start the conversation!</div>
                 </div>
-            `).join('');
-            
-            modal.style.display = 'flex';
-            selectedMembers = [];
+            `;
+            return;
+        }
+        
+        messages.forEach(message => {
+            displayMessage(message);
+        });
+        
+        scrollToBottom();
+    }
+
+    // Display a single message
+    function displayMessage(message) {
+        const messagesContainer = document.getElementById('messagesContainer');
+        const isCurrentUser = message.sender === currentUser.uid;
+        const isBot = message.sender === 'BotX';
+        const isSystem = message.sender === 'System';
+        
+        const messageEl = document.createElement('div');
+        messageEl.className = `message ${isCurrentUser ? 'sent' : isBot ? 'bot' : isSystem ? 'system' : 'received'}`;
+        
+        messageEl.innerHTML = `
+            ${!isCurrentUser && !isBot && !isSystem ? `<div class="message-sender">${message.senderName || message.sender}</div>` : ''}
+            ${isBot || isSystem ? `<div class="message-sender">${message.senderName || 'System'}</div>` : ''}
+            <div class="message-text">${message.text}</div>
+            <div class="message-time">${new Date(message.timestamp).toLocaleTimeString()}</div>
+        `;
+        
+        messagesContainer.appendChild(messageEl);
+        scrollToBottom();
+    }
+
+    // ✅ IMPROVED Send message with safety checks
+    async function sendMessage() {
+        if (isSending) return;
+        
+        const input = document.getElementById('messageInput');
+        const text = input.value.trim();
+        
+        if (!text || !currentGroup) return;
+
+        isSending = true;
+
+        // ✅ Phishing check
+        if (await checkPhishing(text)) {
+            const warnings = addGroupWarning(currentGroup.groupId);
+            displaySystemMessage(`🚫 Phishing link detected! Warning ${warnings}/5`);
+            input.value = '';
+            isSending = false;
+            return;
         }
 
-        // Show rename modal
-        function showRenameModal() {
-            document.getElementById('renameModal').style.display = 'flex';
-            document.getElementById('renameInput').value = currentGroup.name;
+        // ✅ Toxicity check
+        if (await checkToxicity(text)) {
+            const warnings = addGroupWarning(currentGroup.groupId);
+            displaySystemMessage(`⚠️ Toxic message blocked! Warning ${warnings}/5`);
+            input.value = '';
+            isSending = false;
+            return;
         }
 
-        // Toggle friend selection
-        function toggleFriendSelection(checkbox) {
-            if (checkbox.checked) {
-                selectedFriends.push(checkbox.value);
-            } else {
-                selectedFriends = selectedFriends.filter(uid => uid !== checkbox.value);
-            }
+        const messageData = {
+            groupId: currentGroup.groupId,
+            sender: currentUser.uid,
+            senderName: currentUser.name,
+            text: text,
+            timestamp: new Date()
+        };
+
+        // Add to queue to prevent duplicates
+        messageQueue.push(messageData);
+        
+        // Send via socket
+        socket.emit('group-message', messageData);
+        
+        // Display immediately
+        displayMessage(messageData);
+
+        // ✅ FIX: Bot response with better duplicate prevention
+        if (botActive && text.toLowerCase().includes("bot")) {
+            triggerBotResponse(text);
         }
 
-        // Toggle member selection
-        function toggleMemberSelection(checkbox) {
-            if (checkbox.checked) {
-                selectedMembers.push(checkbox.value);
-            } else {
-                selectedMembers = selectedMembers.filter(uid => uid !== checkbox.value);
-            }
+        // Clear input
+        input.value = '';
+        isSending = false;
+    }
+
+    // ✅ IMPROVED Trigger bot response
+    function triggerBotResponse(userMessage) {
+        const prompt = userMessage.replace(/bot/gi, "").trim();
+        
+        if (!prompt) return;
+        
+        // Show typing indicator
+        const messagesContainer = document.getElementById('messagesContainer');
+        const typingIndicator = document.createElement('div');
+        typingIndicator.className = 'message bot';
+        typingIndicator.innerHTML = `
+            <div class="message-sender">BotX</div>
+            <div class="message-text">Bot is thinking...</div>
+        `;
+        messagesContainer.appendChild(typingIndicator);
+        scrollToBottom();
+        
+        // ✅ FIX: Send with unique ID to prevent duplicates
+        socket.emit('bot-message', {
+            groupId: currentGroup.groupId,
+            prompt: prompt,
+            userId: currentUser.uid,
+            messageId: Date.now() // Unique ID for each bot request
+        });
+    }
+
+    // Toggle bot
+    function toggleBot() {
+        if (botActive) {
+            deactivateBot();
+        } else {
+            activateBot();
         }
+    }
 
-        // Create new group
-        async function createGroup() {
-            const groupName = document.getElementById('groupNameInput').value.trim();
-            
-            if (!groupName) {
-                alert('Please enter a group name');
-                return;
-            }
+    // Activate bot
+    function activateBot() {
+        botActive = true;
+        document.getElementById('botToggleBtn').classList.add('active');
+        
+        displayMessage({
+            sender: "BotX",
+            senderName: "BotX",
+            text: "Bot activated! Type your question and include the word 'bot' for responses.",
+            timestamp: new Date(),
+            groupId: currentGroup.groupId
+        });
+    }
 
-            if (selectedFriends.length === 0) {
-                alert('Please select at least one friend');
-                return;
-            }
+    // Deactivate bot
+    function deactivateBot() {
+        botActive = false;
+        document.getElementById('botToggleBtn').classList.remove('active');
+        
+        displayMessage({
+            sender: "BotX",
+            senderName: "BotX",
+            text: "Bot deactivated.",
+            timestamp: new Date(),
+            groupId: currentGroup.groupId
+        });
+    }
 
-            try {
-                const response = await fetch('/create-group', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json'
-                    },
-                    body: JSON.stringify({
-                        name: groupName,
-                        createdBy: currentUser.uid,
-                        participants: [currentUser.uid, ...selectedFriends]
-                    })
+    // Clear group chat
+    async function clearGroupChat() {
+        if (!currentGroup || !confirm("Are you sure you want to clear all messages in this group?")) return;
+
+        try {
+            const response = await fetch('/clear-group-chat', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    groupId: currentGroup.groupId
+                })
+            });
+
+            if (response.ok) {
+                document.getElementById('messagesContainer').innerHTML = `
+                    <div class="message bot">
+                        <div class="message-text">Chat cleared by ${currentUser.name}</div>
+                    </div>
+                `;
+                messageQueue = [];
+                
+                socket.emit('clear-chat', {
+                    groupId: currentGroup.groupId,
+                    clearedBy: currentUser.name
                 });
+            } else {
+                alert('Error clearing chat');
+            }
+        } catch (error) {
+            console.error('Error clearing chat:', error);
+            alert('Error clearing chat');
+        }
+    }
 
-                if (response.ok) {
-                    closeModal('createGroupModal');
-                    loadUserGroups(); // Reload groups list
-                    alert('Group created successfully!');
-                } else {
-                    alert('Error creating group');
-                }
-            } catch (error) {
-                console.error('Error creating group:', error);
+    // Handle key press (Enter to send)
+    function handleKeyPress(event) {
+        if (event.key === 'Enter') {
+            sendMessage();
+        }
+    }
+
+    // Scroll to bottom of messages
+    function scrollToBottom() {
+        const messagesContainer = document.getElementById('messagesContainer');
+        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    // Show create group modal
+    function showCreateGroupModal() {
+        const modal = document.getElementById('createGroupModal');
+        const friendsListEl = document.getElementById('modalFriendsList');
+        
+        friendsListEl.innerHTML = friendsList.map(friend => `
+            <div class="friend-checkbox">
+                <input type="checkbox" value="${friend.uid}" onchange="toggleFriendSelection(this)">
+                ${friend.name}
+            </div>
+        `).join('');
+        
+        modal.style.display = 'flex';
+        selectedFriends = [];
+    }
+
+    // Show add member modal
+    function showAddMemberModal() {
+        if (!currentGroup) return;
+
+        const modal = document.getElementById('addMemberModal');
+        const friendsListEl = document.getElementById('addMemberFriendsList');
+        
+        const availableFriends = friendsList.filter(friend => 
+            !currentGroup.participants.includes(friend.uid)
+        );
+        
+        friendsListEl.innerHTML = availableFriends.map(friend => `
+            <div class="friend-checkbox">
+                <input type="checkbox" value="${friend.uid}" onchange="toggleMemberSelection(this)">
+                ${friend.name}
+            </div>
+        `).join('');
+        
+        modal.style.display = 'flex';
+        selectedMembers = [];
+    }
+
+    // Show rename modal
+    function showRenameModal() {
+        document.getElementById('renameModal').style.display = 'flex';
+        document.getElementById('renameInput').value = currentGroup.name;
+    }
+
+    // Toggle friend selection
+    function toggleFriendSelection(checkbox) {
+        if (checkbox.checked) {
+            selectedFriends.push(checkbox.value);
+        } else {
+            selectedFriends = selectedFriends.filter(uid => uid !== checkbox.value);
+        }
+    }
+
+    // Toggle member selection
+    function toggleMemberSelection(checkbox) {
+        if (checkbox.checked) {
+            selectedMembers.push(checkbox.value);
+        } else {
+            selectedMembers = selectedMembers.filter(uid => uid !== checkbox.value);
+        }
+    }
+
+    // Create new group
+    async function createGroup() {
+        const groupName = document.getElementById('groupNameInput').value.trim();
+        
+        if (!groupName) {
+            alert('Please enter a group name');
+            return;
+        }
+
+        if (selectedFriends.length === 0) {
+            alert('Please select at least one friend');
+            return;
+        }
+
+        try {
+            const response = await fetch('/create-group', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    name: groupName,
+                    createdBy: currentUser.uid,
+                    participants: [currentUser.uid, ...selectedFriends]
+                })
+            });
+
+            if (response.ok) {
+                closeModal('createGroupModal');
+                loadUserGroups();
+                alert('Group created successfully!');
+            } else {
                 alert('Error creating group');
             }
+        } catch (error) {
+            console.error('Error creating group:', error);
+            alert('Error creating group');
+        }
+    }
+
+    // Rename group
+    async function renameGroup() {
+        const newName = document.getElementById('renameInput').value.trim();
+        
+        if (!newName) {
+            alert('Please enter a new group name');
+            return;
         }
 
-        // Rename group
-        async function renameGroup() {
-            const newName = document.getElementById('renameInput').value.trim();
-            
-            if (!newName) {
-                alert('Please enter a new group name');
-                return;
-            }
+        try {
+            const response = await fetch('/rename-group', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    groupId: currentGroup.groupId,
+                    newName: newName
+                })
+            });
 
-            try {
-                const response = await fetch('/rename-group', {
+            if (response.ok) {
+                closeModal('renameModal');
+                socket.emit('group-rename', {
+                    groupId: currentGroup.groupId,
+                    newName: newName
+                });
+            } else {
+                alert('Error renaming group');
+            }
+        } catch (error) {
+            console.error('Error renaming group:', error);
+            alert('Error renaming group');
+        }
+    }
+
+    // Add members to group
+    async function addMembersToGroup() {
+        if (!currentGroup || selectedMembers.length === 0) return;
+
+        try {
+            for (const userId of selectedMembers) {
+                await fetch('/add-to-group', {
                     method: 'POST',
                     headers: {
                         'Content-Type': 'application/json'
                     },
                     body: JSON.stringify({
                         groupId: currentGroup.groupId,
-                        newName: newName
+                        userId: userId
                     })
                 });
-
-                if (response.ok) {
-                    closeModal('renameModal');
-                    // Notify all group members via socket
-                    socket.emit('group-rename', {
-                        groupId: currentGroup.groupId,
-                        newName: newName
-                    });
-                } else {
-                    alert('Error renaming group');
-                }
-            } catch (error) {
-                console.error('Error renaming group:', error);
-                alert('Error renaming group');
             }
+
+            closeModal('addMemberModal');
+            alert('Members added successfully!');
+            loadUserGroups();
+        } catch (error) {
+            console.error('Error adding members:', error);
+            alert('Error adding members');
         }
+    }
 
-        // Add members to group
-        async function addMembersToGroup() {
-            if (!currentGroup || selectedMembers.length === 0) return;
+    // Close modal
+    function closeModal(modalId) {
+        document.getElementById(modalId).style.display = 'none';
+    }
 
-            try {
-                for (const userId of selectedMembers) {
-                    await fetch('/add-to-group', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            groupId: currentGroup.groupId,
-                            userId: userId
-                        })
-                    });
-                }
-
-                closeModal('addMemberModal');
-                alert('Members added successfully!');
-                // Refresh current group data
-                loadUserGroups();
-            } catch (error) {
-                console.error('Error adding members:', error);
-                alert('Error adding members');
-            }
-        }
-
-        // Close modal
-        function closeModal(modalId) {
-            document.getElementById(modalId).style.display = 'none';
-        }
-
-        // Initialize when page loads
-        window.onload = initGroupChat;
-    </script>
+    // Initialize on load
+    document.addEventListener('DOMContentLoaded', function() {
+        initGroupChat();
+    });
+</script>
+         
+        
 </body>
 </html>
