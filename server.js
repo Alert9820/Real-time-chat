@@ -306,81 +306,39 @@ app.post("/clear-room", async (req, res) => {
 // ✅ setTimeout(() => controller.abort(), 5000); // 5 second timeout
 // --- Replace your
 // ✅ REPLACE THE ENTIRE /check-phishing ROUTE WITH THIS:
-app.post('/check-phishing', express.json({ limit: '12kb' }), async (req, res) => {
+
+// ✅ PHISHING CHECK ROUTE
+app.post('/check-phishing', express.json(), async (req, res) => {
   try {
     const { text } = req.body;
-    if (!text || typeof text !== 'string') {
-      return res.json({ isPhishing: false, confidence: 0 });
-    }
+    if (!text) return res.json({ isPhishing: false, confidence: 0 });
 
-    console.log('🔍 Phishing check for:', text.substring(0, 50));
+    console.log('🔍 Checking phishing for:', text);
 
-    // ✅ 1. Tumhara Hugging Face API use karo
-    const HUGGING_FACE_API_URL = "https://phishing-t66c.onrender.com/check";
-
-    try {
-      const response = await fetch(HUGGING_FACE_API_URL, {
-        method: 'POST',
-        headers: { 
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ text: text })
-      });
-
-      if (response.ok) {
-        const result = await response.json();
-        console.log('🤖 Hugging Face Result:', result);
-        
-        // ✅ Tumhare Hugging Face API ka response format ke according
-        // Example: { "prediction": "PHISHING", "confidence": 0.95 }
-        const isPhishing = result.prediction === "PHISHING";
-        const confidence = result.confidence || 0.8;
-        
-        return res.json({ 
-          isPhishing, 
-          confidence,
-          detected: 'HUGGING_FACE_MODEL',
-          raw: result // debugging ke liye
-        });
-      } else {
-        console.log('❌ Hugging Face API error:', response.status);
-      }
-    } catch (hfError) {
-      console.log('❌ Hugging Face API failed:', hfError.message);
-    }
-
-    // ✅ 2. Fallback heuristic check (agar Hugging Face fail ho)
-    const urlRegex = /https?:\/\/[^\s]+/g;
-    const urls = text.match(urlRegex) || [];
-    const hasUrls = urls.length > 0;
-
-    const phishingKeywords = [
-      'login', 'verify', 'secure', 'account', 'update', 'confirm', 
-      'bank', 'paypal', 'password', 'credit', 'urgent', 'immediately',
-      'facebook', 'instagram', 'whatsapp', 'amazon', 'paytm'
-    ];
-    
-    const hasSuspiciousKeywords = phishingKeywords.some(keyword => 
-      text.toLowerCase().includes(keyword)
-    );
-
-    const isPhishing = hasUrls && hasSuspiciousKeywords;
-    const confidence = isPhishing ? 0.75 : 0.1;
-
-    console.log('🔍 Fallback Result:', { isPhishing, confidence });
-
-    return res.json({ 
-      isPhishing, 
-      confidence,
-      detected: 'HEURISTIC_FALLBACK'
+    // Hugging Face API call
+    const response = await fetch("https://phishing-t66c.onrender.com/check", {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text })
     });
 
+    if (response.ok) {
+      const result = await response.json();
+      const isPhishing = result.prediction === "PHISHING";
+      const confidence = result.confidence || 0.8;
+      
+      console.log('🤖 Result:', { isPhishing, confidence });
+      return res.json({ isPhishing, confidence });
+    }
+
+    // Fallback
+    return res.json({ isPhishing: false, confidence: 0 });
+
   } catch (err) {
-    console.error('❌ /check-phishing error:', err);
+    console.error('❌ Phishing check error:', err);
     return res.json({ isPhishing: false, confidence: 0 });
   }
 });
-        
 
 // ✅ REPLACE THE ENTIRE /check-toxicity ROUTE WITH THIS:
 app.post('/check-toxicity', smallLimiter, express.json({ limit: '12kb' }), async (req, res) => {
@@ -625,57 +583,24 @@ io.on("connection", (socket) => {
     }
   });
 
-  // ✅ ADD THIS AFTER ALL YOUR SOCKET.IO EVENT HANDLERS:
-socket.on("private-message", async (data) => {
-  try {
-    // ✅ Server-side safety checks
-    const toxicityCheck = await fetch(`http://localhost:${process.env.PORT || 3000}/check-toxicity`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: data.text })
-    }).then(r => r.json()).catch(() => ({ isToxic: false }));
 
-    if (toxicityCheck.isToxic) {
-      // Send warning to sender
-      socket.emit("private-message", {
+
+  // ✅ Simple message forward
+  socket.on("private-message", async (data) => {
+    try {
+      socket.to(data.room).emit("private-message", data);
+      await privateMsgCollection.insertOne({
         room: data.room,
-        sender: "System",
-        text: "⚠️ Your message was blocked for inappropriate content"
+        sender: data.sender,
+        text: data.text,
+        timestamp: new Date()
       });
-      return;
+    } catch (error) {
+      console.error("❌ Message error:", error);
     }
+  });
 
-    const phishingCheck = await fetch(`http://localhost:${process.env.PORT || 3000}/check-phishing`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: data.text })
-    }).then(r => r.json()).catch(() => ({ isPhishing: false }));
-
-    if (phishingCheck.isPhishing) {
-      // Send warning to sender
-      socket.emit("private-message", {
-        room: data.room,
-        sender: "System", 
-        text: "🚫 Phishing links are not allowed. Your message was blocked."
-      });
-      return;
-    }
-
-    // ✅ If message is safe, broadcast it
-    socket.to(data.room).emit("private-message", data);
-    
-    // ✅ Save to database
-    await privateMsgCollection.insertOne({
-      room: data.room,
-      sender: data.sender,
-      text: data.text,
-      timestamp: new Date()
-    });
-
-  } catch (error) {
-    console.error("❌ Message validation error:", error);
-  }
-});
+  
 
   // 📞 Handle call request
   socket.on("call-request", (data) => {
