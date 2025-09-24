@@ -525,7 +525,7 @@ async function checkPhishing(text) {
     else { socket.emit("message",">>bot"); botActive=true; }
   }
 
-  function clearChat(){
+  /*function clearChat(){
     if(confirm("Clear all messages in this chat?")){
       fetch('/clear-room',{
         method:'POST',
@@ -539,6 +539,23 @@ async function checkPhishing(text) {
       })
       .catch(console.error);
     }
+  }*/
+
+  function clearChat(){
+  if(confirm("Clear all messages in this chat?")){
+    fetch('/clear-room',{
+      method:'POST',
+      headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({room})
+    })
+    .then(()=> {
+      document.getElementById("chat").innerHTML = '<div class="typing-indicator" id="typingIndicator"></div>';
+      addSystemMessage("Chat cleared successfully");
+      // ✅ Warnings aur lock reset mat karo - sirf messages clear karo
+      // resetWarnings(); // YE LINE COMMENT KARDO YA HATA DO
+    })
+    .catch(console.error);
+  }
   }
 
   function reactToMessage(btn,reaction){
