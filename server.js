@@ -22,6 +22,16 @@ const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] },
 });
 
+// ⚙️ Express + HTTP + Socket.io
+
+
+// ✅ YEH EK LINE ADD KARO:
+app.set('trust proxy', 1);
+
+const server = createServer(app);
+const io = new Server(server, {
+  cors: { origin: "*", methods: ["GET", "POST"] },
+});
 // 🔧 Middleware
 app.use(cors());
 app.use(express.json());
