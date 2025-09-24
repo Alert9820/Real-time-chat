@@ -500,13 +500,53 @@ async function checkPhishing(text) {
     document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
   }
 
-  function addWarningMessage(text){
+  /*function addWarningMessage(text){
     const el = document.createElement("div");
     el.className = "warning-message";
     el.textContent = text;
     document.getElementById("chat").appendChild(el);
     document.getElementById("chat").scrollTop = document.getElementById("chat").scrollHeight;
-  }
+  }*/
+
+  // ✅ IMPROVED WARNING SYSTEM - CLEAR CHAT/LOGOUT SE BHI NA JAYE
+function getWarnings() { 
+  return parseInt(localStorage.getItem(`${room}_warnings`) || '0'); 
+}
+
+function setWarnings(count) { 
+  localStorage.setItem(`${room}_warnings`, count.toString()); 
+  updateWarningDisplay(); 
+  return count; 
+}
+
+function addWarning() { 
+  const newWarnings = getWarnings() + 1;
+  setWarnings(newWarnings); 
+  
+  // ✅ TIMER INCREASE KARO HAR WARNING PE
+  const lockDurations = [30, 60, 120, 240, 480]; // 30s, 1m, 2m, 4m, 8m
+  const lockDuration = lockDurations[Math.min(newWarnings-1, lockDurations.length-1)];
+  
+  if(newWarnings >= 5) startChatLock(lockDuration);
+  return newWarnings; 
+}
+
+function startChatLock(seconds = 30) {
+  const unlockTime = Math.floor(Date.now()/1000) + seconds;
+  localStorage.setItem(`${room}_lock_time`, unlockTime.toString());
+  localStorage.setItem(`${room}_lock_duration`, seconds.toString()); // Store duration
+  updateWarningDisplay();
+  startLockCountdown();
+}
+
+function isChatLocked() { 
+  const t = getLockTime();
+  return t ? (t - Math.floor(Date.now()/1000)) > 0 : false;
+}
+
+function getLockTime() { 
+  return parseInt(localStorage.getItem(`${room}_lock_time`) || '0');
+}
 
   function addPhishingMessage(text){
     const el = document.createElement("div");
