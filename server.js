@@ -306,87 +306,81 @@ app.post("/clear-room", async (req, res) => {
 // ✅ setTimeout(() => controller.abort(), 5000); // 5 second timeout
 // --- Replace your
 // ✅ REPLACE THE ENTIRE /check-phishing ROUTE WITH THIS:
-app.post('/check-phishing', smallLimiter, express.json({ limit: '12kb' }), async (req, res) => {
+app.post('/check-phishing', express.json({ limit: '12kb' }), async (req, res) => {
   try {
-    if (!validateOrigin(req)) return res.status(403).json({ error: 'Forbidden origin' });
-
     const { text } = req.body;
     if (!text || typeof text !== 'string') {
-      return res.status(400).json({ isPhishing: false, confidence: 0, error: 'Invalid text' });
+      return res.json({ isPhishing: false, confidence: 0 });
     }
 
-    // ✅ Use environment variables from Render
-    const GOOGLE_API_KEY = process.env.GOOGLE_API_KEY;
-    const PHISHING_API_URL = process.env.PHISHING_API_URL;
-    const PHISHING_API_KEY = process.env.PHISHING_API_KEY;
+    console.log('🔍 Phishing check for:', text.substring(0, 50));
 
-    // 1) Google Safe Browsing API (if available)
-    if (GOOGLE_API_KEY) {
-      const urlRegex = /https?:\/\/[^\s]+/g;
-      const urls = text.match(urlRegex) || [];
-      const threatEntries = urls.length ? urls.map(u => ({ url: u })) : [];
+    // ✅ 1. Tumhara Hugging Face API use karo
+    const HUGGING_FACE_API_URL = "https://phishing-t66c.onrender.com/check";
 
-      if (threatEntries.length > 0) {
-        const payload = {
-          client: { clientId: "sunnyapp", clientVersion: "1.0" },
-          threatInfo: {
-            threatTypes: ["MALWARE", "SOCIAL_ENGINEERING", "UNWANTED_SOFTWARE"],
-            platformTypes: ["ANY_PLATFORM"],
-            threatEntryTypes: ["URL"],
-            threatEntries
-          }
-        };
-
-        const googleUrl = `https://safebrowsing.googleapis.com/v4/threatMatches:find?key=${GOOGLE_API_KEY}`;
-        const apiRes = await safeFetch(googleUrl, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload)
-        }, 7000);
-
-        if (apiRes && apiRes.ok) {
-          const json = await apiRes.json().catch(() => ({}));
-          const isPhishing = !!(json && json.matches && json.matches.length > 0);
-          return res.json({ isPhishing, confidence: isPhishing ? 0.95 : 0 });
-        }
-      }
-    }
-
-    // 2) External Phishing API (if available)
-    if (PHISHING_API_URL && PHISHING_API_KEY) {
-      const headers = { 'Content-Type': 'application/json' };
-      headers['Authorization'] = `Bearer ${PHISHING_API_KEY}`;
-
-      const extRes = await safeFetch(PHISHING_API_URL, {
+    try {
+      const response = await fetch(HUGGING_FACE_API_URL, {
         method: 'POST',
-        headers,
-        body: JSON.stringify({ text })
-      }, 7000);
+        headers: { 
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ text: text })
+      });
 
-      if (extRes && extRes.ok) {
-        const extJson = await extRes.json().catch(() => ({}));
-        // Normalize response for frontend
-        const isPhishing = extJson.isPhishing || extJson.malicious || false;
-        return res.json({ isPhishing, confidence: isPhishing ? 0.8 : 0 });
+      if (response.ok) {
+        const result = await response.json();
+        console.log('🤖 Hugging Face Result:', result);
+        
+        // ✅ Tumhare Hugging Face API ka response format ke according
+        // Example: { "prediction": "PHISHING", "confidence": 0.95 }
+        const isPhishing = result.prediction === "PHISHING";
+        const confidence = result.confidence || 0.8;
+        
+        return res.json({ 
+          isPhishing, 
+          confidence,
+          detected: 'HUGGING_FACE_MODEL',
+          raw: result // debugging ke liye
+        });
+      } else {
+        console.log('❌ Hugging Face API error:', response.status);
       }
+    } catch (hfError) {
+      console.log('❌ Hugging Face API failed:', hfError.message);
     }
 
-    // 3) Basic heuristic fallback (if no APIs available)
-    const phishingKeywords = /(login|verify|secure|account|update|confirm|bank|paypal|password|credit|urgent|immediately)/i;
+    // ✅ 2. Fallback heuristic check (agar Hugging Face fail ho)
     const urlRegex = /https?:\/\/[^\s]+/g;
     const urls = text.match(urlRegex) || [];
-    const hasSuspicious = phishingKeywords.test(text) || urls.some(u => phishingKeywords.test(u));
+    const hasUrls = urls.length > 0;
+
+    const phishingKeywords = [
+      'login', 'verify', 'secure', 'account', 'update', 'confirm', 
+      'bank', 'paypal', 'password', 'credit', 'urgent', 'immediately',
+      'facebook', 'instagram', 'whatsapp', 'amazon', 'paytm'
+    ];
     
+    const hasSuspiciousKeywords = phishingKeywords.some(keyword => 
+      text.toLowerCase().includes(keyword)
+    );
+
+    const isPhishing = hasUrls && hasSuspiciousKeywords;
+    const confidence = isPhishing ? 0.75 : 0.1;
+
+    console.log('🔍 Fallback Result:', { isPhishing, confidence });
+
     return res.json({ 
-      isPhishing: hasSuspicious, 
-      confidence: hasSuspicious ? 0.45 : 0 
+      isPhishing, 
+      confidence,
+      detected: 'HEURISTIC_FALLBACK'
     });
 
   } catch (err) {
     console.error('❌ /check-phishing error:', err);
-    return res.json({ isPhishing: false, confidence: 0, error: 'Check failed' });
+    return res.json({ isPhishing: false, confidence: 0 });
   }
 });
+        
 
 // ✅ REPLACE THE ENTIRE /check-toxicity ROUTE WITH THIS:
 app.post('/check-toxicity', smallLimiter, express.json({ limit: '12kb' }), async (req, res) => {
