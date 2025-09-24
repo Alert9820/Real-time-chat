@@ -16,14 +16,14 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ⚙️ Express + HTTP + Socket.io
-const app = express();
+/*const app = express();
 const server = createServer(app);
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] },
-});
+});*/
 
 // ⚙️ Express + HTTP + Socket.io
-
+const app = express();
 
 // ✅ YEH EK LINE ADD KARO:
 app.set('trust proxy', 1);
