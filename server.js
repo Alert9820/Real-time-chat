@@ -596,7 +596,7 @@ io.on("connection", (socket) => {
 
 
   // ✅ Simple message forward
-  socket.on("private-message", async (data) => {
+  /*socket.on("private-message", async (data) => {
     try {
       socket.to(data.room).emit("private-message", data);
       await privateMsgCollection.insertOne({
@@ -608,9 +608,75 @@ io.on("connection", (socket) => {
     } catch (error) {
       console.error("❌ Message error:", error);
     }
-  });
+  });*/
 
-  
+   // ✅ Server-side phishing check wala message handler
+socket.on("private-message", async (data) => {
+  try {
+    console.log('🔍 Checking message:', data.text);
+    
+    // ✅ Phishing check
+    const phishingResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/check-phishing`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ text: data.text })
+    });
+    
+    const phishingResult = await phishingResponse.json();
+    console.log('🤖 Phishing result:', phishingResult);
+    
+    if (phishingResult.isPhishing) {
+      // Send warning to sender
+      socket.emit("private-message", {
+        room: data.room,
+        sender: "System",
+        text: "🚫 Phishing link detected! Your message has been blocked."
+      });
+      return;
+    }
+
+    // ✅ Toxicity check
+    const toxicityResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/check-toxicity`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: data.text })
+    });
+    
+    const toxicityResult = await toxicityResponse.json();
+    console.log('🤖 Toxicity result:', toxicityResult);
+    
+    if (toxicityResult.isToxic) {
+      socket.emit("private-message", {
+        room: data.room,
+        sender: "System", 
+        text: "⚠️ Your message was blocked for inappropriate content"
+      });
+      return;
+    }
+
+    // ✅ If message is safe, broadcast it
+    socket.to(data.room).emit("private-message", data);
+    
+    // ✅ Save to database
+    await privateMsgCollection.insertOne({
+      room: data.room,
+      sender: data.sender,
+      text: data.text,
+      timestamp: new Date()
+    });
+
+  } catch (error) {
+    console.error("❌ Message validation error:", error);
+    // Fallback: allow message if check fails
+    socket.to(data.room).emit("private-message", data);
+    await privateMsgCollection.insertOne({
+      room: data.room,
+      sender: data.sender,
+      text: data.text,
+      timestamp: new Date()
+    });
+  }
+});
 
   // 📞 Handle call request
   socket.on("call-request", (data) => {
