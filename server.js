@@ -318,6 +318,7 @@ app.post("/clear-room", async (req, res) => {
 // ✅ REPLACE THE ENTIRE /check-phishing ROUTE WITH THIS:
 
 // ✅ PHISHING CHECK ROUTE
+// ✅ IMPROVED PHISHING CHECK ROUTE
 app.post('/check-phishing', express.json(), async (req, res) => {
   try {
     const { text } = req.body;
@@ -325,24 +326,71 @@ app.post('/check-phishing', express.json(), async (req, res) => {
 
     console.log('🔍 Checking phishing for:', text);
 
-    // Hugging Face API call
-    const response = await fetch("https://phishing-t66c.onrender.com/check", {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text })
-    });
+    // ✅ 1. Pehle Hugging Face API try karo
+    try {
+      const response = await fetch("https://phishing-t66c.onrender.com/check", {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+        timeout: 5000
+      });
 
-    if (response.ok) {
-      const result = await response.json();
-      const isPhishing = result.prediction === "PHISHING";
-      const confidence = result.confidence || 0.8;
-      
-      console.log('🤖 Result:', { isPhishing, confidence });
-      return res.json({ isPhishing, confidence });
+      if (response.ok) {
+        const result = await response.json();
+        console.log('🤖 Hugging Face Result:', result);
+        
+        if (result.prediction === "PHISHING") {
+          return res.json({ isPhishing: true, confidence: result.confidence || 0.8 });
+        }
+      }
+    } catch (hfError) {
+      console.log('❌ Hugging Face failed, using fallback');
     }
 
-    // Fallback
-    return res.json({ isPhishing: false, confidence: 0 });
+    // ✅ 2. IMPROVED HEURISTIC CHECK (Hugging Face fail hone par)
+    const phishingKeywords = [
+      'login', 'verify', 'secure', 'account', 'update', 'confirm', 
+      'bank', 'paypal', 'password', 'credit', 'urgent', 'immediately',
+      'facebook', 'instagram', 'whatsapp', 'amazon', 'paytm', 'sbi', 'hdfc',
+      'lottery', 'prize', 'won', 'winner', 'reward', 'claim', 'free', 'money',
+      'security', 'alert', 'warning', 'suspicious', 'activity', 'verification'
+    ];
+    
+    const urlRegex = /https?:\/\/[^\s]+/g;
+    const urls = text.match(urlRegex) || [];
+    const hasUrls = urls.length > 0;
+    
+    const lowerText = text.toLowerCase();
+    const hasSuspiciousKeywords = phishingKeywords.some(keyword => 
+      lowerText.includes(keyword.toLowerCase())
+    );
+    
+    // ✅ Specific patterns for common phishing
+    const suspiciousPatterns = [
+      /lottery.*won|won.*lottery/i,
+      /prize.*claim|claim.*prize/i,
+      /bank.*verif|verif.*bank/i,
+      /password.*reset|reset.*password/i,
+      /security.*alert|alert.*security/i,
+      /urgent.*action|action.*urgent/i
+    ];
+    
+    const hasSuspiciousPattern = suspiciousPatterns.some(pattern => 
+      pattern.test(text)
+    );
+
+    const isPhishing = hasUrls && (hasSuspiciousKeywords || hasSuspiciousPattern);
+    const confidence = isPhishing ? 0.85 : 0.1;
+
+    console.log('🔍 Heuristic Check:', {
+      hasUrls,
+      hasSuspiciousKeywords,
+      hasSuspiciousPattern, 
+      isPhishing,
+      confidence
+    });
+
+    return res.json({ isPhishing, confidence });
 
   } catch (err) {
     console.error('❌ Phishing check error:', err);
