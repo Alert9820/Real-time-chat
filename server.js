@@ -659,7 +659,7 @@ io.on("connection", (socket) => {
   });*/
 
    // ✅ Server-side phishing check wala message handler
- socket.on("private-message", async (data) => {
+/* socket.on("private-message", async (data) => {
   try {
     console.log('🔍 Checking message:', data.text);
     
@@ -725,8 +725,41 @@ io.on("connection", (socket) => {
       timestamp: new Date()
     });
   }
-});
+});*/
+socket.on("private-message", async (data) => {
+  try {
+    // ✅ Toxicity check
+    const toxicityResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/check-toxicity`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ message: data.text })
+    });
+    
+    const toxicityResult = await toxicityResponse.json();
+    
+    if (toxicityResult.isToxic) {
+      // ✅ DONO USERS KO NOTIFICATION BEJHO
+      io.to(data.room).emit("private-message", {
+        room: data.room,
+        sender: "System", 
+        text: `🚫 Message from ${data.sender} was blocked for toxic behavior`
+      });
+      return;
+    }
 
+    // ✅ Agar safe hai toh message forward karo
+    socket.to(data.room).emit("private-message", data);
+    await privateMsgCollection.insertOne({
+      room: data.room,
+      sender: data.sender,
+      text: data.text,
+      timestamp: new Date()
+    });
+
+  } catch (error) {
+    console.error("❌ Message error:", error);
+  }
+});
   // 📞 Handle call request
   socket.on("call-request", (data) => {
     if (!data.to || !data.callerId) return;
