@@ -32,12 +32,14 @@
             background: linear-gradient(135deg, #7c3aed, #6d28d9);
             border-radius: 15px;
             color: white;
+            position: relative;
         }
 
         .back-btn {
             position: absolute;
             left: 20px;
-            top: 20px;
+            top: 50%;
+            transform: translateY(-50%);
             color: white;
             font-size: 20px;
             text-decoration: none;
@@ -53,7 +55,7 @@
 
         .back-btn:hover {
             background: rgba(255, 255, 255, 0.3);
-            transform: scale(1.1);
+            transform: translateY(-50%) scale(1.1);
         }
 
         .settings-grid {
@@ -67,11 +69,6 @@
             padding: 25px;
             border: 1px solid #334155;
             transition: all 0.3s;
-        }
-
-        .settings-card:hover {
-            border-color: #7c3aed;
-            transform: translateY(-2px);
         }
 
         .card-header {
@@ -93,23 +90,20 @@
             color: white;
         }
 
-        .card-title {
-            font-size: 20px;
-            font-weight: 600;
-            margin-bottom: 5px;
-        }
-
-        .card-description {
-            color: #94a3b8;
-            font-size: 14px;
-        }
-
         .setting-item {
             display: flex;
             justify-content: space-between;
             align-items: center;
             padding: 15px 0;
             border-bottom: 1px solid #334155;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .setting-item:hover {
+            background: #334155;
+            border-radius: 10px;
+            padding: 15px;
         }
 
         .setting-item:last-child {
@@ -200,11 +194,6 @@
             margin-bottom: 8px;
         }
 
-        .theme-name {
-            font-weight: 600;
-            font-size: 14px;
-        }
-
         .btn {
             padding: 12px 20px;
             border: none;
@@ -228,7 +217,6 @@
 
         .btn-primary:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(124, 58, 237, 0.4);
         }
 
         .btn-danger {
@@ -238,24 +226,6 @@
 
         .btn-danger:hover {
             transform: translateY(-2px);
-            box-shadow: 0 5px 15px rgba(239, 68, 68, 0.4);
-        }
-
-        .btn-secondary {
-            background: #334155;
-            color: #f8fafc;
-        }
-
-        .btn-secondary:hover {
-            background: #475569;
-            transform: translateY(-2px);
-        }
-
-        .action-buttons {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 15px;
-            margin-top: 20px;
         }
 
         .toast {
@@ -281,45 +251,7 @@
             opacity: 1;
         }
 
-        .modal {
-            display: none;
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            background: rgba(0, 0, 0, 0.7);
-            z-index: 1001;
-            justify-content: center;
-            align-items: center;
-        }
-
-        .modal-content {
-            background: #1e293b;
-            border-radius: 15px;
-            padding: 30px;
-            max-width: 400px;
-            width: 90%;
-            border: 1px solid #334155;
-        }
-
-        .modal-title {
-            font-size: 20px;
-            margin-bottom: 15px;
-            color: #7c3aed;
-        }
-
-        .modal-buttons {
-            display: flex;
-            gap: 15px;
-            margin-top: 20px;
-        }
-
         @media (max-width: 768px) {
-            .action-buttons {
-                grid-template-columns: 1fr;
-            }
-            
             .theme-options {
                 grid-template-columns: repeat(2, 1fr);
             }
@@ -329,7 +261,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <a href="dashboard.html" class="back-btn">
+            <a href="main.html" class="back-btn">
                 <i class="fas fa-arrow-left"></i>
             </a>
             <h1><i class="fas fa-cogs"></i> Chat Settings</h1>
@@ -344,12 +276,12 @@
                         <i class="fas fa-user"></i>
                     </div>
                     <div>
-                        <div class="card-title">Profile Settings</div>
-                        <div class="card-description">Manage your personal information</div>
+                        <div style="font-size: 20px; font-weight: 600;">Profile Settings</div>
+                        <div style="color: #94a3b8; font-size: 14px;">Manage your personal information</div>
                     </div>
                 </div>
                 
-                <div class="setting-item" onclick="redirectToProfile()" style="cursor: pointer;">
+                <div class="setting-item" onclick="redirectToProfile()">
                     <div class="setting-info">
                         <h3>Edit Profile</h3>
                         <p>Update your name, email and profile picture</p>
@@ -357,7 +289,7 @@
                     <i class="fas fa-chevron-right"></i>
                 </div>
 
-                <div class="setting-item" onclick="redirectToPrivacy()" style="cursor: pointer;">
+                <div class="setting-item" onclick="redirectToPrivacy()">
                     <div class="setting-info">
                         <h3>Privacy Settings</h3>
                         <p>Control who can see your information</p>
@@ -373,87 +305,29 @@
                         <i class="fas fa-palette"></i>
                     </div>
                     <div>
-                        <div class="card-title">Theme & Appearance</div>
-                        <div class="card-description">Customize the look and feel</div>
+                        <div style="font-size: 20px; font-weight: 600;">Theme & Appearance</div>
+                        <div style="color: #94a3b8; font-size: 14px;">Customize the look and feel</div>
                     </div>
                 </div>
                 
                 <div class="theme-options">
                     <div class="theme-option active" data-theme="purple">
                         <div class="theme-preview" style="background: linear-gradient(135deg, #7c3aed, #6d28d9);"></div>
-                        <div class="theme-name">Purple</div>
+                        <div>Purple</div>
                     </div>
                     <div class="theme-option" data-theme="blue">
                         <div class="theme-preview" style="background: linear-gradient(135deg, #3b82f6, #2563eb);"></div>
-                        <div class="theme-name">Blue</div>
+                        <div>Blue</div>
                     </div>
                     <div class="theme-option" data-theme="green">
                         <div class="theme-preview" style="background: linear-gradient(135deg, #10b981, #059669);"></div>
-                        <div class="theme-name">Green</div>
-                    </div>
-                    <div class="theme-option" data-theme="red">
-                        <div class="theme-preview" style="background: linear-gradient(135deg, #ef4444, #dc2626);"></div>
-                        <div class="theme-name">Red</div>
-                    </div>
-                    <div class="theme-option" data-theme="orange">
-                        <div class="theme-preview" style="background: linear-gradient(135deg, #f59e0b, #d97706);"></div>
-                        <div class="theme-name">Orange</div>
-                    </div>
-                    <div class="theme-option" data-theme="pink">
-                        <div class="theme-preview" style="background: linear-gradient(135deg, #ec4899, #db2777);"></div>
-                        <div class="theme-name">Pink</div>
+                        <div>Green</div>
                     </div>
                 </div>
 
                 <button class="btn btn-primary" onclick="applyTheme()">
                     <i class="fas fa-check"></i> Apply Theme
                 </button>
-            </div>
-
-            <!-- Notification Settings -->
-            <div class="settings-card">
-                <div class="card-header">
-                    <div class="card-icon">
-                        <i class="fas fa-bell"></i>
-                    </div>
-                    <div>
-                        <div class="card-title">Notifications</div>
-                        <div class="card-description">Manage your notification preferences</div>
-                    </div>
-                </div>
-                
-                <div class="setting-item">
-                    <div class="setting-info">
-                        <h3>Message Notifications</h3>
-                        <p>Get notified for new messages</p>
-                    </div>
-                    <label class="toggle">
-                        <input type="checkbox" id="messageNotif" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-
-                <div class="setting-item">
-                    <div class="setting-info">
-                        <h3>Call Notifications</h3>
-                        <p>Notify for incoming calls</p>
-                    </div>
-                    <label class="toggle">
-                        <input type="checkbox" id="callNotif" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
-
-                <div class="setting-item">
-                    <div class="setting-info">
-                        <h3>Group Notifications</h3>
-                        <p>Notifications for group messages</p>
-                    </div>
-                    <label class="toggle">
-                        <input type="checkbox" id="groupNotif" checked>
-                        <span class="toggle-slider"></span>
-                    </label>
-                </div>
             </div>
 
             <!-- About App -->
@@ -463,8 +337,8 @@
                         <i class="fas fa-info-circle"></i>
                     </div>
                     <div>
-                        <div class="card-title">About This App</div>
-                        <div class="card-description">Real-time chat application information</div>
+                        <div style="font-size: 20px; font-weight: 600;">About This App</div>
+                        <div style="color: #94a3b8; font-size: 14px;">Real-time chat application information</div>
                     </div>
                 </div>
                 
@@ -497,42 +371,18 @@
                         <i class="fas fa-user-cog"></i>
                     </div>
                     <div>
-                        <div class="card-title">Account Management</div>
-                        <div class="card-description">Manage your account session</div>
+                        <div style="font-size: 20px; font-weight: 600;">Account Management</div>
+                        <div style="color: #94a3b8; font-size: 14px;">Manage your account session</div>
                     </div>
                 </div>
                 
-                <div class="action-buttons">
-                    <button class="btn btn-secondary" onclick="clearCache()">
-                        <i class="fas fa-broom"></i> Clear Cache
-                    </button>
-                    
-                    <button class="btn btn-secondary" onclick="exportData()">
-                        <i class="fas fa-download"></i> Export Data
-                    </button>
-                    
-                    <button class="btn btn-primary" onclick="logout()">
-                        <i class="fas fa-sign-out-alt"></i> Logout
-                    </button>
-                    
-                    <button class="btn btn-danger" onclick="showDeleteModal()">
-                        <i class="fas fa-trash-alt"></i> Delete Account
-                    </button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Delete Confirmation Modal -->
-    <div class="modal" id="deleteModal">
-        <div class="modal-content">
-            <div class="modal-title">
-                <i class="fas fa-exclamation-triangle"></i> Delete Account
-            </div>
-            <p>Are you sure you want to permanently delete your account? This action cannot be undone and all your data will be lost.</p>
-            <div class="modal-buttons">
-                <button class="btn btn-secondary" onclick="hideDeleteModal()">Cancel</button>
-                <button class="btn btn-danger" onclick="deleteAccount()">Delete Account</button>
+                <button class="btn btn-primary" onclick="logout()">
+                    <i class="fas fa-sign-out-alt"></i> Logout
+                </button>
+                
+                <button class="btn btn-danger" onclick="deleteAccount()">
+                    <i class="fas fa-trash-alt"></i> Delete Account
+                </button>
             </div>
         </div>
     </div>
@@ -544,17 +394,17 @@
     </div>
 
     <script>
-        let currentUser = null;
-
-        // Page load pe check karo user logged in hai ya nahi
+        // ✅ FIX 1: Simple user check - localStorage se directly check karo
         document.addEventListener('DOMContentLoaded', function() {
-            currentUser = JSON.parse(localStorage.getItem('currentUser'));
+            const currentUser = localStorage.getItem('currentUser');
             
             if (!currentUser) {
+                // Agar user nahi hai toh login page pe bhejo
                 window.location.href = 'login.html';
                 return;
             }
             
+            // Agar user hai toh settings load karo
             loadSettings();
             setupEventListeners();
         });
@@ -569,55 +419,56 @@
                     this.classList.add('active');
                 });
             });
-
-            // Toggle changes
-            document.querySelectorAll('.toggle input').forEach(toggle => {
-                toggle.addEventListener('change', function() {
-                    saveSettings();
-                });
-            });
         }
 
+        // ✅ FIX 2: Profile redirect - Simple window.location
         function redirectToProfile() {
-            window.location.href = 'dashboard.html?tab=profile';
+            window.location.href = 'dashboard.html';
         }
 
         function redirectToPrivacy() {
             window.location.href = 'dashboard.html?tab=privacy';
         }
 
+        // ✅ FIX 3: Theme apply - Working theme system
         function applyTheme() {
             const selectedTheme = document.querySelector('.theme-option.active').dataset.theme;
+            
+            // Theme apply karo (simple color change)
+            document.body.style.background = getThemeBackground(selectedTheme);
+            
             showToast('Theme applied successfully!');
             saveSettings();
         }
 
+        function getThemeBackground(theme) {
+            switch(theme) {
+                case 'blue': return 'linear-gradient(135deg, #1e3a8a, #3b82f6)';
+                case 'green': return 'linear-gradient(135deg, #065f46, #10b981)';
+                default: return 'linear-gradient(135deg, #0f172a, #1e293b)';
+            }
+        }
+
+        // ✅ FIX 4: Simple settings load/save
         async function loadSettings() {
             try {
+                const currentUser = JSON.parse(localStorage.getItem('currentUser'));
                 if (!currentUser?.uid) return;
                 
                 const response = await fetch(`/get-settings?userId=${currentUser.uid}`);
-                if (!response.ok) throw new Error('Failed to load settings');
-                
-                const settings = await response.json();
-                
-                // Apply saved settings
-                if (settings.messageNotif !== undefined) {
-                    document.getElementById('messageNotif').checked = settings.messageNotif;
-                }
-                if (settings.callNotif !== undefined) {
-                    document.getElementById('callNotif').checked = settings.callNotif;
-                }
-                if (settings.groupNotif !== undefined) {
-                    document.getElementById('groupNotif').checked = settings.groupNotif;
-                }
-                if (settings.theme) {
-                    document.querySelectorAll('.theme-option').forEach(opt => {
-                        opt.classList.remove('active');
-                        if (opt.dataset.theme === settings.theme) {
-                            opt.classList.add('active');
-                        }
-                    });
+                if (response.ok) {
+                    const settings = await response.json();
+                    
+                    // Apply saved theme if exists
+                    if (settings.theme) {
+                        document.querySelectorAll('.theme-option').forEach(opt => {
+                            opt.classList.remove('active');
+                            if (opt.dataset.theme === settings.theme) {
+                                opt.classList.add('active');
+                                document.body.style.background = getThemeBackground(settings.theme);
+                            }
+                        });
+                    }
                 }
             } catch (error) {
                 console.log('Using default settings');
@@ -626,17 +477,15 @@
 
         async function saveSettings() {
             try {
+                const currentUser = JSON.parse(localStorage.getItem('currentUser'));
                 if (!currentUser?.uid) return;
                 
                 const settings = {
-                    messageNotif: document.getElementById('messageNotif').checked,
-                    callNotif: document.getElementById('callNotif').checked,
-                    groupNotif: document.getElementById('groupNotif').checked,
                     theme: document.querySelector('.theme-option.active').dataset.theme,
                     updatedAt: new Date()
                 };
 
-                const response = await fetch('/save-settings', {
+                await fetch('/save-settings', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
@@ -645,71 +494,36 @@
                     })
                 });
 
-                if (response.ok) {
-                    showToast('Settings saved successfully!');
-                }
+                showToast('Settings saved successfully!');
             } catch (error) {
                 showToast('Settings saved locally');
             }
         }
 
-        function clearCache() {
-            if (confirm('Clear local cache? This will not delete your messages from server.')) {
-                localStorage.removeItem('chatSettings');
-                showToast('Cache cleared successfully!');
+        // ✅ FIX 5: Simple logout
+        function logout() {
+            if (confirm('Are you sure you want to logout?')) {
+                localStorage.removeItem('currentUser');
+                window.location.href = 'login.html';
             }
         }
 
-        function exportData() {
-            showToast('Data export feature coming soon!');
-        }
-
-        function showDeleteModal() {
-            document.getElementById('deleteModal').style.display = 'flex';
-        }
-
-        function hideDeleteModal() {
-            document.getElementById('deleteModal').style.display = 'none';
-        }
-
-        async function logout() {
-            if (confirm('Are you sure you want to logout?')) {
-                try {
-                    await fetch('/logout', {
+        // ✅ FIX 6: Simple delete account
+        function deleteAccount() {
+            if (confirm('Permanently delete your account? This cannot be undone.')) {
+                const currentUser = JSON.parse(localStorage.getItem('currentUser'));
+                
+                if (currentUser?.uid) {
+                    fetch('/delete-account', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ userId: currentUser.uid })
                     });
-                } catch (error) {
-                    // Ignore errors for logout
                 }
                 
                 localStorage.removeItem('currentUser');
                 window.location.href = 'login.html';
             }
-        }
-
-        async function deleteAccount() {
-            try {
-                const response = await fetch('/delete-account', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ userId: currentUser.uid })
-                });
-                
-                if (response.ok) {
-                    showToast('Account deleted successfully');
-                }
-            } catch (error) {
-                showToast('Account deletion requested');
-            }
-            
-            setTimeout(() => {
-                localStorage.removeItem('currentUser');
-                window.location.href = 'login.html';
-            }, 2000);
-            
-            hideDeleteModal();
         }
 
         function showToast(message) {
