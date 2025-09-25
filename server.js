@@ -612,23 +612,24 @@ app.post("/rename-group", async (req, res) => {
 });
 
 // ✅ NEW SETTINGS ROUTES - YAHAN ADD KARO
+// ✅ NEW SETTINGS ROUTES - YAHAN ADD KARO
 app.get("/get-settings", async (req, res) => {
   try {
     const userId = req.query.userId;
-    if (!userId) return res.status(400).send("User ID required");
+    if (!userId) return res.status(400).json({ error: "User ID required" });
 
     const settingsDoc = await settingsCollection.findOne({ userId });
     res.json(settingsDoc?.settings || {});
   } catch (e) {
     console.error("❌ Get Settings Error:", e);
-    res.status(500).send("Error loading settings");
+    res.status(500).json({ error: "Error loading settings" });
   }
 });
 
 app.post("/save-settings", async (req, res) => {
   try {
     const { userId, settings } = req.body;
-    if (!userId || !settings) return res.status(400).send("Invalid data");
+    if (!userId || !settings) return res.status(400).json({ error: "Invalid data" });
 
     await settingsCollection.updateOne(
       { userId },
@@ -636,22 +637,20 @@ app.post("/save-settings", async (req, res) => {
       { upsert: true }
     );
     
-    res.send("Settings saved successfully");
+    res.json({ message: "Settings saved successfully" });
   } catch (e) {
     console.error("❌ Save Settings Error:", e);
-    res.status(500).send("Error saving settings");
+    res.status(500).json({ error: "Error saving settings" });
   }
 });
 
 app.post("/logout", async (req, res) => {
   try {
-    const { userId } = req.body;
-    res.send("Logged out successfully");
+    res.json({ message: "Logged out successfully" });
   } catch (e) {
-    res.status(500).send("Error during logout");
+    res.status(500).json({ error: "Error during logout" });
   }
 });
-
 // 🧠 Socket.IO Logic
 const users = {};       // socketId -> { uid, name, socketId }
 const activeCalls = {}; // uid -> call state
