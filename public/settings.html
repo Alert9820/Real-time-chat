@@ -392,149 +392,165 @@
         <i class="fas fa-check-circle"></i>
         <span id="toastMessage">Settings saved successfully!</span>
     </div>
-
     <script>
-        // ✅ FIX 1: Simple user check - localStorage se directly check karo
-        document.addEventListener('DOMContentLoaded', function() {
-            const currentUser = localStorage.getItem('currentUser');
-            
-            if (!currentUser) {
-                // Agar user nahi hai toh login page pe bhejo
-                window.location.href = 'login.html';
-                return;
-            }
-            
-            // Agar user hai toh settings load karo
-            loadSettings();
-            setupEventListeners();
-        });
+    // ✅ FIX: main.html ke hisaab se user check karo
+    document.addEventListener('DOMContentLoaded', function() {
+        // main.html style mein check karo
+        const userData = localStorage.getItem("user");
+        
+        if (!userData) {
+            window.location.href = 'login.html';
+            return;
+        }
+        
+        // User data parse karo
+        const user = JSON.parse(userData);
+        console.log('Current user:', user);
+        
+        // Settings load karo
+        loadSettings(user);
+        setupEventListeners();
+    });
 
-        function setupEventListeners() {
-            // Theme selection
-            document.querySelectorAll('.theme-option').forEach(option => {
-                option.addEventListener('click', function() {
+    function setupEventListeners() {
+        // Theme selection
+        document.querySelectorAll('.theme-option').forEach(option => {
+            option.addEventListener('click', function() {
+                document.querySelectorAll('.theme-option').forEach(opt => {
+                    opt.classList.remove('active');
+                });
+                this.classList.add('active');
+            });
+        });
+    }
+
+    // ✅ FIX: Profile redirect
+    function redirectToProfile() {
+        window.location.href = 'dashboard.html';
+    }
+
+    function redirectToPrivacy() {
+        window.location.href = 'dashboard.html?tab=privacy';
+    }
+
+    // ✅ FIX: Theme apply
+    function applyTheme() {
+        const selectedTheme = document.querySelector('.theme-option.active').dataset.theme;
+        
+        // Theme apply karo
+        document.body.style.background = getThemeBackground(selectedTheme);
+        
+        showToast('Theme applied successfully!');
+        
+        // User data get karo
+        const userData = localStorage.getItem("user");
+        if (userData) {
+            const user = JSON.parse(userData);
+            saveSettings(user);
+        }
+    }
+
+    function getThemeBackground(theme) {
+        switch(theme) {
+            case 'blue': return 'linear-gradient(135deg, #1e3a8a, #3b82f6)';
+            case 'green': return 'linear-gradient(135deg, #065f46, #10b981)';
+            default: return 'linear-gradient(135deg, #0f172a, #1e293b)';
+        }
+    }
+
+    // ✅ FIX: Settings load/save - user parameter add karo
+    async function loadSettings(user) {
+        try {
+            if (!user?.uid) return;
+            
+            const response = await fetch(`/get-settings?userId=${user.uid}`);
+            if (response.ok) {
+                const settings = await response.json();
+                
+                // Apply saved theme if exists
+                if (settings.theme) {
                     document.querySelectorAll('.theme-option').forEach(opt => {
                         opt.classList.remove('active');
+                        if (opt.dataset.theme === settings.theme) {
+                            opt.classList.add('active');
+                            document.body.style.background = getThemeBackground(settings.theme);
+                        }
                     });
-                    this.classList.add('active');
-                });
-            });
-        }
-
-        // ✅ FIX 2: Profile redirect - Simple window.location
-        function redirectToProfile() {
-            window.location.href = 'dashboard.html';
-        }
-
-        function redirectToPrivacy() {
-            window.location.href = 'dashboard.html?tab=privacy';
-        }
-
-        // ✅ FIX 3: Theme apply - Working theme system
-        function applyTheme() {
-            const selectedTheme = document.querySelector('.theme-option.active').dataset.theme;
-            
-            // Theme apply karo (simple color change)
-            document.body.style.background = getThemeBackground(selectedTheme);
-            
-            showToast('Theme applied successfully!');
-            saveSettings();
-        }
-
-        function getThemeBackground(theme) {
-            switch(theme) {
-                case 'blue': return 'linear-gradient(135deg, #1e3a8a, #3b82f6)';
-                case 'green': return 'linear-gradient(135deg, #065f46, #10b981)';
-                default: return 'linear-gradient(135deg, #0f172a, #1e293b)';
-            }
-        }
-
-        // ✅ FIX 4: Simple settings load/save
-        async function loadSettings() {
-            try {
-                const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-                if (!currentUser?.uid) return;
-                
-                const response = await fetch(`/get-settings?userId=${currentUser.uid}`);
-                if (response.ok) {
-                    const settings = await response.json();
-                    
-                    // Apply saved theme if exists
-                    if (settings.theme) {
-                        document.querySelectorAll('.theme-option').forEach(opt => {
-                            opt.classList.remove('active');
-                            if (opt.dataset.theme === settings.theme) {
-                                opt.classList.add('active');
-                                document.body.style.background = getThemeBackground(settings.theme);
-                            }
-                        });
-                    }
                 }
-            } catch (error) {
-                console.log('Using default settings');
             }
+        } catch (error) {
+            console.log('Using default settings');
         }
+    }
 
-        async function saveSettings() {
-            try {
-                const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-                if (!currentUser?.uid) return;
+    async function saveSettings(user) {
+        try {
+            if (!user?.uid) return;
+            
+            const settings = {
+                theme: document.querySelector('.theme-option.active').dataset.theme,
+                updatedAt: new Date()
+            };
+
+            await fetch('/save-settings', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    userId: user.uid, 
+                    settings 
+                })
+            });
+
+            showToast('Settings saved successfully!');
+        } catch (error) {
+            showToast('Settings saved locally');
+        }
+    }
+
+    // ✅ FIX: Logout - main.html style mein
+    function logout() {
+        if (confirm('Are you sure you want to logout?')) {
+            localStorage.removeItem("user"); // ✅ Yeh line change karo
+            localStorage.removeItem("receiver");
+            localStorage.removeItem("receiverUid");
+            window.location.href = 'login.html';
+        }
+    }
+
+    // ✅ FIX: Delete account - main.html style mein
+    function deleteAccount() {
+        if (confirm('Permanently delete your account? This cannot be undone.')) {
+            const userData = localStorage.getItem("user");
+            
+            if (userData) {
+                const user = JSON.parse(userData);
                 
-                const settings = {
-                    theme: document.querySelector('.theme-option.active').dataset.theme,
-                    updatedAt: new Date()
-                };
-
-                await fetch('/save-settings', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ 
-                        userId: currentUser.uid, 
-                        settings 
-                    })
-                });
-
-                showToast('Settings saved successfully!');
-            } catch (error) {
-                showToast('Settings saved locally');
-            }
-        }
-
-        // ✅ FIX 5: Simple logout
-        function logout() {
-            if (confirm('Are you sure you want to logout?')) {
-                localStorage.removeItem('currentUser');
-                window.location.href = 'login.html';
-            }
-        }
-
-        // ✅ FIX 6: Simple delete account
-        function deleteAccount() {
-            if (confirm('Permanently delete your account? This cannot be undone.')) {
-                const currentUser = JSON.parse(localStorage.getItem('currentUser'));
-                
-                if (currentUser?.uid) {
+                if (user?.uid) {
                     fetch('/delete-account', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ userId: currentUser.uid })
+                        body: JSON.stringify({ userId: user.uid })
                     });
                 }
-                
-                localStorage.removeItem('currentUser');
-                window.location.href = 'login.html';
             }
-        }
-
-        function showToast(message) {
-            const toast = document.getElementById('toast');
-            document.getElementById('toastMessage').textContent = message;
-            toast.classList.add('show');
             
-            setTimeout(() => {
-                toast.classList.remove('show');
-            }, 3000);
+            // main.html ke hisaab se clear karo
+            localStorage.removeItem("user");
+            localStorage.removeItem("receiver"); 
+            localStorage.removeItem("receiverUid");
+            window.location.href = 'login.html';
         }
-    </script>
+    }
+
+    function showToast(message) {
+        const toast = document.getElementById('toast');
+        document.getElementById('toastMessage').textContent = message;
+        toast.classList.add('show');
+        
+        setTimeout(() => {
+            toast.classList.remove('show');
+        }, 3000);
+    }
+</script>
 </body>
 </html>
