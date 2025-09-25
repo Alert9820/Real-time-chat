@@ -1,4 +1,4 @@
-// ✅ UPDATED SERVER WITH VOICE CALLING + GROUP CHAT FEATURE
+// ✅ UPDATED SERVER WITH VOICE CALLING + GROUP CHAT + SETTINGS FEATURE
 import express from "express";
 import cors from "cors";
 import { Server } from "socket.io";
@@ -16,13 +16,6 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 // ⚙️ Express + HTTP + Socket.io
-/*const app = express();
-const server = createServer(app);
-const io = new Server(server, {
-  cors: { origin: "*", methods: ["GET", "POST"] },
-});*/
-
-// ⚙️ Express + HTTP + Socket.io
 const app = express();
 
 // ✅ YEH EK LINE ADD KARO:
@@ -32,6 +25,7 @@ const server = createServer(app);
 const io = new Server(server, {
   cors: { origin: "*", methods: ["GET", "POST"] },
 });
+
 // 🔧 Middleware
 app.use(cors());
 app.use(express.json());
@@ -76,7 +70,7 @@ async function safeFetch(url, options = {}, timeoutMs = 7000) {
   }
 }
 
-// 🗃️ MongoDB Setup
+// 🗃️ MongoDB Setup - ✅ SETTINGS COLLECTION ADD KAR DIYA
 const uri = process.env.MONGO_URI;
 const client = new MongoClient(uri, {
   ssl: true,
@@ -86,7 +80,7 @@ const client = new MongoClient(uri, {
 
 const dbName = "ChatDB";
 let userCollection, historyCollection, requestCollection, friendCollection, 
-    privateMsgCollection, groupCollection, groupMessageCollection;
+    privateMsgCollection, groupCollection, groupMessageCollection, settingsCollection; // ✅ SETTINGS ADDED
 
 client
   .connect()
@@ -97,8 +91,9 @@ client
     requestCollection = db.collection("friend_requests");
     friendCollection = db.collection("friends");
     privateMsgCollection = db.collection("privateMessages");
-    groupCollection = db.collection("groups"); // ✅ NEW: Group collection
-    groupMessageCollection = db.collection("groupMessages"); // ✅ NEW: Group messages
+    groupCollection = db.collection("groups");
+    groupMessageCollection = db.collection("groupMessages");
+    settingsCollection = db.collection("user_settings"); // ✅ NEW SETTINGS COLLECTION
     console.log("✅ MongoDB Connected");
   })
   .catch((err) => console.error("❌ Mongo Connection Error:", err));
@@ -109,7 +104,7 @@ function generateUID() {
 }
 
 // 🧠 Bot active state
-let botActive = false;  // ✅ Add this line near the top of server.js
+let botActive = false;
 
 // 🤖 Gemini Bot Reply (Short Hinglish)
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY;
@@ -177,15 +172,26 @@ app.post("/login", async (req, res) => {
   }
 });
 
-// ❌ Delete Account
+// ❌ Delete Account - ✅ UPDATED FOR SETTINGS
 app.post("/delete-account", async (req, res) => {
   try {
-    const { email } = req.body;
-    if (!email) return res.status(400).send("Missing email");
+    const { userId } = req.body; // ✅ Changed from email to userId
+    if (!userId) return res.status(400).send("Missing user ID");
 
-    const result = await userCollection.deleteOne({ email });
-    if (result.deletedCount === 1) res.send("Account deleted successfully");
-    else res.status(404).send("User not found");
+    // ✅ DELETE FROM ALL COLLECTIONS INCLUDING SETTINGS
+    await userCollection.deleteOne({ uid: userId });
+    await friendCollection.deleteMany({ 
+      $or: [{ uid1: userId }, { uid2: userId }] 
+    });
+    await requestCollection.deleteMany({ 
+      $or: [{ from: userId }, { to: userId }] 
+    });
+    await privateMsgCollection.deleteMany({ 
+      $or: [{ room: { $regex: userId } }] 
+    });
+    await settingsCollection.deleteOne({ userId }); // ✅ DELETE SETTINGS
+    
+    res.send("Account deleted successfully");
   } catch (e) {
     console.error("❌ Delete Account Error:", e);
     res.status(500).send("Server error");
@@ -270,7 +276,7 @@ app.get("/get-friends", async (req, res) => {
     res.status(500).send("Server error");
   }
 });
-// Add this to your server.js
+
 app.post("/delete-friend", async (req, res) => {
   try {
     const { uid1, uid2 } = req.body;
@@ -312,13 +318,7 @@ app.post("/clear-room", async (req, res) => {
   }
 });
 
-// ✅ Phishing Check Proxy Endpoint (Server-side)
-// ✅ setTimeout(() => controller.abort(), 5000); // 5 second timeout
-// --- Replace your
-// ✅ REPLACE THE ENTIRE /check-phishing ROUTE WITH THIS:
-
-// ✅ PHISHING CHECK ROUTE
-// ✅ IMPROVED PHISHING CHECK ROUTE
+// ✅ Phishing Check
 app.post('/check-phishing', express.json(), async (req, res) => {
   try {
     const { text } = req.body;
@@ -347,16 +347,16 @@ app.post('/check-phishing', express.json(), async (req, res) => {
       console.log('❌ Hugging Face failed, using fallback');
     }
 
-    // ✅ 2. IMPROVED HEURISTIC CHECK (Hugging Face fail hone par)
+    // ✅ 2. IMPROVED HEURISTIC CHECK
     const phishingKeywords = [
-  'login', 'verify', 'secure', 'account', 'update', 'confirm', 
-  'bank', 'paypal', 'password', 'credit', 'urgent', 'immediately',
-  'facebook', 'instagram', 'whatsapp', 'amazon', 'paytm', 'sbi', 'hdfc',
-  'lottery', 'prize', 'won', 'winner', 'reward', 'claim', 'free', 'money',
-  'security', 'alert', 'warning', 'suspicious', 'activity', 'verification',
-  'hack', 'crack', 'password', 'recovery', 'unlock', 'suspend', 'limit',
-  'phishing', 'scam', 'fraud', 'cheat', 'trick', 'steal', 'hack'
-];
+      'login', 'verify', 'secure', 'account', 'update', 'confirm', 
+      'bank', 'paypal', 'password', 'credit', 'urgent', 'immediately',
+      'facebook', 'instagram', 'whatsapp', 'amazon', 'paytm', 'sbi', 'hdfc',
+      'lottery', 'prize', 'won', 'winner', 'reward', 'claim', 'free', 'money',
+      'security', 'alert', 'warning', 'suspicious', 'activity', 'verification',
+      'hack', 'crack', 'password', 'recovery', 'unlock', 'suspend', 'limit',
+      'phishing', 'scam', 'fraud', 'cheat', 'trick', 'steal', 'hack'
+    ];
     
     const urlRegex = /https?:\/\/[^\s]+/g;
     const urls = text.match(urlRegex) || [];
@@ -367,7 +367,6 @@ app.post('/check-phishing', express.json(), async (req, res) => {
       lowerText.includes(keyword.toLowerCase())
     );
     
-    // ✅ Specific patterns for common phishing
     const suspiciousPatterns = [
       /lottery.*won|won.*lottery/i,
       /prize.*claim|claim.*prize/i,
@@ -400,7 +399,7 @@ app.post('/check-phishing', express.json(), async (req, res) => {
   }
 });
 
-// ✅ REPLACE THE ENTIRE /check-toxicity ROUTE WITH THIS:
+// ✅ Toxicity Check
 app.post('/check-toxicity', smallLimiter, express.json({ limit: '12kb' }), async (req, res) => {
   try {
     if (!validateOrigin(req)) return res.status(403).json({ error: 'Forbidden origin' });
@@ -410,10 +409,8 @@ app.post('/check-toxicity', smallLimiter, express.json({ limit: '12kb' }), async
       return res.status(400).json({ isToxic: false, score: 0, error: 'Invalid message' });
     }
 
-    // ✅ Use environment variable from Render
     const PERSPECTIVE_API_KEY = process.env.PERSPECTIVE_API_KEY;
 
-    // 1) Perspective API (if available)
     if (PERSPECTIVE_API_KEY) {
       const payload = {
         comment: { text: message },
@@ -445,7 +442,6 @@ app.post('/check-toxicity', smallLimiter, express.json({ limit: '12kb' }), async
           if (v > maxScore) maxScore = v;
         }
 
-        // Combine with Hindi bad words check
         const hindiBadWords = ['madarchod','bhenchod','chutiya','lund','gaand','kutta','kamina','harami'];
         const containsHindi = hindiBadWords.some(w => message.toLowerCase().includes(w));
         const finalToxic = maxScore > 0.7 || containsHindi;
@@ -458,7 +454,6 @@ app.post('/check-toxicity', smallLimiter, express.json({ limit: '12kb' }), async
       }
     }
 
-    // 2) Local word-list fallback
     const badWords = [
       'fuck','shit','bitch','asshole','dick','pussy','bastard','whore',
       'madarchod','bhenchod','chutiya','lund','gaand','maa ki','behen ki','kutta','kamina','harami'
@@ -476,15 +471,12 @@ app.post('/check-toxicity', smallLimiter, express.json({ limit: '12kb' }), async
 
   } catch (err) {
     console.error('❌ /check-toxicity error:', err);
-    // Fallback to local check
     const badWords = ['madarchod','bhenchod','chutiya','lund','gaand'];
     const lower = (message || '').toLowerCase();
     const isToxic = badWords.some(w => lower.includes(w));
     return res.json({ isToxic, score: isToxic ? 0.8 : 0.1, detected: 'FALLBACK' });
   }
 });
-    
-
 
 // 📋 Create Group
 app.post("/create-group", async (req, res) => {
@@ -581,7 +573,6 @@ app.post("/clear-group-chat", async (req, res) => {
     const { groupId } = req.body;
     await groupMessageCollection.deleteMany({ groupId });
     
-    // Notify all group members
     io.to(`group-${groupId}`).emit("chat-cleared", {
       groupId,
       clearedBy: req.body.clearedBy || "Someone"
@@ -608,7 +599,6 @@ app.post("/rename-group", async (req, res) => {
       { $set: { name: newName } }
     );
     
-    // Notify all group members
     io.to(`group-${groupId}`).emit("group-renamed", {
       groupId,
       newName
@@ -621,8 +611,46 @@ app.post("/rename-group", async (req, res) => {
   }
 });
 
+// ✅ NEW SETTINGS ROUTES - YAHAN ADD KARO
+app.get("/get-settings", async (req, res) => {
+  try {
+    const userId = req.query.userId;
+    if (!userId) return res.status(400).send("User ID required");
 
+    const settingsDoc = await settingsCollection.findOne({ userId });
+    res.json(settingsDoc?.settings || {});
+  } catch (e) {
+    console.error("❌ Get Settings Error:", e);
+    res.status(500).send("Error loading settings");
+  }
+});
 
+app.post("/save-settings", async (req, res) => {
+  try {
+    const { userId, settings } = req.body;
+    if (!userId || !settings) return res.status(400).send("Invalid data");
+
+    await settingsCollection.updateOne(
+      { userId },
+      { $set: { userId, settings, updatedAt: new Date() } },
+      { upsert: true }
+    );
+    
+    res.send("Settings saved successfully");
+  } catch (e) {
+    console.error("❌ Save Settings Error:", e);
+    res.status(500).send("Error saving settings");
+  }
+});
+
+app.post("/logout", async (req, res) => {
+  try {
+    const { userId } = req.body;
+    res.send("Logged out successfully");
+  } catch (e) {
+    res.status(500).send("Error during logout");
+  }
+});
 
 // 🧠 Socket.IO Logic
 const users = {};       // socketId -> { uid, name, socketId }
@@ -643,11 +671,45 @@ io.on("connection", (socket) => {
     }
   });
 
-
-
-  // ✅ Simple message forward
-  /*socket.on("private-message", async (data) => {
+  socket.on("private-message", async (data) => {
     try {
+      // ✅ Phishing check
+      const phishingResponse = await fetch('/check-phishing', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: data.text })
+      });
+      
+      const phishingResult = await phishingResponse.json();
+      
+      if (phishingResult.isPhishing) {
+        io.to(data.room).emit("private-message", {
+          room: data.room,
+          sender: "System",
+          text: `🚫 Phishing link detected from ${data.sender}`
+        });
+        return;
+      }
+
+      // ✅ Toxicity check
+      const toxicityResponse = await fetch('/check-toxicity', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: data.text })
+      });
+      
+      const toxicityResult = await toxicityResponse.json();
+      
+      if (toxicityResult.isToxic) {
+        io.to(data.room).emit("private-message", {
+          room: data.room,
+          sender: "System", 
+          text: `🚫 Message from ${data.sender} was blocked for toxic behavior`
+        });
+        return;
+      }
+
+      // ✅ Safe message forward
       socket.to(data.room).emit("private-message", data);
       await privateMsgCollection.insertOne({
         room: data.room,
@@ -655,239 +717,82 @@ io.on("connection", (socket) => {
         text: data.text,
         timestamp: new Date()
       });
+
     } catch (error) {
       console.error("❌ Message error:", error);
     }
-  });*/
-
-   // ✅ Server-side phishing check wala message handler
-/* socket.on("private-message", async (data) => {
-  try {
-    console.log('🔍 Checking message:', data.text);
-    
-    // ✅ Phishing check
-    const phishingResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/check-phishing`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: data.text })
-    });
-    
-    const phishingResult = await phishingResponse.json();
-    console.log('🤖 Phishing result:', phishingResult);
-    
-    if (phishingResult.isPhishing) {
-      // Send warning to sender
-      socket.emit("private-message", {
-        room: data.room,
-        sender: "System",
-        text: "🚫 Phishing link detected! Your message has been blocked."
-      });
-      return;
-    }
-
-    // ✅ Toxicity check - YE PART CHANGE KARO
-    const toxicityResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/check-toxicity`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: data.text })
-    });
-    
-    const toxicityResult = await toxicityResponse.json();
-    console.log('🤖 Toxicity result:', toxicityResult);
-    
-    if (toxicityResult.isToxic) {
-      // ✅ DONO USERS KO NOTIFICATION BEJHO (io.to use karo)
-      io.to(data.room).emit("private-message", {
-        room: data.room,
-        sender: "System", 
-        text: `⚠️ ${data.sender} tried to send inappropriate content that was blocked`
-      });
-      return;
-    }
-
-    // ✅ If message is safe, broadcast it
-    socket.to(data.room).emit("private-message", data);
-    
-    // ✅ Save to database
-    await privateMsgCollection.insertOne({
-      room: data.room,
-      sender: data.sender,
-      text: data.text,
-      timestamp: new Date()
-    });
-
-  } catch (error) {
-    console.error("❌ Message validation error:", error);
-    // Fallback: allow message if check fails
-    socket.to(data.room).emit("private-message", data);
-    await privateMsgCollection.insertOne({
-      room: data.room,
-      sender: data.sender,
-      text: data.text,
-      timestamp: new Date()
-    });
-  }
-});*/
-/*socket.on("private-message", async (data) => {
-  try {
-    // ✅ Toxicity check
-    const toxicityResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/check-toxicity`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: data.text })
-    });
-    
-    const toxicityResult = await toxicityResponse.json();
-    
-    if (toxicityResult.isToxic) {
-      // ✅ DONO USERS KO NOTIFICATION BEJHO
-      io.to(data.room).emit("private-message", {
-        room: data.room,
-        sender: "System", 
-        text: `🚫 Message from ${data.sender} was blocked for toxic behavior`
-      });
-      return;
-    }
-
-    // ✅ Agar safe hai toh message forward karo
-    socket.to(data.room).emit("private-message", data);
-    await privateMsgCollection.insertOne({
-      room: data.room,
-      sender: data.sender,
-      text: data.text,
-      timestamp: new Date()
-    });
-
-  } catch (error) {
-    console.error("❌ Message error:", error);
-  }
-});*/
-
-
-  socket.on("private-message", async (data) => {
-  try {
-    // ✅ Phishing check
-    const phishingResponse = await fetch('/check-phishing', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: data.text })
-    });
-    
-    const phishingResult = await phishingResponse.json();
-    
-    if (phishingResult.isPhishing) {
-      io.to(data.room).emit("private-message", {
-        room: data.room,
-        sender: "System",
-        text: `🚫 Phishing link detected from ${data.sender}`
-      });
-      return;
-    }
-
-    // ✅ Toxicity check
-    const toxicityResponse = await fetch('/check-toxicity', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: data.text })
-    });
-    
-    const toxicityResult = await toxicityResponse.json();
-    
-    if (toxicityResult.isToxic) {
-      io.to(data.room).emit("private-message", {
-        room: data.room,
-        sender: "System", 
-        text: `🚫 Message from ${data.sender} was blocked for toxic behavior`
-      });
-      return;
-    }
-
-    // ✅ Safe message forward
-    socket.to(data.room).emit("private-message", data);
-    await privateMsgCollection.insertOne({
-      room: data.room,
-      sender: data.sender,
-      text: data.text,
-      timestamp: new Date()
-    });
-
-  } catch (error) {
-    console.error("❌ Message error:", error);
-  }
-});
+  });
 
   // ✅ Group message with safety checks
-socket.on("group-message", async (data) => {
-  try {
-    console.log('🔍 Checking group message:', data.text);
-    
-    // ✅ Phishing check
-    const phishingResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/check-phishing`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ text: data.text })
-    });
-    
-    const phishingResult = await phishingResponse.json();
-    
-    if (phishingResult.isPhishing) {
-      // ✅ SARE GROUP MEMBERS KO NOTIFICATION BEJHO
-      io.to(`group-${data.groupId}`).emit("group-message", {
+  socket.on("group-message", async (data) => {
+    try {
+      console.log('🔍 Checking group message:', data.text);
+      
+      // ✅ Phishing check
+      const phishingResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/check-phishing`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text: data.text })
+      });
+      
+      const phishingResult = await phishingResponse.json();
+      
+      if (phishingResult.isPhishing) {
+        io.to(`group-${data.groupId}`).emit("group-message", {
+          groupId: data.groupId,
+          sender: "System",
+          senderName: "System",
+          text: `🚫 Phishing link detected from ${data.senderName}. Message blocked.`,
+          timestamp: new Date()
+        });
+        return;
+      }
+
+      // ✅ Toxicity check
+      const toxicityResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/check-toxicity`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: data.text })
+      });
+      
+      const toxicityResult = await toxicityResponse.json();
+      
+      if (toxicityResult.isToxic) {
+        io.to(`group-${data.groupId}`).emit("group-message", {
+          groupId: data.groupId,
+          sender: "System",
+          senderName: "System", 
+          text: `🚫 Message from ${data.senderName} was blocked for toxic behavior`,
+          timestamp: new Date()
+        });
+        return;
+      }
+
+      // ✅ If message is safe, broadcast to group
+      socket.to(`group-${data.groupId}`).emit("group-message", data);
+      
+      // ✅ Save to database
+      await groupMessageCollection.insertOne({
         groupId: data.groupId,
-        sender: "System",
-        senderName: "System",
-        text: `🚫 Phishing link detected from ${data.senderName}. Message blocked.`,
+        sender: data.sender,
+        senderName: data.senderName,
+        text: data.text,
         timestamp: new Date()
       });
-      return;
-    }
 
-    // ✅ Toxicity check
-    const toxicityResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/check-toxicity`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ message: data.text })
-    });
-    
-    const toxicityResult = await toxicityResponse.json();
-    
-    if (toxicityResult.isToxic) {
-      // ✅ SARE GROUP MEMBERS KO NOTIFICATION BEJHO
-      io.to(`group-${data.groupId}`).emit("group-message", {
+    } catch (error) {
+      console.error("❌ Group message validation error:", error);
+      // Fallback: allow message if check fails
+      socket.to(`group-${data.groupId}`).emit("group-message", data);
+      await groupMessageCollection.insertOne({
         groupId: data.groupId,
-        sender: "System",
-        senderName: "System", 
-        text: `🚫 Message from ${data.senderName} was blocked for toxic behavior`,
+        sender: data.sender,
+        senderName: data.senderName,
+        text: data.text,
         timestamp: new Date()
       });
-      return;
     }
-
-    // ✅ If message is safe, broadcast to group
-    socket.to(`group-${data.groupId}`).emit("group-message", data);
-    
-    // ✅ Save to database
-    await groupMessageCollection.insertOne({
-      groupId: data.groupId,
-      sender: data.sender,
-      senderName: data.senderName,
-      text: data.text,
-      timestamp: new Date()
-    });
-
-  } catch (error) {
-    console.error("❌ Group message validation error:", error);
-    // Fallback: allow message if check fails
-    socket.to(`group-${data.groupId}`).emit("group-message", data);
-    await groupMessageCollection.insertOne({
-      groupId: data.groupId,
-      sender: data.sender,
-      senderName: data.senderName,
-      text: data.text,
-      timestamp: new Date()
-    });
-  }
-});
+  });
   
   // 📞 Handle call request
   socket.on("call-request", (data) => {
@@ -895,15 +800,12 @@ socket.on("group-message", async (data) => {
 
     console.log("📞 Call request:", data.callerId, "->", data.to);
 
-    // Find recipient
     const recipient = Object.values(users).find(u => u.uid === data.to);
 
     if (recipient) {
-      // Save active call
       activeCalls[data.callerId] = { with: data.to, status: "calling", socketId: socket.id };
       activeCalls[data.to] = { with: data.callerId, status: "ringing", socketId: recipient.socketId };
 
-      // Notify recipient
       io.to(recipient.socketId).emit("incoming-call", {
         callerId: data.callerId,
         callerName: data.callerName || "Unknown"
@@ -1008,12 +910,10 @@ socket.on("group-message", async (data) => {
 
     const user = users[socket.id];
     if (user) {
-      // Clean up active calls
       delete activeCalls[user.uid];
       delete users[socket.id];
     }
   });
-
 
   // 🆕 GROUP CHAT SOCKET EVENTS
   socket.on("join-group", (groupId) => {
@@ -1032,7 +932,6 @@ socket.on("group-message", async (data) => {
       
       if (!groupId || !text) return;
 
-      // Save group message to database
       const messageData = {
         groupId,
         sender,
@@ -1043,7 +942,6 @@ socket.on("group-message", async (data) => {
 
       await groupMessageCollection.insertOne(messageData);
       
-      // Send to all group members
       io.to(`group-${groupId}`).emit("group-message", messageData);
       
       // ✅ BOT AUTO-RESPONSE
@@ -1052,7 +950,6 @@ socket.on("group-message", async (data) => {
         if (prompt) {
           const reply = await generateBotReply(prompt);
           
-          // Send bot reply
           io.to(`group-${groupId}`).emit("group-message", {
             groupId,
             sender: "BotX",
@@ -1061,7 +958,6 @@ socket.on("group-message", async (data) => {
             timestamp: new Date()
           });
           
-          // Save to history
           const user = await userCollection.findOne({ uid: sender });
           if (user) {
             await historyCollection.insertOne({
@@ -1092,16 +988,13 @@ socket.on("group-message", async (data) => {
     try {
       const { groupId, prompt, userId } = data;
       
-      // Generate bot reply
       const reply = await generateBotReply(prompt);
       
-      // Send bot reply to the group
       io.to(`group-${groupId}`).emit("bot-reply", {
         groupId,
         text: reply
       });
       
-      // Save to history if needed
       const user = await userCollection.findOne({ uid: userId });
       if (user) {
         await historyCollection.insertOne({
@@ -1162,21 +1055,19 @@ socket.on("group-message", async (data) => {
 
   // 🔒 Private Chat
   socket.on("private-message", async (payload) => {
-    if (!payload || payload.__signal) return; // 🔹 ignore WebRTC signals
+    if (!payload || payload.__signal) return;
 
     const { room, sender, text } = payload;
     if (!room || !sender || !text) return;
 
     io.to(room).emit("private-message", { sender, text });
 
-    // Save message
     try {
       await privateMsgCollection.insertOne({ room, sender, text, timestamp: new Date() });
     } catch (e) {
       console.error("❌ Save private message error:", e);
     }
 
-    // Bot reply in private
     if (botActive && text.toLowerCase().includes("bot")) {
       const prompt = text.replace(/bot/gi, "").trim();
       const reply = await generateBotReply(prompt);
@@ -1185,10 +1076,18 @@ socket.on("group-message", async (data) => {
     }
   });
 
+  // ✅ NEW SOCKET EVENTS FOR SETTINGS
+  socket.on("logout", (data) => {
+    socket.emit("logout-success");
+  });
+  
+  socket.on("delete-account", (data) => {
+    socket.emit("account-deleted");
+  });
+
   socket.on("disconnect", () => {
     console.log("❌ Disconnected:", socket.id, users[socket.id] ? `(${users[socket.id].name}/${users[socket.id].uid})` : "");
     
-    // 📞 NEW: Clean up active calls on disconnect
     if (users[socket.id] && users[socket.id].uid) {
       const uid = users[socket.id].uid;
       if (activeCalls[uid]) {
@@ -1213,4 +1112,3 @@ const PORT = process.env.PORT || 5000;
 server.listen(PORT, () => {
   console.log(`🚀 Server running on http://localhost:${PORT}`);
 });
-    
