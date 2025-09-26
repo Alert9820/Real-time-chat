@@ -12,10 +12,15 @@
       padding: 0;
       box-sizing: border-box;
       -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      -moz-user-select: none;
+      -ms-user-select: none;
+      user-select: none;
     }
     
     html, body {
       height: 100%;
+      width: 100%;
       overflow: hidden;
       background: linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 100%);
       color: #fff;
@@ -27,7 +32,7 @@
       bottom: 0;
     }
     
-    /* Main container - WhatsApp like fixed layout */
+    /* Main app container - Fixed layout */
     .app-container {
       display: flex;
       flex-direction: column;
@@ -36,6 +41,53 @@
       position: fixed;
       top: 0;
       left: 0;
+      background: linear-gradient(135deg, #0f0f0f 0%, #1a1a2e 100%);
+    }
+    
+    /* Animated background elements */
+    .bg-circle {
+      position: absolute;
+      border-radius: 50%;
+      background: rgba(102, 204, 255, 0.1);
+      z-index: 0;
+      animation: float 8s ease-in-out infinite;
+    }
+    
+    .circle-1 {
+      width: 200px;
+      height: 200px;
+      top: -50px;
+      left: -50px;
+      animation-delay: 0s;
+    }
+    
+    .circle-2 {
+      width: 150px;
+      height: 150px;
+      bottom: -30px;
+      right: -30px;
+      background: rgba(76, 175, 80, 0.1);
+      animation-delay: 2s;
+    }
+    
+    .circle-3 {
+      width: 100px;
+      height: 100px;
+      top: 30%;
+      right: 15%;
+      background: rgba(255, 193, 7, 0.1);
+      animation-delay: 4s;
+    }
+    
+    @keyframes float {
+      0%, 100% { 
+        transform: translateY(0px) scale(1);
+        opacity: 0.7;
+      }
+      50% { 
+        transform: translateY(-15px) scale(1.05);
+        opacity: 1;
+      }
     }
     
     /* Header - Fixed at top */
@@ -43,16 +95,17 @@
       background: rgba(28, 28, 28, 0.95);
       padding: 15px 20px;
       border-bottom: 1px solid rgba(102, 204, 255, 0.2);
-      backdrop-filter: blur(10px);
+      backdrop-filter: blur(15px);
       z-index: 100;
       flex-shrink: 0;
+      position: relative;
     }
     
     .header-content {
       display: flex;
       align-items: center;
       gap: 15px;
-      max-width: 100%;
+      width: 100%;
     }
     
     .logo {
@@ -62,6 +115,12 @@
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
       white-space: nowrap;
+      animation: glow 2s ease-in-out infinite alternate;
+    }
+    
+    @keyframes glow {
+      from { filter: drop-shadow(0 0 5px rgba(102, 204, 255, 0.3)); }
+      to { filter: drop-shadow(0 0 15px rgba(102, 204, 255, 0.6)); }
     }
     
     .search-container {
@@ -78,56 +137,125 @@
       color: #6cf;
       font-size: 16px;
       z-index: 2;
+      transition: color 0.3s ease;
     }
     
     .search-container input {
       width: 100%;
       padding: 12px 12px 12px 40px;
-      background: rgba(42, 42, 42, 0.8);
+      background: rgba(42, 42, 42, 0.9);
       border: 2px solid transparent;
-      border-radius: 20px;
+      border-radius: 25px;
       color: #fff;
       font-size: 14px;
-      transition: all 0.3s ease;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      backdrop-filter: blur(10px);
     }
     
     .search-container input:focus {
       border-color: #6cf;
       outline: none;
+      background: rgba(42, 42, 42, 0.95);
+      transform: scale(1.02);
+    }
+    
+    .search-container input:focus + i {
+      color: #39f;
+      transform: translateY(-50%) scale(1.1);
     }
     
     .search-container input::placeholder {
       color: #888;
+      transition: color 0.3s ease;
     }
     
-    /* Main content area - Scrollable */
+    .search-container input:focus::placeholder {
+      color: #aaa;
+    }
+    
+    /* Main content area - Scrollable but stable */
     .main-content {
       flex: 1;
       overflow-y: auto;
       overflow-x: hidden;
       padding: 0;
       position: relative;
+      z-index: 1;
       -webkit-overflow-scrolling: touch;
+      scroll-behavior: smooth;
     }
     
-    /* Friends list */
+    .main-content::-webkit-scrollbar {
+      width: 0px;
+      background: transparent;
+    }
+    
+    /* Section title */
+    .section-title {
+      font-size: 22px;
+      font-weight: 600;
+      margin: 20px;
+      background: linear-gradient(45deg, #6cf, #39f);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      text-align: center;
+      animation: slideInDown 0.6s ease-out;
+    }
+    
+    @keyframes slideInDown {
+      from {
+        opacity: 0;
+        transform: translateY(-20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
+    }
+    
+    /* Friends list - WhatsApp style */
     .friends-list {
       padding: 0;
+      animation: fadeIn 0.8s ease-out;
+    }
+    
+    @keyframes fadeIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
     }
     
     .friend-item {
       display: flex;
       align-items: center;
-      padding: 15px 20px;
+      padding: 16px 20px;
       border-bottom: 1px solid rgba(102, 204, 255, 0.1);
       background: rgba(28, 28, 28, 0.8);
       cursor: pointer;
-      transition: background 0.3s ease;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       min-height: 72px;
+      backdrop-filter: blur(10px);
+      position: relative;
+      overflow: hidden;
+    }
+    
+    .friend-item::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: -100%;
+      width: 100%;
+      height: 100%;
+      background: linear-gradient(90deg, transparent, rgba(102, 204, 255, 0.05), transparent);
+      transition: left 0.6s ease;
+    }
+    
+    .friend-item:active::before {
+      left: 100%;
     }
     
     .friend-item:active {
       background: rgba(102, 204, 255, 0.1);
+      transform: scale(0.98);
     }
     
     .friend-avatar {
@@ -143,11 +271,31 @@
       color: #000;
       margin-right: 15px;
       flex-shrink: 0;
+      animation: bounceIn 0.6s ease-out;
+      box-shadow: 0 4px 15px rgba(102, 204, 255, 0.3);
+    }
+    
+    @keyframes bounceIn {
+      0% { transform: scale(0); }
+      70% { transform: scale(1.1); }
+      100% { transform: scale(1); }
     }
     
     .friend-info {
       flex: 1;
       min-width: 0;
+      animation: slideInRight 0.6s ease-out;
+    }
+    
+    @keyframes slideInRight {
+      from {
+        opacity: 0;
+        transform: translateX(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateX(0);
+      }
     }
     
     .friend-name {
@@ -168,6 +316,11 @@
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
+      transition: color 0.3s ease;
+    }
+    
+    .friend-item:active .friend-status {
+      color: #6cf;
     }
     
     .status-dot {
@@ -176,22 +329,35 @@
       height: 8px;
       border-radius: 50%;
       margin-left: 5px;
+      animation: pulse 2s infinite;
+    }
+    
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.5; }
     }
     
     .online {
       background: #6bff6b;
-      box-shadow: 0 0 6px #6bff6b;
+      box-shadow: 0 0 8px #6bff6b;
     }
     
     .offline {
       background: #666;
     }
     
-    /* Floating Action Button */
-    .fab {
+    /* Floating Action Buttons */
+    .fab-container {
       position: fixed;
       bottom: 80px;
       right: 20px;
+      z-index: 1000;
+      display: flex;
+      flex-direction: column;
+      gap: 15px;
+    }
+    
+    .fab {
       width: 56px;
       height: 56px;
       border-radius: 50%;
@@ -200,24 +366,40 @@
       color: #000;
       font-size: 20px;
       cursor: pointer;
-      box-shadow: 0 4px 15px rgba(0, 0, 0, 0.3);
-      z-index: 1000;
+      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.3);
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: transform 0.2s ease;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+      animation: fabEntrance 0.6s ease-out;
+    }
+    
+    @keyframes fabEntrance {
+      from {
+        opacity: 0;
+        transform: scale(0) rotate(180deg);
+      }
+      to {
+        opacity: 1;
+        transform: scale(1) rotate(0deg);
+      }
     }
     
     .fab:active {
-      transform: scale(0.95);
+      transform: scale(0.9);
+      box-shadow: 0 2px 10px rgba(0, 0, 0, 0.2);
     }
     
     .fab.bot {
-      bottom: 150px;
       background: linear-gradient(45deg, #4aa8ff, #39f);
+      animation-delay: 0.1s;
     }
     
-    /* Bottom Navigation - Fixed at bottom */
+    .fab.add {
+      animation-delay: 0.2s;
+    }
+    
+    /* Bottom Navigation - Fixed */
     .bottom-nav {
       display: flex;
       justify-content: space-around;
@@ -225,9 +407,10 @@
       background: rgba(28, 28, 28, 0.95);
       padding: 12px 0;
       border-top: 1px solid rgba(102, 204, 255, 0.1);
-      backdrop-filter: blur(10px);
+      backdrop-filter: blur(15px);
       z-index: 100;
       flex-shrink: 0;
+      position: relative;
     }
     
     .nav-item {
@@ -236,28 +419,55 @@
       align-items: center;
       gap: 4px;
       cursor: pointer;
-      padding: 8px 12px;
-      border-radius: 8px;
-      transition: all 0.3s ease;
+      padding: 8px 16px;
+      border-radius: 12px;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
       color: #888;
       min-width: 60px;
+      position: relative;
     }
     
     .nav-item.active {
       color: #6cf;
+      transform: translateY(-2px);
+    }
+    
+    .nav-item.active::after {
+      content: '';
+      position: absolute;
+      bottom: -12px;
+      left: 50%;
+      transform: translateX(-50%);
+      width: 4px;
+      height: 4px;
+      background: #6cf;
+      border-radius: 50%;
+      animation: navPulse 1.5s infinite;
+    }
+    
+    @keyframes navPulse {
+      0%, 100% { opacity: 1; transform: translateX(-50%) scale(1); }
+      50% { opacity: 0.7; transform: translateX(-50%) scale(1.2); }
     }
     
     .nav-item i {
       font-size: 20px;
+      transition: all 0.3s ease;
+    }
+    
+    .nav-item.active i {
+      transform: scale(1.1);
     }
     
     .nav-item span {
       font-size: 11px;
       font-weight: 500;
+      transition: all 0.3s ease;
     }
     
     .nav-item:active {
       background: rgba(102, 204, 255, 0.1);
+      transform: scale(0.95);
     }
     
     /* Empty and Loading States */
@@ -267,42 +477,48 @@
       align-items: center;
       justify-content: center;
       height: 60vh;
-      padding: 20px;
+      padding: 40px 20px;
       text-align: center;
       color: #888;
+      animation: fadeIn 1s ease-out;
     }
     
     .empty-icon {
-      font-size: 60px;
-      margin-bottom: 15px;
+      font-size: 80px;
+      margin-bottom: 20px;
       background: linear-gradient(45deg, #6cf, #39f);
       -webkit-background-clip: text;
       -webkit-text-fill-color: transparent;
+      animation: float 3s ease-in-out infinite;
     }
     
     .empty-state h3 {
-      font-size: 18px;
-      margin-bottom: 8px;
+      font-size: 22px;
+      margin-bottom: 10px;
       color: #fff;
+      animation: slideInUp 0.6s ease-out;
     }
     
     .empty-state p {
-      font-size: 14px;
-      line-height: 1.4;
+      font-size: 16px;
+      line-height: 1.5;
       max-width: 300px;
+      animation: slideInUp 0.8s ease-out;
     }
     
-    /* No zoom or float effects */
-    .friend-item:hover {
-      background: rgba(28, 28, 28, 0.8);
+    @keyframes slideInUp {
+      from {
+        opacity: 0;
+        transform: translateY(20px);
+      }
+      to {
+        opacity: 1;
+        transform: translateY(0);
+      }
     }
     
-    .friend-item:active {
-      background: rgba(102, 204, 255, 0.1);
-    }
-    
-    /* Responsive adjustments */
-    @media (max-width: 480px) {
+    /* Responsive Design */
+    @media (max-width: 768px) {
       .header {
         padding: 12px 15px;
       }
@@ -317,40 +533,36 @@
       }
       
       .friend-item {
-        padding: 12px 15px;
-        min-height: 64px;
+        padding: 14px 15px;
+        min-height: 68px;
       }
       
       .friend-avatar {
-        width: 44px;
-        height: 44px;
+        width: 46px;
+        height: 46px;
         font-size: 16px;
         margin-right: 12px;
       }
       
-      .friend-name {
-        font-size: 15px;
+      .section-title {
+        font-size: 20px;
+        margin: 15px;
       }
       
-      .friend-status {
-        font-size: 12px;
-      }
-      
-      .fab {
-        width: 50px;
-        height: 50px;
-        font-size: 18px;
+      .fab-container {
         bottom: 70px;
         right: 15px;
       }
       
-      .fab.bot {
-        bottom: 135px;
+      .fab {
+        width: 52px;
+        height: 52px;
+        font-size: 18px;
       }
       
       .nav-item {
-        padding: 6px 8px;
-        min-width: 50px;
+        padding: 6px 12px;
+        min-width: 55px;
       }
       
       .nav-item i {
@@ -362,7 +574,7 @@
       }
     }
     
-    @media (max-width: 320px) {
+    @media (max-width: 480px) {
       .header {
         padding: 10px 12px;
       }
@@ -372,37 +584,49 @@
       }
       
       .friend-item {
-        padding: 10px 12px;
+        padding: 12px 12px;
+        min-height: 64px;
       }
       
       .friend-avatar {
-        width: 40px;
-        height: 40px;
+        width: 42px;
+        height: 42px;
         margin-right: 10px;
+      }
+      
+      .friend-name {
+        font-size: 15px;
+      }
+      
+      .friend-status {
+        font-size: 12px;
+      }
+      
+      .section-title {
+        font-size: 18px;
+        margin: 12px;
       }
     }
     
-    /* Hide scrollbar for webkit browsers */
-    .main-content::-webkit-scrollbar {
-      width: 0px;
-      background: transparent;
+    /* Prevent all unwanted behaviors */
+    .friend-item:hover {
+      background: rgba(28, 28, 28, 0.8) !important;
+      transform: none !important;
     }
     
-    /* Prevent text selection */
-    .friend-item, .nav-item, .fab {
-      -webkit-user-select: none;
-      -moz-user-select: none;
-      -ms-user-select: none;
-      user-select: none;
-    }
-    
-    /* Smooth scrolling */
-    .main-content {
-      scroll-behavior: smooth;
+    /* Only allow active state for touch */
+    .friend-item:active {
+      background: rgba(102, 204, 255, 0.1);
+      transform: scale(0.98);
     }
   </style>
 </head>
 <body>
+  <!-- Background elements -->
+  <div class="bg-circle circle-1"></div>
+  <div class="bg-circle circle-2"></div>
+  <div class="bg-circle circle-3"></div>
+
   <div class="app-container">
     <!-- Header -->
     <header class="header">
@@ -417,22 +641,25 @@
 
     <!-- Main Content -->
     <main class="main-content">
+      <h1 class="section-title">Your Chats</h1>
       <div id="friendsContainer">
         <div class="empty-state">
           <div class="empty-icon"><i class="fas fa-spinner fa-spin"></i></div>
-          <h3>Loading Friends</h3>
+          <h3>Loading Chats</h3>
           <p>Please wait while we load your conversations</p>
         </div>
       </div>
     </main>
 
     <!-- Floating Action Buttons -->
-    <button class="fab bot" onclick="openBot()" title="AI Bot">
-      <i class="fas fa-robot"></i>
-    </button>
-    <button class="fab" onclick="addFriend()" title="Add Friend">
-      <i class="fas fa-user-plus"></i>
-    </button>
+    <div class="fab-container">
+      <button class="fab bot" onclick="openBot()" title="AI Bot">
+        <i class="fas fa-robot"></i>
+      </button>
+      <button class="fab add" onclick="addFriend()" title="Add Friend">
+        <i class="fas fa-user-plus"></i>
+      </button>
+    </div>
 
     <!-- Bottom Navigation -->
     <nav class="bottom-nav">
@@ -482,6 +709,9 @@
       // Load friends and setup app
       loadFriends();
       setupEventListeners();
+      
+      // Prevent zoom and other unwanted behaviors
+      preventUnwantedBehaviors();
     });
 
     // Setup event listeners
@@ -498,9 +728,37 @@
           e.preventDefault();
         }
       });
+    }
+
+    // Prevent all unwanted behaviors
+    function preventUnwantedBehaviors() {
+      // Prevent zoom
+      document.addEventListener('gesturestart', function(e) {
+        e.preventDefault();
+      });
       
-      // Handle touch events for better mobile experience
-      document.addEventListener('touchstart', function() {}, {passive: true});
+      document.addEventListener('gesturechange', function(e) {
+        e.preventDefault();
+      });
+      
+      document.addEventListener('gestureend', function(e) {
+        e.preventDefault();
+      });
+      
+      // Prevent double tap zoom
+      let lastTouchEnd = 0;
+      document.addEventListener('touchend', function(event) {
+        const now = (new Date()).getTime();
+        if (now - lastTouchEnd <= 300) {
+          event.preventDefault();
+        }
+        lastTouchEnd = now;
+      }, false);
+      
+      // Prevent context menu
+      document.addEventListener('contextmenu', function(e) {
+        e.preventDefault();
+      });
     }
 
     // Load friends from server
@@ -532,8 +790,9 @@
     function renderFriends(friends) {
       elements.friendsContainer.innerHTML = `
         <div class="friends-list">
-          ${friends.map(friend => `
-            <div class="friend-item" onclick="openChat('${friend.uid}', '${friend.name.replace(/'/g, "\\'")}')">
+          ${friends.map((friend, index) => `
+            <div class="friend-item" onclick="openChat('${friend.uid}', '${friend.name.replace(/'/g, "\\'")}')" 
+                 style="animation-delay: ${index * 0.1}s">
               <div class="friend-avatar">${getInitials(friend.name)}</div>
               <div class="friend-info">
                 <div class="friend-name">
@@ -653,9 +912,6 @@
           <div class="empty-icon"><i class="fas ${icon}"></i></div>
           <h3>${title}</h3>
           <p>${message}</p>
-          <button class="fab" onclick="loadFriends()" style="position: relative; margin-top: 15px;">
-            <i class="fas fa-redo"></i>
-          </button>
         </div>
       `;
     }
@@ -666,19 +922,6 @@
         loadFriends();
       }
     }, 30000);
-
-    // Prevent zooming and other unwanted behaviors
-    document.addEventListener('gesturestart', function(e) {
-      e.preventDefault();
-    });
-    
-    document.addEventListener('gesturechange', function(e) {
-      e.preventDefault();
-    });
-    
-    document.addEventListener('gestureend', function(e) {
-      e.preventDefault();
-    });
   </script>
 </body>
 </html>
