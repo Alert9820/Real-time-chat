@@ -328,7 +328,7 @@ app.post('/check-phishing', express.json(), async (req, res) => {
 
     // ✅ 1. Pehle Hugging Face API try karo
     try {
-      const response = await fetch("https://phishing-t66c.onrender.com/check", {
+      const response = await fetch("https://phishing-2dld.onrender.com", {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text }),
