@@ -612,7 +612,6 @@ app.post("/rename-group", async (req, res) => {
 });
 
 // ✅ NEW SETTINGS ROUTES - YAHAN ADD KARO
-// ✅ NEW SETTINGS ROUTES - YAHAN ADD KARO
 app.get("/get-settings", async (req, res) => {
   try {
     const userId = req.query.userId;
@@ -651,6 +650,7 @@ app.post("/logout", async (req, res) => {
     res.status(500).json({ error: "Error during logout" });
   }
 });
+
 // 🧠 Socket.IO Logic
 const users = {};       // socketId -> { uid, name, socketId }
 const activeCalls = {}; // uid -> call state
@@ -670,46 +670,12 @@ io.on("connection", (socket) => {
     }
   });
 
+  // ✅ REAL-TIME MESSAGING - SIMPLIFIED
   socket.on("private-message", async (data) => {
     try {
-      // ✅ Phishing check
-      const phishingResponse = await fetch('/check-phishing', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: data.text })
-      });
+      console.log("📩 Private message received:", data);
       
-      const phishingResult = await phishingResponse.json();
-      
-      if (phishingResult.isPhishing) {
-        io.to(data.room).emit("private-message", {
-          room: data.room,
-          sender: "System",
-          text: `🚫 Phishing link detected from ${data.sender}`
-        });
-        return;
-      }
-
-      // ✅ Toxicity check
-      const toxicityResponse = await fetch('/check-toxicity', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: data.text })
-      });
-      
-      const toxicityResult = await toxicityResponse.json();
-      
-      if (toxicityResult.isToxic) {
-        io.to(data.room).emit("private-message", {
-          room: data.room,
-          sender: "System", 
-          text: `🚫 Message from ${data.sender} was blocked for toxic behavior`
-        });
-        return;
-      }
-
-      // ✅ Safe message forward
-      socket.to(data.room).emit("private-message", data);
+      // ✅ Save to database
       await privateMsgCollection.insertOne({
         room: data.room,
         sender: data.sender,
@@ -717,237 +683,21 @@ io.on("connection", (socket) => {
         timestamp: new Date()
       });
 
+      // ✅ Broadcast to room
+      socket.to(data.room).emit("private-message", data);
+      
     } catch (error) {
-      console.error("❌ Message error:", error);
+      console.error("❌ Private message error:", error);
     }
   });
 
-  // ✅ Group message with safety checks
+  // ✅ GROUP MESSAGING - SIMPLIFIED
   socket.on("group-message", async (data) => {
     try {
-      console.log('🔍 Checking group message:', data.text);
+      console.log("📢 Group message received:", data);
       
-      // ✅ Phishing check
-      const phishingResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/check-phishing`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ text: data.text })
-      });
-      
-      const phishingResult = await phishingResponse.json();
-      
-      if (phishingResult.isPhishing) {
-        io.to(`group-${data.groupId}`).emit("group-message", {
-          groupId: data.groupId,
-          sender: "System",
-          senderName: "System",
-          text: `🚫 Phishing link detected from ${data.senderName}. Message blocked.`,
-          timestamp: new Date()
-        });
-        return;
-      }
-
-      // ✅ Toxicity check
-      const toxicityResponse = await fetch(`http://localhost:${process.env.PORT || 3000}/check-toxicity`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: data.text })
-      });
-      
-      const toxicityResult = await toxicityResponse.json();
-      
-      if (toxicityResult.isToxic) {
-        io.to(`group-${data.groupId}`).emit("group-message", {
-          groupId: data.groupId,
-          sender: "System",
-          senderName: "System", 
-          text: `🚫 Message from ${data.senderName} was blocked for toxic behavior`,
-          timestamp: new Date()
-        });
-        return;
-      }
-
-      // ✅ If message is safe, broadcast to group
-      socket.to(`group-${data.groupId}`).emit("group-message", data);
-      
-      // ✅ Save to database
-      await groupMessageCollection.insertOne({
-        groupId: data.groupId,
-        sender: data.sender,
-        senderName: data.senderName,
-        text: data.text,
-        timestamp: new Date()
-      });
-
-    } catch (error) {
-      console.error("❌ Group message validation error:", error);
-      // Fallback: allow message if check fails
-      socket.to(`group-${data.groupId}`).emit("group-message", data);
-      await groupMessageCollection.insertOne({
-        groupId: data.groupId,
-        sender: data.sender,
-        senderName: data.senderName,
-        text: data.text,
-        timestamp: new Date()
-      });
-    }
-  });
-  
-  // 📞 Handle call request
-  // 📞 Handle call request
-socket.on("call-request", (data) => {
-  if (!data.to || !data.callerId) return;
-
-  console.log("📞 Call request:", data.callerId, "->", data.to);
-
-  const recipient = Object.values(users).find(u => u.uid === data.to);
-
-  if (recipient) {
-    activeCalls[data.callerId] = { with: data.to, status: "calling", socketId: socket.id };
-    activeCalls[data.to] = { with: data.callerId, status: "ringing", socketId: recipient.socketId };
-
-    io.to(recipient.socketId).emit("incoming-call", {
-      callerId: data.callerId,
-      callerName: data.callerName || "Unknown"
-    });
-  } else {
-    socket.emit("call-error", { message: "User is offline or unavailable" });
-  }
-});
-
-// 📞 Handle call acceptance
-socket.on("call-accepted", (data) => {
-  if (!data.to || !data.callerId) return;
-
-  console.log("✅ Call accepted by:", data.callerId);
-
-  const callerCall = activeCalls[data.callerId];
-  if (callerCall && callerCall.socketId) {
-    activeCalls[data.callerId].status = "connected";
-    activeCalls[data.to].status = "connected";
-
-    io.to(callerCall.socketId).emit("call-accepted", {
-      callerId: data.callerId
-    });
-  }
-});
-
-// 📞 Handle call rejection
-socket.on("call-rejected", (data) => {
-  if (!data.to || !data.callerId) return;
-
-  console.log("❌ Call rejected by:", data.callerId);
-
-  const callerCall = activeCalls[data.callerId];
-  if (callerCall && callerCall.socketId) {
-    delete activeCalls[data.callerId];
-    delete activeCalls[data.to];
-
-    io.to(callerCall.socketId).emit("call-rejected", {
-      callerId: data.callerId
-    });
-  }
-});
-
-// 📞 Handle call end
-socket.on("call-ended", (data) => {
-  if (!data.to || !data.callerId) return;
-
-  console.log("📞 Call ended:", data.callerId);
-
-  const callInfo = activeCalls[data.callerId] || activeCalls[data.to];
-
-  if (callInfo && callInfo.socketId) {
-    delete activeCalls[data.callerId];
-    delete activeCalls[data.to];
-
-    io.to(callInfo.socketId).emit("call-ended", {
-      callerId: data.callerId
-    });
-  }
-});
-
-// 📞 WebRTC signaling - YEH PART THODA CHANGE KARNA HAI
-socket.on("webrtc-offer", (data) => {
-  if (!data.to || !data.offer) return;
-
-  const recipient = Object.values(users).find(u => u.uid === data.to);
-  if (recipient) {
-    // YEH LINE CHANGE KI HAI - 'from' field add kiya
-    io.to(recipient.socketId).emit("webrtc-offer", {
-      offer: data.offer,
-      from: users[socket.id]?.uid || data.from  // YEH IMPORTANT HAI
-    });
-  }
-});
-
-socket.on("webrtc-answer", (data) => {
-  if (!data.to || !data.answer) return;
-
-  const recipient = Object.values(users).find(u => u.uid === data.to);
-  if (recipient) {
-    io.to(recipient.socketId).emit("webrtc-answer", {
-      answer: data.answer,
-      from: users[socket.id]?.uid || data.from
-    });
-  }
-});
-
-socket.on("webrtc-ice-candidate", (data) => {
-  if (!data.to || !data.candidate) return;
-
-  const recipient = Object.values(users).find(u => u.uid === data.to);
-  if (recipient) {
-    io.to(recipient.socketId).emit("webrtc-ice-candidate", {
-      candidate: data.candidate,
-      from: users[socket.id]?.uid || data.from
-    });
-  }
-});
-
-// User registration for calling (agar nahi hai toh ye add karo)
-/*socket.on("register-call-user", (data) => {
-  if (data.uid && data.name) {
-    users[socket.id] = {
-      uid: data.uid,
-      name: data.name,
-      socketId: socket.id
-    };
-    console.log(`User registered for calling: ${data.name} (${data.uid})`);
-  }
-});*/
-      
-
-  
-
-  // 🧹 Handle disconnect
-  socket.on("disconnect", () => {
-    console.log("❌ Disconnected:", socket.id);
-
-    const user = users[socket.id];
-    if (user) {
-      delete activeCalls[user.uid];
-      delete users[socket.id];
-    }
-  });
-
-  // 🆕 GROUP CHAT SOCKET EVENTS
-  socket.on("join-group", (groupId) => {
-    socket.join(`group-${groupId}`);
-    console.log(`User joined group: ${groupId}`);
-  });
-
-  socket.on("leave-group", (groupId) => {
-    socket.leave(`group-${groupId}`);
-    console.log(`User left group: ${groupId}`);
-  });
-
-  socket.on("group-message", async (data) => {
-    try {
       const { groupId, sender, text, senderName } = data;
       
-      if (!groupId || !text) return;
-
       const messageData = {
         groupId,
         sender,
@@ -956,82 +706,156 @@ socket.on("webrtc-ice-candidate", (data) => {
         timestamp: new Date()
       };
 
+      // ✅ Save to database
       await groupMessageCollection.insertOne(messageData);
       
+      // ✅ Broadcast to group
       io.to(`group-${groupId}`).emit("group-message", messageData);
       
-      // ✅ BOT AUTO-RESPONSE
-      if (text.toLowerCase().includes("bot")) {
-        const prompt = text.replace(/bot/gi, "").trim();
-        if (prompt) {
-          const reply = await generateBotReply(prompt);
-          
-          io.to(`group-${groupId}`).emit("group-message", {
-            groupId,
-            sender: "BotX",
-            senderName: "BotX",
-            text: reply,
-            timestamp: new Date()
-          });
-          
-          const user = await userCollection.findOne({ uid: sender });
-          if (user) {
-            await historyCollection.insertOne({
-              name: user.name,
-              prompt,
-              reply,
-              timestamp: new Date()
-            });
-          }
-        }
-      }
-    } catch (e) {
-      console.error("❌ Group Message Error:", e);
+    } catch (error) {
+      console.error("❌ Group message error:", error);
     }
   });
 
-  // ✅ CLEAR CHAT EVENT
-  socket.on("clear-chat", (data) => {
-    const { groupId, clearedBy } = data;
-    io.to(`group-${groupId}`).emit("chat-cleared", {
-      groupId,
-      clearedBy
-    });
-  });
+  // 📞 Handle call request
+  socket.on("call-request", (data) => {
+    if (!data.to || !data.callerId) return;
 
-  // ✅ BOT MESSAGE EVENT
-  socket.on("bot-message", async (data) => {
-    try {
-      const { groupId, prompt, userId } = data;
-      
-      const reply = await generateBotReply(prompt);
-      
-      io.to(`group-${groupId}`).emit("bot-reply", {
-        groupId,
-        text: reply
+    console.log("📞 Call request:", data.callerId, "->", data.to);
+
+    const recipient = Object.values(users).find(u => u.uid === data.to);
+
+    if (recipient) {
+      activeCalls[data.callerId] = { with: data.to, status: "calling", socketId: socket.id };
+      activeCalls[data.to] = { with: data.callerId, status: "ringing", socketId: recipient.socketId };
+
+      io.to(recipient.socketId).emit("incoming-call", {
+        callerId: data.callerId,
+        callerName: data.callerName || "Unknown"
       });
-      
-      const user = await userCollection.findOne({ uid: userId });
-      if (user) {
-        await historyCollection.insertOne({
-          name: user.name,
-          prompt,
-          reply,
-          timestamp: new Date()
-        });
-      }
-    } catch (e) {
-      console.error("❌ Bot message error:", e);
+    } else {
+      socket.emit("call-error", { message: "User is offline or unavailable" });
     }
   });
 
-  // ✅ GROUP RENAME EVENT
-  socket.on("group-rename", (data) => {
-    const { groupId, newName } = data;
-    io.to(`group-${groupId}`).emit("group-renamed", {
-      groupId,
-      newName
-    });
+  // 📞 Handle call acceptance
+  socket.on("call-accepted", (data) => {
+    if (!data.to || !data.callerId) return;
+
+    console.log("✅ Call accepted by:", data.callerId);
+
+    const callerCall = activeCalls[data.callerId];
+    if (callerCall && callerCall.socketId) {
+      activeCalls[data.callerId].status = "connected";
+      activeCalls[data.to].status = "connected";
+
+      io.to(callerCall.socketId).emit("call-accepted", {
+        callerId: data.callerId
+      });
+    }
+  });
+
+  // 📞 Handle call rejection
+  socket.on("call-rejected", (data) => {
+    if (!data.to || !data.callerId) return;
+
+    console.log("❌ Call rejected by:", data.callerId);
+
+    const callerCall = activeCalls[data.callerId];
+    if (callerCall && callerCall.socketId) {
+      delete activeCalls[data.callerId];
+      delete activeCalls[data.to];
+
+      io.to(callerCall.socketId).emit("call-rejected", {
+        callerId: data.callerId
+      });
+    }
+  });
+
+  // 📞 Handle call end
+  socket.on("call-ended", (data) => {
+    if (!data.to || !data.callerId) return;
+
+    console.log("📞 Call ended:", data.callerId);
+
+    const callInfo = activeCalls[data.callerId] || activeCalls[data.to];
+
+    if (callInfo && callInfo.socketId) {
+      delete activeCalls[data.callerId];
+      delete activeCalls[data.to];
+
+      io.to(callInfo.socketId).emit("call-ended", {
+        callerId: data.callerId
+      });
+    }
+  });
+
+  // 📞 WebRTC signaling - ✅ FIXED
+  socket.on("webrtc-offer", (data) => {
+    if (!data.to || !data.offer) return;
+
+    const recipient = Object.values(users).find(u => u.uid === data.to);
+    if (recipient) {
+      // ✅ YEH LINE IMPORTANT HAI - 'from' field add karo
+      io.to(recipient.socketId).emit("webrtc-offer", {
+        offer: data.offer,
+        from: users[socket.id]?.uid  // YEH ADD KARO
+      });
+    }
+  });
+
+  socket.on("webrtc-answer", (data) => {
+    if (!data.to || !data.answer) return;
+
+    const recipient = Object.values(users).find(u => u.uid === data.to);
+    if (recipient) {
+      io.to(recipient.socketId).emit("webrtc-answer", {
+        answer: data.answer,
+        from: users[socket.id]?.uid
+      });
+    }
+  });
+
+  socket.on("webrtc-ice-candidate", (data) => {
+    if (!data.to || !data.candidate) return;
+
+    const recipient = Object.values(users).find(u => u.uid === data.to);
+    if (recipient) {
+      io.to(recipient.socketId).emit("webrtc-ice-candidate", {
+        candidate: data.candidate,
+        from: users[socket.id]?.uid
+      });
+    }
+  });
+
+  // User registration for calling
+  socket.on("register-user", (data) => {
+    if (data.uid && data.name) {
+      users[socket.id] = {
+        uid: data.uid,
+        name: data.name,
+        socketId: socket.id
+      };
+      console.log(`💬 Chat User registered: ${data.name} (${data.uid})`);
+    }
+  });
+
+  // 🆕 GROUP CHAT SOCKET EVENTS
+  socket.on("join-group", (groupId) => {
+    socket.join(`group-${groupId}`);
+    console.log(`👥 User joined group: ${groupId}`);
+  });
+
+  socket.on("leave-group", (groupId) => {
+    socket.leave(`group-${groupId}`);
+    console.log(`👥 User left group: ${groupId}`);
+  });
+
+  // ✅ TYPING INDICATORS
+  socket.on("typing", (payload) => {
+    if (payload && typeof payload === "object" && payload.room) {
+      socket.to(payload.room).emit("typing", payload.name || "Someone");
+    }
   });
 
   socket.on("group-typing", (data) => {
@@ -1039,87 +863,36 @@ socket.on("webrtc-ice-candidate", (data) => {
     socket.to(`group-${groupId}`).emit("group-typing", userName);
   });
 
-  socket.on("typing", (payload) => {
-    if (payload && typeof payload === "object" && payload.room) socket.to(payload.room).emit("typing", payload.name || "Someone");
-    else socket.broadcast.emit("typing", payload || "Someone");
-  });
-
+  // ✅ JOIN ROOM FOR PRIVATE CHAT
   socket.on("join-room", (room) => {
     if (!room) return;
     socket.join(room);
-    const user = users[socket.id] || { name: "Unknown", uid: null };
-    socket.to(room).emit("room-joined", user.name);
+    console.log(`🚪 User joined room: ${room}`);
   });
 
-  // 🌍 Global Chat
-  socket.on("message", async (text) => {
-    if (!text || typeof text !== "string") return;
-    const user = users[socket.id] || { name: "Unknown", uid: null };
-    const sender = user.name;
-    io.emit("message", { sender, text });
-
-    if (text === ">>bot") { botActive = true; io.emit("message", { sender: "System", text: "Bot is now active." }); return; }
-    if (text === "<<bot") { botActive = false; io.emit("message", { sender: "System", text: "Bot is now inactive." }); return; }
-
-    if (botActive && text.toLowerCase().includes("bot")) {
-      const clean = text.replace(/bot/gi, "").trim();
-      const reply = await generateBotReply(clean || "Hello");
-      io.emit("message", { sender: "BotX", text: reply });
-      await historyCollection.insertOne({ name: sender, prompt: clean, reply });
-    }
-  });
-
-  // 🔒 Private Chat
-  socket.on("private-message", async (payload) => {
-    if (!payload || payload.__signal) return;
-
-    const { room, sender, text } = payload;
-    if (!room || !sender || !text) return;
-
-    io.to(room).emit("private-message", { sender, text });
-
-    try {
-      await privateMsgCollection.insertOne({ room, sender, text, timestamp: new Date() });
-    } catch (e) {
-      console.error("❌ Save private message error:", e);
-    }
-
-    if (botActive && text.toLowerCase().includes("bot")) {
-      const prompt = text.replace(/bot/gi, "").trim();
-      const reply = await generateBotReply(prompt);
-      io.to(room).emit("bot-reply", { sender: "BotX", text: reply });
-      try { await historyCollection.insertOne({ name: sender, prompt, reply }); } catch {}
-    }
-  });
-
-  // ✅ NEW SOCKET EVENTS FOR SETTINGS
-  socket.on("logout", (data) => {
-    socket.emit("logout-success");
-  });
-  
-  socket.on("delete-account", (data) => {
-    socket.emit("account-deleted");
-  });
-
+  // 🧹 Handle disconnect
   socket.on("disconnect", () => {
-    console.log("❌ Disconnected:", socket.id, users[socket.id] ? `(${users[socket.id].name}/${users[socket.id].uid})` : "");
-    
-    if (users[socket.id] && users[socket.id].uid) {
-      const uid = users[socket.id].uid;
-      if (activeCalls[uid]) {
-        const otherParty = activeCalls[uid].recipient || activeCalls[uid].caller;
-        if (otherParty && activeCalls[otherParty]) {
-          const otherSocketId = activeCalls[otherParty].socketId;
+    console.log("❌ User disconnected:", socket.id);
+
+    const user = users[socket.id];
+    if (user) {
+      // Clean up active calls
+      if (activeCalls[user.uid]) {
+        const otherUserUid = activeCalls[user.uid].with;
+        if (otherUserUid && activeCalls[otherUserUid]) {
+          const otherSocketId = activeCalls[otherUserUid].socketId;
           if (otherSocketId) {
-            io.to(otherSocketId).emit("call-ended", { callerId: uid });
+            io.to(otherSocketId).emit("call-ended", { 
+              callerId: user.uid 
+            });
           }
+          delete activeCalls[otherUserUid];
         }
-        delete activeCalls[uid];
-        if (otherParty) delete activeCalls[otherParty];
+        delete activeCalls[user.uid];
       }
+      
+      delete users[socket.id];
     }
-    
-    delete users[socket.id];
   });
 });
 
