@@ -872,7 +872,7 @@
         let currentCall = null;
 
         // Initialize the call page
-       /* function initCallPage() {
+       function initCallPage() {
             currentUser = JSON.parse(localStorage.getItem("user"));
             if (!currentUser || !currentUser.uid) {
                 alert("Please login first");
@@ -883,7 +883,7 @@
             socket = io();
             setupSocketEvents();
             loadFriends();
-        }*/
+        }
 
         // Setup socket events
         function setupSocketEvents() {
@@ -1256,7 +1256,7 @@
             
             switch (page) {
                 case 'chat':
-                    window.location.href = '/home.html';
+                    window.location.href = '/main.html';
                     break;
                 case 'group':
                     window.location.href = '/group.html';
@@ -1275,3 +1275,4 @@
     </script>
 </body>
 </html>
+
