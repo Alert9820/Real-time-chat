@@ -52,7 +52,7 @@ function validateOrigin(req) {
   const ALLOWED_ORIGINS = [
     'http://localhost:3000',
     'http://localhost:4000',
-    'https://real-time-chat-1-pa6c.onrender.com' // ← TUMHARA EXACT URL
+    'https://real-time-chat-86r5.onrender.com' // ← TUMHARA EXACT URL
   ];
   
   return ALLOWED_ORIGINS.includes(origin);
