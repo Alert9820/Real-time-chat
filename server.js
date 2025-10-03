@@ -906,7 +906,7 @@ socket.on("webrtc-ice-candidate", (data) => {
 });
 
 // User registration for calling (agar nahi hai toh ye add karo)
-socket.on("register-call-user", (data) => {
+/*socket.on("register-call-user", (data) => {
   if (data.uid && data.name) {
     users[socket.id] = {
       uid: data.uid,
@@ -915,7 +915,7 @@ socket.on("register-call-user", (data) => {
     };
     console.log(`User registered for calling: ${data.name} (${data.uid})`);
   }
-});
+});*/
       
 
   
