@@ -651,6 +651,11 @@ app.post("/logout", async (req, res) => {
     res.status(500).json({ error: "Error during logout" });
   }
 });
+
+// ✅ Server mein ye route add karo
+app.get("/get-gemini-key", (req, res) => {
+  res.json({ apiKey: process.env.GEMINI_API_KEY });
+});
 // 🧠 Socket.IO Logic
 const users = {};       // socketId -> { uid, name, socketId }
 const activeCalls = {}; // uid -> call state
