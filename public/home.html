@@ -539,12 +539,30 @@
   <script type="module">
     import { GoogleGenerativeAI } from "https://esm.run/@google/generative-ai";
 
-    const API_KEY = "AIzaSyDuUzjkFlytvHkBg-AlVdcRFAdMFQZ0gV0"; 
-    const ai = new GoogleGenerativeAI(API_KEY);
+    // ✅ API key server se fetch karenge
+    let API_KEY = "";
+    let ai = null;
 
     let memory = JSON.parse(localStorage.getItem("chatMemory") || "[]");
     const chatBox = document.getElementById("chat-box");
     const msgInput = document.getElementById("msgInput");
+
+    // ✅ Server se API key fetch karo
+    async function initializeAI() {
+        try {
+            const response = await fetch('/get-gemini-key');
+            if (response.ok) {
+                const data = await response.json();
+                API_KEY = data.apiKey;
+                ai = new GoogleGenerativeAI(API_KEY);
+                console.log("✅ AI initialized successfully");
+            } else {
+                console.error("❌ Failed to get API key");
+            }
+        } catch (error) {
+            console.error("❌ API key fetch error:", error);
+        }
+    }
 
     // Normal message
     function appendMessage(sender, content, cls) {
@@ -607,6 +625,16 @@
       const message = msgInput.value.trim();
       if (!message) return;
 
+      // ✅ Check if AI is initialized
+      if (!ai) {
+        appendMessage("BotX", "⚠️ AI service is initializing, please wait...", "bot");
+        await initializeAI();
+        if (!ai) {
+          appendMessage("BotX", "❌ Failed to initialize AI service", "bot");
+          return;
+        }
+      }
+
       appendMessage("You", message, "me");
       memory.push({ sender: "You", content: message, cls: "me", timestamp: new Date().toISOString() });
       saveMemory();
@@ -664,6 +692,9 @@
         }
       });
       chatBox.scrollTop = chatBox.scrollHeight;
+      
+      // ✅ Initialize AI on page load
+      initializeAI();
     })();
 
     window.sendMessage = sendMessage;
