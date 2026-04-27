@@ -1,4 +1,4 @@
-// ✅ UPDATED SERVER WITH VOICE CALLING + GROUP CHAT + SETTINGS FEATURE
+// ✅ UPDATED SERVER WITH VOICE CALLING + GROUP CHAT + SETTINGS FEATURES 
 import express from "express";
 import cors from "cors";
 import { Server } from "socket.io";
